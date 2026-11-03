@@ -16,6 +16,9 @@
     "./client": "./lib/client.js",
     "./github-watch": "./lib/github-watch.js",
     "./feishu-watch": "./lib/feishu-watch.js",
+    "./kaneo-watch": "./lib/kaneo-watch.js",
+    "./gitea-watch": "./lib/gitea-watch.js",
+    "./ntfy-watch": "./lib/ntfy-watch.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },

@@ -5,6 +5,12 @@ import { SETUP_FIELDS, resolveDeployment, resolveFeishuBot, workerProbe, type De
 import { agentVariables, applyEnvironment, verifyEnvironment, withoutDirectory, workerBin, writeEnvironment } from '../infra/environment.ts'
 import type { Settings, SettingsBlock } from '../policy.ts'
 import { SetupError, type SetupProblem } from '../setup.ts'
+import { KaneoClient, KaneoError } from '../sources/kaneo-api.ts'
+import { kaneoAccountOf, type KaneoAccount } from '../sources/kaneo-config.ts'
+import { GiteaClient, GiteaError } from '../sources/gitea-api.ts'
+import { giteaAccountOf, giteaHasAuth, repositoryOf, type GiteaAccount } from '../sources/gitea-config.ts'
+import { NtfyClient, NtfyError } from '../sources/ntfy-api.ts'
+import { ntfyAccountOf, type NtfyAccount } from '../sources/ntfy-config.ts'
 
 export interface SetupHost {
   readonly context: Context
@@ -16,6 +22,48 @@ export interface SetupHost {
 const setupFields = (settings: Settings) =>
   JSON.stringify(Object.entries(SETUP_FIELDS).map(([id, keys]) => keys.map(key => settings.sources[id]?.config[key] ?? '')))
 export const setupChanged = (before: Settings, after: Settings): boolean => setupFields(before) !== setupFields(after)
+
+/** Check that a saved Kaneo account can read its project board; the failure names the card that fixes it. */
+async function verifyKaneo(account: KaneoAccount): Promise<void> {
+  try {
+    const client = new KaneoClient(account)
+    await client.board(account.projectId)
+  } catch (error) {
+    const output = error instanceof Error ? error.message : String(error)
+    if (error instanceof KaneoError && (error.status === 401 || error.status === 403)) throw new SetupError('kaneoKeyRefused', { output })
+    if (error instanceof KaneoError && error.status === 404) throw new SetupError('kaneoProjectUnreadable', { projectId: account.projectId, output })
+    throw new SetupError('kaneoUnreachable', { output })
+  }
+}
+
+/** Check that a saved Gitea account can read the repository, and that a supplied password/token logs in. */
+async function verifyGitea(account: GiteaAccount): Promise<void> {
+  const repo = repositoryOf(account.repository)
+  if (!repo) throw new SetupError('giteaRepositoryUnreadable', { repository: account.repository || '(empty)', output: 'owner/name is required' })
+  try {
+    const client = new GiteaClient(account)
+    // Anonymous is fine for a readable public repository; an account password or token must actually log in.
+    if (giteaHasAuth(account)) await client.user()
+    await client.repository(repo.owner, repo.name)
+  } catch (error) {
+    const output = error instanceof Error ? error.message : String(error)
+    if (error instanceof GiteaError && (error.status === 401 || error.status === 403)) throw new SetupError('giteaKeyRefused', { output })
+    if (error instanceof GiteaError && error.status === 404) throw new SetupError('giteaRepositoryUnreadable', { repository: account.repository, output })
+    throw new SetupError('giteaUnreachable', { output })
+  }
+}
+
+/** Check that a saved ntfy topic is readable with the configured authentication. */
+async function verifyNtfy(account: NtfyAccount): Promise<void> {
+  try {
+    const client = new NtfyClient(account)
+    await client.history('1s', { limit: 1 })
+  } catch (error) {
+    const output = error instanceof Error ? error.message : String(error)
+    if (error instanceof NtfyError && (error.status === 401 || error.status === 403)) throw new SetupError('ntfyTopicUnreadable', { topic: account.topic, output })
+    throw new SetupError('ntfyUnreachable', { output })
+  }
+}
 
 /**
  * Resolves the target repository, GitHub account, and optional Feishu bot by probing CLIs, then writes and applies the isolated git and shim environment used by worker processes.
@@ -60,12 +108,38 @@ export class Setup {
   /** Verify account CLIs for a modified source block before saving, ignoring setup errors belonging to other blocks. */
   async checkAccounts(block: SettingsBlock, settings: Settings): Promise<void> {
     const { machine } = this.host
+    // The REST-backed sources have no CLI identity: their saved accounts are checked over their own APIs.
+    if (block === 'source:kaneo') {
+      const instance = settings.sources.kaneo
+      if (!instance || instance.enabled === false) return
+      const account = kaneoAccountOf(instance.config)
+      if (!account) throw new SetupError('kaneoKeyUnset')
+      await verifyKaneo(account)
+      return
+    }
+    if (block === 'source:gitea') {
+      const instance = settings.sources.gitea
+      if (!instance || instance.enabled === false) return
+      const account = giteaAccountOf(instance.config)
+      if (!account) throw new SetupError('giteaRepositoryUnreadable', { repository: '(empty)', output: 'owner/name is required' })
+      await verifyGitea(account)
+      return
+    }
+    if (block === 'source:ntfy') {
+      const instance = settings.sources.ntfy
+      if (!instance || instance.enabled === false) return
+      const account = ntfyAccountOf(instance.config)
+      if (!account) throw new SetupError('ntfyTopicUnreadable', { topic: '(empty)', output: 'a topic is required' })
+      await verifyNtfy(account)
+      return
+    }
     const check = block === 'source:feishu' ? resolveFeishuBot(machine, settings.sources.feishu?.config, this.probe())
       : resolveDeployment(machine, settings.sources.github?.config, this.probe())
     await check.catch((error: unknown) => { if (!(error instanceof SetupError) || error.place === block.slice(7)) throw error })
   }
   async blockCommands(blocked: readonly string[]): Promise<void> {
-    if (this.resolved) await writeEnvironment(this.resolved, blocked)
+    // Only a deployment with a GitHub account writes and rewrites the worker shims.
+    if (this.resolved?.github.cli) await writeEnvironment(this.resolved, blocked)
   }
   restore(): void { this.restoreEnvironment?.(); this.restoreEnvironment = undefined }
   /** Probes CLIs the way worker shells run them, using `stateDir` as `cwd` since it exists even before the repository clone is valid. */
@@ -76,7 +150,14 @@ export class Setup {
   private async resolve(settings: Settings): Promise<Deployment> {
     const { context, machine, lifetime } = this.host
     const probe = this.probe()
-    const deployment = await resolveDeployment(machine, settings.sources.github?.config, probe)
+    const kaneo = kaneoAccountOf(settings.sources.kaneo?.enabled === false ? undefined : settings.sources.kaneo?.config)
+    const gitea = giteaAccountOf(settings.sources.gitea?.enabled === false ? undefined : settings.sources.gitea?.config)
+    const ntfy = ntfyAccountOf(settings.sources.ntfy?.enabled === false ? undefined : settings.sources.ntfy?.config)
+    const deployment = await resolveDeployment(machine, settings.sources.github?.config, probe, undefined, kaneo, gitea, ntfy)
+    // Without an API key/token/topic no REST-backed Source is configured, so only the GitHub checks above can have succeeded.
+    if (kaneo) await verifyKaneo(kaneo)
+    if (gitea) await verifyGitea(gitea)
+    if (ntfy) await verifyNtfy(ntfy)
     const feishu = await resolveFeishuBot(machine, settings.sources.feishu?.config, probe).catch((error: unknown) => {
       if (!(error instanceof SetupError)) throw error
       this.feishuProblem = error.problem
@@ -88,12 +169,16 @@ export class Setup {
       if (error instanceof SetupError) throw error
       throw new SetupError('environmentFailed', { output: error instanceof Error ? error.message : String(error) })
     }
-    await writeEnvironment(resolved, settings.executor.blockedCommands).catch(machineProblem)
-    this.restoreEnvironment = applyEnvironment(this.variables, machine.stateDir, this.path)
-    await verifyEnvironment(resolved, context.subprocess, lifetime).catch((error: unknown) => {
-      this.restore()
-      machineProblem(error)
-    })
+    // The shims and isolated git configuration bind workers to the GitHub account; a Kaneo-only deployment leaves the
+    // operator's environment as it is instead of writing (and on Windows, failing to write) POSIX worker shims.
+    if (resolved.github.cli) {
+      await writeEnvironment(resolved, settings.executor.blockedCommands).catch(machineProblem)
+      this.restoreEnvironment = applyEnvironment(this.variables, machine.stateDir, this.path)
+      await verifyEnvironment(resolved, context.subprocess, lifetime).catch((error: unknown) => {
+        this.restore()
+        machineProblem(error)
+      })
+    }
     return resolved
   }
 }

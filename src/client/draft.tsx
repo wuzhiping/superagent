@@ -173,8 +173,9 @@ export function useDraft<V, M = undefined>({ key, saved, revision, save, reload 
 }
 
 /** Sticky save/discard bar for a settings block; transfers focus back to its parent block when hidden so keyboard navigation does not reset. */
-export function SaveBar({ state, dirty, busy, words, status, onDiscard, onSave }: {
+export function SaveBar({ state, dirty, busy, words, status, saveDisabled = false, onDiscard, onSave }: {
   state: DraftState<unknown, unknown>; dirty: boolean; busy: boolean; words?: DraftWords; status?: string | undefined
+  saveDisabled?: boolean
   onDiscard: () => void; onSave?: () => void
 }) {
   const { t } = usePanel()
@@ -196,7 +197,7 @@ export function SaveBar({ state, dirty, busy, words, status, onDiscard, onSave }
     {line.error ? <p className="dt-error dt-clamp" role="alert">{line.error}</p>
       : <p className="dt-hint" aria-live="polite">{status ?? line.status}</p>}
     <Button variant="ghost" size="sm" disabled={!dirty || busy} onClick={onDiscard}>{t('discard')}</Button>
-    <Button variant="primary" size="sm" disabled={!dirty || busy} {...onSave ? { onClick: onSave } : { type: 'submit' as const }}>
+    <Button variant="primary" size="sm" disabled={!dirty || busy || saveDisabled} {...onSave ? { onClick: onSave } : { type: 'submit' as const }}>
       {t('save')}
     </Button>
   </div>

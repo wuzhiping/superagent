@@ -87,6 +87,7 @@ type Settings = ReturnType<typeof SettingsSchema.parse>
 export interface PanelServer {
   joined?: Record<string, string>; joining?: Record<string, string>
   joinError?: string
+  testFailure?: string
   settings: Settings; revisions: Record<string, number>
   prompts: PromptsView
   tickets: { open: TicketRow[]; ended: TicketRow[] }; ticketDetails: Record<string, TicketPageView>
@@ -135,6 +136,7 @@ function sourceSettings(): SourceView[] {
     const policy = kind.policy && { fields: kind.policy.fields, explicit: kind.policy.explicit, ...kind.policy.rows
       ? { rows: kind.policy.rows(config) } : {}, ...sync ? { sync } : {} }
     return { id: kind.kind, kind: kind.kind, title: kind.title, description: kind.description, installed: true,
+      testable: !!kind.test,
       value: { enabled: server.settings.sources[kind.kind]?.enabled ?? true, config },
         revision: server.revisions[`source:${kind.kind}`] ?? 0,
       restarts: SETUP_FIELDS[kind.kind] ?? [], fields: kind.fields, facts: kind.facts?.(resolved()) ?? {},
@@ -305,6 +307,14 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     if (server.joinError) return refuse(500, server.joinError)
     const added = Object.values(server.joining ?? {}); server.joined = { ...server.joined, ...server.joining }; server.joining = undefined
     return { added }
+  } },
+  'POST sources/:id/test': { body: true, answer: ({ params, body }) => {
+    // Tests run against the current form values; the fake runtime only knows the kinds it registered.
+    const kind = KINDS.find(item => item.kind === params.id)
+    if (!kind?.test) return refuse(404, 'This Source cannot be tested')
+    if (server.testFailure) return { ok: false, error: server.testFailure }
+    void kind.test(kind.schema.parse(body.config))
+    return { ok: true }
   } },
   'GET threads': { query: ['filter', 'offset', 'limit'], answer: () => page(server.threads) },
   'GET threads/:key': { query: ['limit', 'before', 'around'], answer: ({ params, query }) => {

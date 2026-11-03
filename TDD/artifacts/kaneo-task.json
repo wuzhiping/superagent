@@ -1,0 +1,18 @@
+﻿{
+  "id": "fhsw6n9ggq5r3t5al1ccxwjl",
+  "title": "[smoke] dsh-superagent Kaneo 来源端到端测试 2026-11-03",
+  "number": 470,
+  "description": "## 目的\n验证 dsh-superagent 能把 Kaneo 任务提取为工单。本卡由自动化测试创建，验证后删除。\n\n## 要做的事（只做这一件事）\n1. 在你自己的执行目录里新建文件 `smoke.txt`，内容写一行 `kaneo-e2e-ok`。\n2. 用一句话报告结果，结束。\n\n不要修改本卡以外的任何文件，不要访问网络。\n\n## 验收\n- `smoke.txt` 存在且内容为 `kaneo-e2e-ok`",
+  "status": "in-progress",
+  "columnId": "rzsccdbqz1cm7wyrtjmfdypu",
+  "priority": "low",
+  "startDate": null,
+  "dueDate": null,
+  "position": 109,
+  "createdAt": "2026-11-03T05:54:34.883Z",
+  "userId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+  "assigneeName": "吴志平",
+  "assigneeId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+  "projectId": "dgctny8ibgpn72ei2j8qj2hc",
+  "workspaceId": "lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o"
+}

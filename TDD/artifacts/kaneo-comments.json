@@ -1,0 +1,26 @@
+﻿[
+  {
+    "id": "ol709layfn57g4v8vylrg7k0",
+    "taskId": "fhsw6n9ggq5r3t5al1ccxwjl",
+    "userId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+    "content": "收到：在工单执行目录里新建 `smoke.txt`，内容为 `kaneo-e2e-ok`，完成后用一句话报告结果。\n\n<!-- dsh-superagent:1adc824d4b78e27417e196928efc2da6 -->",
+    "createdAt": "2026-11-03T05:54:51.252Z",
+    "updatedAt": "2026-11-03T05:54:51.252Z",
+    "user": {
+      "name": "吴志平",
+      "image": "/api/user/avatar/twljd3jefgg077pjmygrf659"
+    }
+  },
+  {
+    "id": "xepoagb37k5ejj3sn27c38sj",
+    "taskId": "fhsw6n9ggq5r3t5al1ccxwjl",
+    "userId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+    "content": "已完成：`smoke.txt` 已在工单执行目录创建，内容为 `kaneo-e2e-ok`，验收通过。\n\n<!-- dsh-superagent:b10392b37ae23181d2ff69e70a09e472 -->",
+    "createdAt": "2026-11-03T05:55:09.741Z",
+    "updatedAt": "2026-11-03T05:55:09.741Z",
+    "user": {
+      "name": "吴志平",
+      "image": "/api/user/avatar/twljd3jefgg077pjmygrf659"
+    }
+  }
+]

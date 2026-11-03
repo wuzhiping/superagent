@@ -264,6 +264,11 @@ export function SourceField({ field, value, saved, fact, onChange, labels, refre
         : <Input value={String(value ?? '')} readOnly={field.readonly} pattern={field.pattern} spellCheck={false}
           onChange={event => onChange(event.target.value)} />}
     </Field>
+    // Secrets never carry the stored value into the browser: the field is empty and empty on save keeps the old value.
+    case 'password': return <Field label={label} hint={hint} note={localized(t, fact)}>
+      <Input type="password" autoComplete="new-password" spellCheck={false} value={String(value ?? '')}
+        placeholder={t('secretKeep')} onChange={event => onChange(event.target.value)} />
+    </Field>
     case 'fact': return <div className="dt-field">
       <span className="dt-field-head">{label}{hint && <InfoTip text={hint} />}</span>
       <span className="dt-mono">{localized(t, fact) || t('empty')}</span>

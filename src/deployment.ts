@@ -7,10 +7,14 @@ import s from '@deepseek-ai/schemastery'
 import { z } from 'zod'
 import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { runAsWorker, sameDirectory, withoutDirectory, workerBin } from './infra/environment.ts'
+import type { KaneoAccount } from './sources/kaneo-config.ts'
+import type { GiteaAccount } from './sources/gitea-config.ts'
+import type { NtfyAccount } from './sources/ntfy-config.ts'
 import { SetupError } from './setup.ts'
 
 const reason = (error: unknown): string => error instanceof Error ? error.message : String(error)
-const absolute = (description: string) => s.string().pattern(/^\//).description(`${description} Absolute path.`)
+/** An absolute path on POSIX (`/...`) or Windows (`C:/...` or `C:\...`). */
+const absolute = (description: string) => s.string().pattern(/^(\/|[A-Za-z]:[\\/])/).description(`${description} Absolute path.`)
 /** Plugin configuration of the dsh-superagent entry. Volatile fields apply without a restart because dsh-superagent reads them on each use; changing `stateDir` remounts the plugin. */
 export const Config = s.object({
   stateDir: absolute('Directory for the database, locks, worker shims, the agent\'s git configuration and, by default, the ticket directories.').required(),
@@ -47,13 +51,26 @@ export const GithubAccountsSchema = z.object({
   cli: z.string().trim().default(''),
 })
 export const FeishuBotSchema = z.object({ cli: z.string().trim().default('') })
-/** Source configuration keys that affect deployment setup and trigger a restart when changed. */
-export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape), feishu: Object.keys(FeishuBotSchema.shape) }
+/**
+ * Source configuration keys that affect deployment setup and trigger a restart when changed. Kaneo, Gitea and ntfy have
+ * no CLI account, so their account fields are checked over their own REST APIs while GitHub and Feishu go through CLIs.
+ */
+export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape),
+  feishu: Object.keys(FeishuBotSchema.shape), kaneo: ['baseUrl', 'apiKey', 'projectId'],
+  gitea: ['baseUrl', 'user', 'password', 'token', 'repository'], ntfy: ['baseUrl', 'topic', 'authMode', 'authUser', 'authPassword', 'authToken', 'sender'] }
 
 export interface Deployment extends Machine {
+  /** The GitHub repository, or empty when this deployment works from Kaneo, Gitea or ntfy only. */
   repository: string
+  /** The agent GitHub account; its fields are empty when this deployment has no GitHub Source. */
   github: { cli: string; login: string; noreply: string }
   feishu?: FeishuBot
+  /** The Kaneo board this deployment works from, when the Kaneo Source is configured. */
+  kaneo?: KaneoAccount
+  /** The Gitea repository this deployment works from, when the Gitea Source is configured. */
+  gitea?: GiteaAccount
+  /** The ntfy topic this deployment reads and writes, when the ntfy Source is configured. */
+  ntfy?: NtfyAccount
 }
 export interface FeishuBot { cli: string; appId: string; brand: 'feishu' | 'lark'; botId: string; name: string }
 
@@ -83,11 +100,22 @@ function parsed<T>(schema: z.ZodType<T>, text: string): T | undefined {
   const result = schema.safeParse(value)
   return result.success ? result.data : undefined
 }
-/** Verify the agent's GitHub CLI identity and push access to the configured repository. */
-export async function resolveDeployment(machine: Machine, github: unknown, probe: Probe, path = process.env.PATH ?? ''): Promise<Deployment> {
+/**
+ * Verify the agent's GitHub CLI identity and push access to the configured repository, or resolve a GitHub-less
+ * deployment when the GitHub card is empty and a Kaneo, Gitea or ntfy account is configured. Existing checks keep their
+ * errors when only one of the two GitHub fields is set.
+ */
+export async function resolveDeployment(machine: Machine, github: unknown, probe: Probe, path = process.env.PATH ?? '',
+  kaneo?: KaneoAccount | undefined, gitea?: GiteaAccount | undefined, ntfy?: NtfyAccount | undefined): Promise<Deployment> {
   const { stateDir } = machine
   const accounts = GithubAccountsSchema.parse(github ?? {})
   const remote = accounts.repository
+  // A deployment that works from Kaneo/Gitea/ntfy has no GitHub account; the empty fields make GitHub Sources refuse their work.
+  if (!remote && !accounts.cli) {
+    if (!kaneo?.apiKey && !gitea?.repository && !ntfy?.topic) throw new SetupError('sourceUnset')
+    return { ...machine, repository: '', github: { cli: '', login: '', noreply: '' },
+      ...kaneo ? { kaneo } : {}, ...gitea?.repository ? { gitea } : {}, ...ntfy?.topic ? { ntfy } : {} }
+  }
   if (!remote) throw new SetupError('repositoryUnset')
   if (!accounts.cli) throw new SetupError('agentCliUnset')
   let cli: string
@@ -102,7 +130,8 @@ export async function resolveDeployment(machine: Machine, github: unknown, probe
   if (!access) throw new SetupError('repositoryUnreported', { repository: remote })
   const repository = access.name
   if (access.push !== true) throw new SetupError('repositoryReadOnly', { account: agent.login, repository })
-  return { ...machine, repository, github: { cli, login: agent.login, noreply: `${agent.id}+${agent.login}@users.noreply.github.com` } }
+  return { ...machine, repository, github: { cli, login: agent.login, noreply: `${agent.id}+${agent.login}@users.noreply.github.com` },
+    ...kaneo ? { kaneo } : {}, ...gitea?.repository ? { gitea } : {}, ...ntfy?.topic ? { ntfy } : {} }
 }
 
 const AuthStatus = z.object({ appId: z.string().regex(/^cli_[A-Za-z0-9]+$/), brand: z.enum(['feishu', 'lark']).default('feishu'), identities: z.object({ bot: z.object({ status: z.string() }) }) })

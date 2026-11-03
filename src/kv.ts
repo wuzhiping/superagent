@@ -55,4 +55,16 @@ export const KV = {
   feishu: { chats: record<Record<string, boolean>>('feishu-chats'), history: family<string, [chat: string]>('feishu-history:'),
     topics: family<Record<string, string>, [chat: string]>('feishu-history-threads:'),
     seen: family<string[], [thread: string]>('thread-seen:'), initialized: family<boolean, [thread: string]>('thread-initialized:') },
+  /**
+   * Kaneo Source: tasks already recorded (so one task becomes one request, even across restarts), whether the first poll
+   * has run (its bootstrap records the tasks already in the watched columns instead of requesting them), and the time of
+   * the last successful read of each watched column.
+   */
+  kaneo: { seen: family<{ status: string; at: string }, [task: string]>('kaneo-seen:'), bootstrap: record<boolean>('kaneo-bootstrap'),
+    cursor: family<string, [column: string]>('kaneo-cursor:') },
+  /** Gitea Source: read cursors for notifications, repository-wide streams and each followed thread. */
+  gitea: { notifications: record<string>('gitea-notifications-since'), repo: record<string>('gitea-repo-since'),
+    thread: family<string, [thread: string]>('gitea-thread-since:') },
+  /** ntfy Source: the read position in Unix seconds and the topic it belongs to (P2 read-only). */
+  ntfy: { since: record<number>('ntfy-since'), topic: record<string>('ntfy-topic') },
 }

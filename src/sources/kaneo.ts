@@ -1,0 +1,198 @@
+/**
+ * Kaneo Source kind: a Kaneo project board whose watched column is the stream of requests. A task in a watched column is
+ * one explicit request and one Thread (`kaneo:<taskId>`); replies go back as task comments, and the task may move to a
+ * claim column once its request is recorded. The plugin entry polls each watched column on an interval.
+ */
+import type { Context } from '@deepseek-ai/cordis'
+import { z } from 'zod'
+import { KV } from '../kv.ts'
+import { health, sourceContext, type Health, type SourceContext } from './host.ts'
+import { KaneoClient } from './kaneo-api.ts'
+import { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, DEFAULT_WATCH_COLUMNS, KaneoConfigSchema, requiredLabelsOf,
+  watchColumnsOf, type KaneoConfig } from './kaneo-config.ts'
+import { kaneoLink, sendKaneo } from './kaneo-channel.ts'
+import { kaneoThreadContext } from './kaneo-read.ts'
+import { labelled, kaneoThreadKey, kaneoTrigger, KaneoTaskSchema } from './kaneo-trigger.ts'
+import type { Localized, SourceKind } from './kind.ts'
+import { pause } from './poll.ts'
+
+export const SOURCE = 'kaneo'
+
+const columns = (config: KaneoConfig): string => watchColumnsOf(config).join(', ') || 'no column'
+
+/** The Source kind declaration: configuration form, policy part, Channel, Thread context, environment and health. */
+export const kaneoKind: SourceKind<KaneoConfig> = {
+  kind: SOURCE,
+  title: { zh: 'Kaneo 看板', en: 'Kaneo board' },
+  description: {
+    zh: 'Kaneo 项目看板的一个或多个列。任务进入监听列即成为一次明确的请求；抓取为工单，回复以任务评论写回，并可把任务移到认领列。',
+    en: 'One or more columns of a Kaneo project board. A task entering a watched column is an explicit request; it becomes a ticket, replies are posted as task comments, and the task may move to a claim column.',
+  },
+  schema: KaneoConfigSchema,
+  /** Settings-panel probe: read the entered project board with the entered API key, without saving. */
+  async test(config: KaneoConfig): Promise<void> {
+    if (!config.apiKey) throw new Error('The API key is required')
+    await new KaneoClient(config).board(config.projectId)
+  },
+  fields: [
+    { key: 'baseUrl', type: 'text', label: { zh: 'Kaneo 服务器', en: 'Kaneo server' },
+      hint: { zh: '例如 https://pl.feg.cn。保存时检查接口与密钥，然后重启 dsh-superagent。', en: 'For example https://pl.feg.cn. Saving checks the API and key, then restarts dsh-superagent.' } },
+    { key: 'apiKey', type: 'password', label: { zh: 'Kaneo API key', en: 'Kaneo API key' },
+      hint: { zh: 'Kaneo 后台 → Settings → API keys 创建，留空到期日即永不过期。密钥只用于宿主进程，不进入提示词或 Session 文本；留空表示不修改。', en: 'Create one in Kaneo Settings → API keys with no expiry. The key is used by the host process only; it never enters prompts or Session text. Leave empty to keep it.' } },
+    { key: 'projectId', type: 'text', label: { zh: '项目 id', en: 'Project id' },
+      hint: { zh: '默认是 FDEP 项目（dgctny8ibgpn72ei2j8qj2hc）。', en: 'Defaults to the FDEP project (dgctny8ibgpn72ei2j8qj2hc).' } },
+    { key: 'watchColumns', type: 'text', label: { zh: '监听的列（slug，逗号分隔）', en: 'Watched columns (slugs, comma separated)' },
+      hint: { zh: '默认 ready（待開工）。任务进入这些列才成为请求。', en: 'Defaults to ready. Only tasks entering these columns become requests.' } },
+    { key: 'claimColumn', type: 'text', label: { zh: '认领列（slug）', en: 'Claim column (slug)' },
+      hint: { zh: '请求被记录后把任务移到这里，默认 in-progress（進行中）；留空表示不移动。', en: 'Tasks move here once their request is recorded; defaults to in-progress. Empty never moves a task.' } },
+    { key: 'bootstrap', type: 'select', label: { zh: '首次轮询', en: 'First poll' },
+      hint: { zh: 'skip：把监听列里已有的任务记为已见、不产生请求（推荐，避免一次抓爆整列）；trigger：把已有任务也当作请求。', en: 'skip records tasks already in the watched columns without requesting them (recommended); trigger treats them as requests too.' },
+      options: [{ value: 'skip', label: { zh: '跳过已有任务', en: 'Skip existing tasks' } }, { value: 'trigger', label: { zh: '已有任务也触发', en: 'Trigger existing tasks' } }] },
+    { key: 'requiredLabels', type: 'text', label: { zh: '只要这些标签的任务（逗号分隔）', en: 'Only tasks with these labels (comma separated)' },
+      hint: { zh: '留空表示不限。例如 sprint-2026-W56 或 ai:。', en: 'Empty accepts every task; for example sprint-2026-W56 or ai:.' } },
+    { key: 'pollSeconds', type: 'number', advanced: true, min: 15, max: 3600, label: { zh: '轮询间隔 / 秒', en: 'Polling interval / seconds' },
+      hint: { zh: 'API key 每分钟 100 次，默认 60 秒。', en: 'An API key is limited to 100 requests a minute; the default is 60 seconds.' } },
+    { key: 'failuresBeforeError', type: 'number', advanced: true, min: 1, max: 20, label: { zh: '连续失败几次后报告异常', en: 'Failed polls before reporting an error' },
+      hint: { zh: '单次网络中断会在下一次轮询时自动重试。', en: 'A single network interruption is retried on the next poll.' } },
+    { key: 'maxTasksPerColumn', type: 'number', advanced: true, min: 1, max: 200, label: { zh: '每列每次最多读取', en: 'Tasks read per column each poll' } },
+    { key: 'workspaceId', type: 'text', advanced: true, label: { zh: '工作区 id（可选）', en: 'Workspace id (optional)' },
+      hint: { zh: '仅用于链接展示；默认 ATEAM。', en: 'Used for links only; defaults to ATEAM.' } },
+    { key: 'actorFallback', type: 'text', advanced: true, label: { zh: '无负责人/创建者时的 actor', en: 'Actor when a task has no assignee or creator' } },
+  ],
+  // A task is already the whole request, so the Source listens to every Trigger it produces and observes nothing.
+  scope: () => ({ listened: true, observed: false }),
+  health: ['kaneo'],
+  channel: { send: sendKaneo, link: kaneoLink },
+  threadContext: kaneoThreadContext,
+  find: query => {
+    const id = /^kaneo[:/]([A-Za-z0-9_-]{8,})$/.exec(query.trim())?.[1]
+    return { threads: id ? [kaneoThreadKey(id)] : [], terms: [] }
+  },
+  policy: {
+    schema: z.object({
+      allowed: z.array(z.object({ id: z.string().trim().min(1).max(200), name: z.string().trim().max(100).optional() }).strict()).default([]),
+    }).strict(),
+    fields: [{ key: 'allowed', type: 'rows', label: { zh: '能发起任务的 Kaneo 用户', en: 'Kaneo users that may originate work' },
+      hint: { zh: '任务进入监听列时，由任务的负责人或创建者作为发起人；不在名单里的任务会被过滤，可在来源页看到。', en: 'A task is requested by its assignee or creator when it enters a watched column; a task whose actor is not listed is filtered and shown on the Sources page.' },
+      columns: [{ key: 'id', type: 'text', label: { zh: '用户 id', en: 'User id' } }, { key: 'name', type: 'text', label: { zh: '名称（可选）', en: 'Name (optional)' }, optional: true }] }],
+    explicit: { zh: '名单里的用户在 Kaneo 看板上把任务放进监听列。', en: 'A user on the list puts a task into a watched Kaneo column.' },
+    rows(stored) {
+      const config = KaneoConfigSchema.partial().parse(stored)
+      const slugs = watchColumnsOf({ watchColumns: config.watchColumns ?? DEFAULT_WATCH_COLUMNS })
+      return slugs.map(slug => ({ id: slug, label: { zh: `列 ${slug}`, en: `Column ${slug}` }, note: { zh: '任务放入即请求', en: 'A placed task is a request' },
+        cells: { listedUnaddressed: true, unlistedAddressed: false, unlistedUnaddressed: false } }))
+    },
+  },
+  environment: {
+    variables: [
+      { key: 'DSH_SUPERAGENT_KANEO_PROJECT', description: { zh: '这个工单来自的 Kaneo 项目 id', en: 'Kaneo project id the ticket came from' } },
+      { key: 'DSH_SUPERAGENT_KANEO_TASK', description: { zh: '工单对应的 Kaneo 任务 id', en: 'Kaneo task id behind the ticket' } },
+      { key: 'DSH_SUPERAGENT_KANEO_NUMBER', description: { zh: '任务的票号（没有时为空）', en: 'The task number (empty when it has none)' } },
+      { key: 'DSH_SUPERAGENT_KANEO_STATUS', description: { zh: '任务当前所在列的 slug', en: 'Slug of the column the task is in' } },
+      { key: 'DSH_SUPERAGENT_KANEO_URL', description: { zh: '任务在看板上的页面地址', en: 'The task page on the board' } },
+    ],
+    values: ({ deployment, trigger }) => {
+      const meta = trigger?.source === SOURCE ? trigger.meta : {}
+      return {
+        DSH_SUPERAGENT_KANEO_PROJECT: deployment.kaneo?.projectId ?? '',
+        DSH_SUPERAGENT_KANEO_TASK: typeof meta.taskId === 'string' ? meta.taskId : '',
+        DSH_SUPERAGENT_KANEO_NUMBER: typeof meta.number === 'number' ? String(meta.number) : '',
+        DSH_SUPERAGENT_KANEO_STATUS: typeof meta.status === 'string' ? meta.status : '',
+        DSH_SUPERAGENT_KANEO_URL: trigger?.source === SOURCE ? trigger.url ?? '' : '',
+      }
+    },
+  },
+  facts: (deployment): Record<string, Localized | string> => deployment?.kaneo
+    ? { project: { zh: `项目 ${deployment.kaneo.projectId}`, en: `Project ${deployment.kaneo.projectId}` }, server: { zh: deployment.kaneo.baseUrl, en: deployment.kaneo.baseUrl } }
+    : {},
+}
+
+/** The health entry of consecutive poll failures. */
+const failing = (count: number, error: unknown): Health => health('error', 'pollFailures', { count: String(count), error: String(error) })
+
+/**
+ * One polling round: read each watched column, record a Trigger for a task not seen before, describe its Thread, and move
+ * it to the claim column. The first round under `bootstrap: 'skip'` only records what is already there. A failed column is
+ * reported but does not stop the others; once every column has been tried, a failure makes the round fail so health sees it.
+ */
+export async function pollRound(ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<number> {
+  const watched = watchColumnsOf(config)
+  const labels = requiredLabelsOf(config)
+  const bootstrapped = ctx.state.get(KV.kaneo.bootstrap) === true
+  const started = new Date().toISOString()
+  const failures: string[] = []
+  let received = 0
+  for (const slug of watched) {
+    try {
+      const raw = await client.columnTasks(config.projectId, slug, config.maxTasksPerColumn, { signal })
+      for (const item of raw) {
+        if (signal?.aborted || !ctx.config(SOURCE)) return config.pollSeconds
+        const parsed = KaneoTaskSchema.safeParse(item)
+        if (!parsed.success) continue
+        const task = parsed.data
+        if (!labelled(task, labels)) continue
+        if (ctx.state.get(KV.kaneo.seen(task.id))) continue
+        if (!bootstrapped && config.bootstrap === 'skip') {
+          ctx.state.set(KV.kaneo.seen(task.id), { status: task.status, at: started })
+          continue
+        }
+        const trigger = kaneoTrigger(task, config, started)
+        const result = await ctx.receive(trigger)
+        ctx.state.set(KV.kaneo.seen(task.id), { status: task.status, at: started })
+        ctx.threads.describe(kaneoThreadKey(task.id), {
+          label: task.number === undefined ? task.title : `#${task.number} ${task.title}`,
+          ...trigger.url ? { url: trigger.url } : {},
+          facts: { status: { value: task.status }, ...task.priority ? { priority: { value: task.priority } } : {} },
+        })
+        if (result === 'filtered') continue
+        received += 1
+        if (config.claimColumn && task.status !== config.claimColumn) {
+          try { await client.move(task.id, config.claimColumn, { signal }) }
+          catch (error) { failures.push(`claim ${task.id}: ${String(error)}`) }
+        }
+      }
+      ctx.state.set(KV.kaneo.cursor(slug), new Date().toISOString())
+    } catch (error) {
+      if (signal?.aborted) return config.pollSeconds
+      failures.push(`${slug}: ${String(error)}`)
+    }
+  }
+  if (!bootstrapped) ctx.state.set(KV.kaneo.bootstrap, true)
+  if (failures.length) throw new Error(`${failures.length} Kaneo reads failed: ${failures.slice(0, 3).join('; ')}`)
+  ctx.report('kaneo', { state: 'ready', detail: `${received} new tasks from ${columns(config)}; next poll ≥ ${config.pollSeconds}s`, at: started })
+  return config.pollSeconds
+}
+
+/** Polls until aborted; setup pending and a disabled Source pause quietly, and consecutive failures surface as source health. */
+async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
+  let failures = 0
+  await ctx.ready
+  if (!ctx.configured()) { ctx.report('kaneo', health('paused', 'setupPending')); return }
+  while (!signal.aborted) {
+    const config = ctx.config<KaneoConfig>(SOURCE)
+    try {
+      if (!config?.apiKey) ctx.report('kaneo', health('paused', 'sourceOff'))
+      else { failures = 0; await pollRound(ctx, config, new KaneoClient(config), signal) }
+    } catch (error) {
+      failures += 1
+      if (!signal.aborted && failures >= (config?.failuresBeforeError ?? 1)) ctx.report('kaneo', failing(failures, error))
+    }
+    await pause((config?.pollSeconds ?? 60) * 1000, signal)
+  }
+}
+
+export const name = 'dsh-superagent-kaneo'
+export const inject = ['orchestrator']
+/** Registers the kind and starts the polling loop; both effects unwind on unload. */
+export function apply(ctx: Context): void {
+  ctx.effect(() => ctx.orchestrator.sources.register(kaneoKind), 'kaneo: source kind')
+  ctx.effect(() => {
+    const source = sourceContext(ctx.orchestrator, kaneoKind)
+    const controller = new AbortController()
+    // Unhandled rejections terminate the DSH process, so a failure escaping the loop is reported as source health instead.
+    const running = watch(source, controller.signal).catch((error: unknown) => { source.report('kaneo', { state: 'error', detail: String(error) }) })
+    return async () => { controller.abort(); await running }
+  })
+}
+
+export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT }

@@ -2,13 +2,13 @@
 import { useEffect, useState } from 'react'
 import type { FieldSpec } from '../sources/kind.ts'
 import { usePoll, type DroppedReply, type SourceStatusRow, type SourceView } from './api.ts'
-import { DisclosureRow, Dot, Icon, InfoTip, Switch, Tag } from './controls.tsx'
+import { Button, DisclosureRow, Dot, Icon, InfoTip, Switch, Tag } from './controls.tsx'
 import { SaveBar } from './draft.tsx'
 import { sourceMark } from './marks.ts'
 import { usePanel, usePanelData } from './provider.tsx'
 import { setupPage, settingsRoute, type Route } from './route.ts'
 import { ConfigHistory, Fields, SourceField, useBlockDraft, useSettings } from './settings-kit.tsx'
-import { actorName, healthText, localized, readableMarkers, reasonLabel, valueLabel, when } from './text.ts'
+import { actorName, errorText, healthText, localized, readableMarkers, reasonLabel, valueLabel, when } from './text.ts'
 import { CheckSetupButton, Hint, LabelValue, LoadState, SetupMessage, StatusHead, When } from './widgets.tsx'
 
 function SourceCard({ source }: { source: SourceView }) {
@@ -21,6 +21,18 @@ function SourceCard({ source }: { source: SourceView }) {
   const draft = useBlockDraft(`source:${source.id}`, source.value, source.revision)
   const value = draft.value
   const { problem, value: saved } = source
+  // A test must pass for the exact draft values before Save is enabled; any edit invalidates it.
+  const [test, setTest] = useState<{ hash: string; busy: boolean; ok?: boolean; error?: string }>()
+  const hash = JSON.stringify(value.config)
+  const tested = test?.hash === hash && !test.busy ? test : undefined
+  const needsTest = source.testable && draft.dirty && !(tested?.ok === true)
+  const runTest = async () => {
+    setTest({ hash, busy: true })
+    try {
+      const result = await call('POST sources/:id/test', { id: source.id, body: { config: value.config } })
+      setTest({ hash, busy: false, ok: result.ok, ...result.ok ? {} : { error: result.error } })
+    } catch (error) { setTest({ hash, busy: false, ok: false, error: errorText(error) }) }
+  }
   const changed = (key: string) => String(value.config[key] ?? '') !== String(saved.config[key] ?? '')
   // Saving a modified setup-sensitive field restarts dsh-superagent, interrupting running Assignments.
   const restarts = draft.dirty && source.restarts.some(changed)
@@ -48,12 +60,20 @@ function SourceCard({ source }: { source: SourceView }) {
       </div>}
       {!source.installed && <Hint>{t('sourceNotInstalledHint')}</Hint>}
       {source.installed && source.fields.filter(spec => !spec.advanced).map(field)}
+      {source.installed && source.testable && <div className="dt-row-buttons">
+        <Button size="sm" variant="ghost" disabled={draft.busy || test?.busy} onClick={() => { void runTest() }}>
+          {test?.busy ? t('testing') : t('testConnection')}
+        </Button>
+        {tested && (tested.ok ? <span className="dt-hint">{t('testPassed')}</span>
+          : <span className="dt-error">{t('testFailed', { error: tested.error ?? '' })}</span>)}
+      </div>}
       {source.installed && advanced.length > 0 && <DisclosureRow icon={<Icon name="settings" />} title={t('advanced')} open={advancedOpen}
         onToggle={() => setAdvancedOpen(!advancedOpen)}>
         <div className="dt-disclosure-body">{advanced.map(field)}</div>
       </DisclosureRow>}
     </Fields>
-    <SaveBar {...draft} status={restarts && running > 0 ? t('restartInterrupts', { count: running }) : undefined}
+    <SaveBar {...draft} saveDisabled={needsTest}
+      status={needsTest ? t('testRequired') : restarts && running > 0 ? t('restartInterrupts', { count: running }) : undefined}
       onDiscard={draft.discard} />
   </form>
 }

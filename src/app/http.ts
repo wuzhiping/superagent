@@ -147,6 +147,20 @@ const PromptsQuery = z.object({ revision: count.optional(), offset: count.defaul
 const SourceBlock = z.templateLiteral(['source:', z.string().regex(/^[a-z][a-z0-9-]*$/)])
 const SettingsBlockSchema = z.union([z.enum(['policy', 'eval', 'executor']), SourceBlock])
 const SaveRequest = z.object({ value: z.unknown(), revision: z.number().int().nonnegative() })
+const TestSourceRequest = z.object({ config: z.record(z.string(), z.unknown()) })
+
+/** Merge a source card's hidden secret fields with the stored values: an empty field means "keep the saved secret". */
+function mergedSourceConfig(runtime: HttpHost, id: string, submitted: Record<string, unknown>): Record<string, unknown> {
+  const registry = runtime.sources as unknown as {
+    kind?: (id: string) => { fields?: readonly { key: string; type: string }[] } | undefined
+    instance?: (id: string) => { config?: Record<string, unknown> } | undefined
+  }
+  const secrets = (registry.kind?.(id)?.fields ?? []).filter(field => field.type === 'password')
+  const stored = registry.instance?.(id)?.config
+  const config = { ...submitted }
+  for (const field of secrets) if (!config[field.key] && stored?.[field.key]) config[field.key] = stored[field.key]
+  return config
+}
 
 function routes(runtime: HttpHost): Routes {
   const { store } = runtime
@@ -160,6 +174,19 @@ function routes(runtime: HttpHost): Routes {
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),
     'POST sources/:id/labels': ({ params }) => runtime.settings.refreshLabels(params.id),
+    // Validate the values currently in the settings card without saving them; the panel enables Save only after this passes.
+    'POST sources/:id/test': async ({ params, body }) => {
+      const kind = runtime.sources.kind(params.id)
+      if (!kind?.test) throw new RouteError(404, 'This Source cannot be tested')
+      const input = TestSourceRequest.parse(await body())
+      const config = mergedSourceConfig(runtime, params.id, input.config)
+      try {
+        await kind.test(kind.schema.parse(config))
+        return { ok: true as const }
+      } catch (error) {
+        return { ok: false as const, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
     'GET threads': ({ query }) => {
       const { filter, offset, limit } = ThreadsQuery.parse(query)
       return threadList(views(runtime), filter, offset, limit)
@@ -198,7 +225,16 @@ function routes(runtime: HttpHost): Routes {
       const known = !block.startsWith('source:') || runtime.sources.instances().some(instance => `source:${instance.id}` === block)
       if (!known) throw new RouteError(404, 'Source not found')
       const request = SaveRequest.parse(await body())
-      return runtime.settings.save(block, request.value, request.revision, 'panel')
+      // Secret fields are never sent to the browser; an empty submission keeps the stored value instead of clearing it.
+      let value = request.value
+      if (block.startsWith('source:')) {
+        const id = block.slice('source:'.length)
+        const submitted = value as { config?: Record<string, unknown> } | null
+        if (submitted && typeof submitted === 'object' && submitted.config && typeof submitted.config === 'object') {
+          value = { ...submitted, config: mergedSourceConfig(runtime, id, submitted.config) }
+        }
+      }
+      return runtime.settings.save(block, value, request.revision, 'panel')
     },
     'GET policy/history': () => policyHistory(store, runtime.sources, policyVersion(store.settings())),
     'POST policy-sync/:id': async ({ params }) => ({ policy: await runtime.settings.sync(params.id) }),

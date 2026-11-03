@@ -368,6 +368,18 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/github-channel.ts` | The GitHub Channel: comments and review thread replies, `sent` or `gone` |
 | `src/sources/github-read.ts` | CI snapshots, repository reads, the `github/` resources, and `githubThreadContext`: an Issue's or pull request's conversation by page |
 | `src/sources/feishu.ts` | The Feishu kind and plugin entry, exported as `./feishu-watch` |
+| `src/sources/kaneo.ts` | The Kaneo kind and plugin entry, exported as `./kaneo-watch`: watched board columns polled on an interval, a task in one of them turned into a Trigger, and its Thread described |
+| `src/sources/kaneo-config.ts` | The Kaneo account fields deployment setup resolves (`baseUrl`, `apiKey`, `projectId`), the full Source configuration schema, and the board and task URLs |
+| `src/sources/kaneo-api.ts` | The Kaneo REST client: `x-api-key`, JSON validated by zod, a timeout, and bounded retries for rate limits and transient failures |
+| `src/sources/kaneo-trigger.ts` | Kaneo tasks as domain Triggers (one explicit request per task), the `kaneo:<taskId>` Thread, Channel addresses, and the required-label filter |
+| `src/sources/kaneo-channel.ts` | The Kaneo Channel: a reply as a task comment carrying a marker so a retried send comments once |
+| `src/sources/kaneo-read.ts` | `kaneoThreadContext`: a task's description as the root and its comments as the thread, for assessments |
+| `src/sources/gitea.ts` | The Gitea kind and plugin entry, exported as `./gitea-watch`: polls notifications or repository increments, turns addressed issues/comments into Triggers, posts replies as issue comments |
+| `src/sources/gitea-config.ts` | The Gitea account fields, the kind's configuration schema, and `owner/name` parsing |
+| `src/sources/gitea-api.ts` | The Gitea REST client: token header, zod-validated JSON, retries, timeouts, issue/comment reads and comment creation |
+| `src/sources/ntfy.ts` | The ntfy kind and plugin entry, exported as `./ntfy-watch`: polls a topic for new messages, turns mentions into Triggers, publishes replies back |
+| `src/sources/ntfy-config.ts` | The ntfy configuration schema (server, topic, auth, identity, read mode) and account extraction |
+| `src/sources/ntfy-api.ts` | The ntfy client: history parsing with tombstone removal, publish with header metadata, auth headers |
 | `src/sources/feishu-trigger.ts` | Feishu messages as Triggers, by one rule for live events, history pages and topic pages |
 | `src/sources/feishu-loops.ts` | The Feishu loops: the event consumer, history recovery, chat names and polling of subscribed topics |
 | `src/sources/feishu-channel.ts` | The Feishu Channel: topic replies, `sent` or `gone` |
@@ -397,7 +409,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/locales.ts` | All copy in both languages, and the glossary of [001 Domain model](001-domain.md) |
 | `src/client/client.css`, `css.d.ts` | The panel's stylesheet, loaded as text |
 
-`src/sources/github.ts` and `src/sources/feishu.ts` are also the entries of the two Source plugins, built by `tsdown.config.ts` and exported in `package.json` as `./github-watch` and `./feishu-watch`. The bundle's `cordis.patch.yml` inserts the three plugins, with Feishu disabled.
+`src/sources/github.ts` and `src/sources/feishu.ts` are also the entries of the two Source plugins, built by `tsdown.config.ts` and exported in `package.json` as `./github-watch` and `./feishu-watch`. `src/sources/kaneo.ts` is the entry of the Kaneo Source plugin, exported as `./kaneo-watch`. The bundle's `cordis.patch.yml` inserts the four plugins; for the Kaneo deployment the GitHub and Feishu rows are disabled, and the profile's patch enables one of them after its card is set.
 
 ## Tests
 
@@ -416,6 +428,9 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/bundle-patch.spec.ts` | The bundle's patch, read as DeepSeek Harness reads it, and the agent preset of Executor Sessions it defines |
 | `tests/effects.spec.ts` | The effect queue: coalescing, limits, retries with backoff, health and shutdown |
 | `tests/passes.spec.ts` | Passes: one at a time, the ones asked for during a pass run as one after it, and the runtime health a failed pass reports |
+| `tests/kaneo.spec.ts` | The Kaneo Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, and the REST client's retries |
+| `tests/gitea.spec.ts` | The Gitea Source: config defaults, trigger mapping, first-poll baseline, increments, channel idempotence, thread context, retries and refusals |
+| `tests/ntfy.spec.ts` | The ntfy Source: config/auth headers, history parsing with tombstones, trigger mapping, poll cursor and bootstrap, publish idempotence |
 | `tests/outbox.spec.ts` | The Outbox on a running Runtime: messages wait while processing is paused or their Source is not installed |
 | `tests/cache.spec.ts` | `TextCache` |
 | `tests/queue.spec.ts` | The Runtime's work through the effect queue, and what earlier versions stored |

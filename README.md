@@ -29,6 +29,7 @@ Read the numbered documents in order; each builds only on the ones before it.
 - [006 Deployment](docs/006-deployment.md): manual setup, configuration, upgrades and troubleshooting
 - [007 Architecture](docs/007-architecture.md)
 - [008 Cookbook](docs/008-cookbook.md): adding a Source
+- [STORY](STORY.md): a user story of this three-source deployment (Kaneo + Gitea + ntfy) and the full lifecycle / 三来源部署的用户故事与全生命周期
 
 ## Development
 
