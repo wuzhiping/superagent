@@ -79,14 +79,30 @@ npx -y git+https://git.feg.cn/shawoo/superagent install --profile web --state-di
 ## 4. 手动等价方式（不用 npx）
 
 ```powershell
-dsh plugin --profile web add git+https://git.feg.cn/shawoo/superagent
-# 然后手动在 profiles/web/cordis.patch.yml 追加：
-# - id: dsh-superagent
-#   config:
-#     stateDir: 'D:/.../state/superagent'
+dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent#v0.1.1"
 ```
 
-或通过 DSH「插件」页面粘贴 `git+https://git.feg.cn/shawoo/superagent` 安装。
+**v0.1.1 起 `stateDir` 有默认值**（`<DSH_HOME>/state/superagent`），所以直接用 `dsh plugin add`
+（或 DSH「插件」页面粘贴 git 地址）也能正常挂载，不需要再手改 profile patch。
+如需自定义目录，仍可在 `profiles/web/cordis.patch.yml` 追加：
+
+```yaml
+- id: dsh-superagent
+  config:
+    stateDir: 'D:/your/path/superagent'
+```
+
+> 旧版本（≤ v0.1.0）直接用 `dsh plugin add` 会因为缺少必填 `stateDir` 导致 host 插件挂载失败：
+> 菜单/UI 能出现，但面板请求报错。升级到 v0.1.1，或补上面的 config 行即可。
+
+### 升级已有安装
+
+```powershell
+dsh plugin --profile web remove dsh-superagent
+dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent#v0.1.1"
+```
+
+DSH 运行中的进程需要重启（或通过插件页面 Update 后重启），再刷新 GUI。
 
 ---
 
@@ -113,6 +129,8 @@ git push origin main
 
 | 现象 | 处理 |
 | --- | --- |
+| 菜单/UI 有，但面板接口报错（旧版本 raw add） | ≤ v0.1.0 缺少必填 `stateDir`：升级到 v0.1.1（默认 stateDir），或手动补 `- id: dsh-superagent` + `config.stateDir` 行。 |
+| 面板显示「部署检查未通过」 | 全新安装还没配置来源，属正常；到 设置 → 来源 配置 Kaneo/Gitea/ntfy 并点「测试连接」。 |
 | `未找到 dsh` | 用 `--dsh <path>` 指向 DSH 的 `lib/bin.js`，或确认便携目录布局。 |
 | `未找到 git` / clone 失败 | 安装 git；确认能 `git ls-remote https://git.feg.cn/shawoo/superagent.git`。 |
 | 401 / Authentication failed（仓库私有化后） | 配置 git 凭据或在 Gitea 给目标设备发 token。 |
@@ -129,4 +147,5 @@ git push origin main
 - 在 DSH `0.2.1-rc.5`、Node 24.19 上验证：
   - `npx --yes git+https://git.feg.cn/shawoo/superagent install --profile <temp>` **完整成功**（冷启动约 94s / 缓存后约 53s）；
   - 生成的临时 profile 中：`dependencies` 为 git spec、`dsh.profile.bundles` 含 `dsh-superagent`、node_modules 内含 `bin/` 与 `lib/`、`cordis.patch.yml` 中 `stateDir` 正确；
+  - **直接 `dsh plugin --profile <temp> add "git+...#v0.1.1"`（不写 stateDir）** 也能挂载：安装包里的 `Config({})` 解析出默认 `stateDir = <DSH_HOME>/state/superagent`（这是 v0.1.1 修复的「菜单能看但接口报错」问题）；
   - 安装前后本机 `dsh web` profile（`runtime / kaneo / gitea / ntfy`）保持 `ready`，临时 profile 已清理。
