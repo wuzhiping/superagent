@@ -10,6 +10,7 @@ import type { DecisionListView, SearchView, ThreadDetailView, ThreadListView } f
 import type { TicketListView } from './views/tickets.ts'
 import type { NarrativeView } from './views/narrative.ts'
 import type { ProjectArchive } from './narrative.ts'
+import type { Capabilities } from './capabilities.ts'
 
 export const TICKET_FILTERS = ['open', 'person', 'working', 'idle', 'ended'] as const
 export const THREAD_FILTERS = ['subscribed', 'evaluating', 'recent', 'all'] as const
@@ -21,6 +22,7 @@ type Delivery = 'injected' | 'pending'
 
 export interface Api {
   'GET state': { response: StateView }
+  'GET capabilities': { response: Capabilities }
   'GET overview': { response: OverviewView }
   'GET narrative': { response: NarrativeView }
   'GET project-archive': { response: { archive: ProjectArchive; revision: number } }

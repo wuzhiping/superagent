@@ -30,6 +30,10 @@ const CreatedTaskSchema = z.looseObject({ id: z.string().min(1), number: z.numbe
 const LabelSchema = z.looseObject({ id: z.string().min(1), name: z.string().default('') })
 /** A workspace as Kaneo answers the workspace list; labels live in a workspace. */
 const WorkspaceSchema = z.looseObject({ id: z.string().min(1), name: z.string().default('') })
+/** The account behind the API key: its id identifies the post on the board, its role says what it may manage. */
+const KaneoUserSchema = z.looseObject({
+  id: z.string().min(1), name: z.string().default(''), email: z.string().default(''), role: z.string().default('member'),
+})
 
 const errorText = (text: string, status: number): string => {
   try {
@@ -149,5 +153,10 @@ export class KaneoClient {
   /** The workspaces the API key can read; labels belong to one of them. */
   async workspaces(options: RequestOptions = {}): Promise<z.infer<typeof WorkspaceSchema>[]> {
     return this.request(z.array(WorkspaceSchema), 'GET', '/workspace', undefined, options)
+  }
+
+  /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. */
+  async me(options: RequestOptions = {}): Promise<z.infer<typeof KaneoUserSchema>> {
+    return this.request(KaneoUserSchema, 'GET', '/user/me', undefined, options)
   }
 }

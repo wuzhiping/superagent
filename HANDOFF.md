@@ -356,6 +356,8 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-04 深夜 | **内置提示词中性化**（12 个 `prompts/*.md` ✅）：交付物/载体/工作日志去编程味 ✅、GitHub 说法改条件句 ✅、新增 PM「当期流程」指引 ✅ |
 | 2026-11-04 深夜 | **插件装不上**：宿主按虚拟 store 路径解析插件裸导入 ✅，仓库却是 `nodeLinker: hoisted` ✅ → 改成 `isolated` + `shamefullyHoist` ✅（两种布局并存 ✅） |
 | 2026-11-05 00:00 | **用户故事全绿**：9 条故事 **9 ✅ / 0 ❌** ✅（run 16 ✅），报告见 [TDD/010](TDD/010-user-stories-validation.md) ✅ |
+| 2026-11-05 早上 | **US-10 入库链路**：ntfy 事件 → 自动落成看板卡（`to-do` ✅、`from:ntfy` ✅、不指派 ✅）→ PM 指派 → 岗位领 → 回写那张卡 ✅ ✅ **全绿** ✅ |
+| 2026-11-05 早上 | **多 Host 同项目**（用户校正 ✅ ✅）：RD §4.1 ✅ ✅、SOP §2.6 ✅ ✅——多台 Host 连同一个 KanEO 项目各演一个岗位 ✅ ✅；**管理权限检查**：新增 `GET capabilities` ✅ ✅（`GET /user/me` ✅ ✅ → 账号与角色 ✅ ✅ → `canManageFlow` ✅ ✅ ✅）✅ ✅ |
 | 2026-11-04 晚 | 全量回归：`pnpm typecheck` 通过；目标测试全绿（`kaneo` 16、`views` 16、`narrative` 8、`panel-posts` 4、`styles` 2、`gitea`/`ntfy` 40 ✅）；既有的 dev 环境失败与本次改动无关（用 `git worktree` 在 HEAD 上逐文件比对 ✅） |
 
 ---

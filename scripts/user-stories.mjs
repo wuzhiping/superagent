@@ -41,11 +41,17 @@ async function panel (path, init = {}) {
   return text ? JSON.parse(text) : {}
 }
 
-/** Waits for the service to answer again after a restart. */
+/** Waits for the service to answer again after a restart, and for its Sources to be running again. */
 async function waitForService (timeoutMs = 90_000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    try { await panel('state'); return true } catch { await sleep(2000) }
+    try {
+      const state = await panel('state')
+      const sources = Object.entries(state.health ?? {}).filter(([name]) => ['kaneo', 'gitea', 'ntfy'].includes(name))
+      // A Source that is off is paused on purpose; one that is still starting is not ready yet.
+      if (sources.every(([, entry]) => entry.state === 'ready' || entry.state === 'paused')) return true
+    } catch { /* the host is restarting */ }
+    await sleep(2000)
   }
   return false
 }
@@ -273,6 +279,86 @@ story('US-05', 'PM', '宪章：面板的版本与它声明的流程一致', asyn
   }
 })
 
+story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗位接手', async () => {
+  const { projects } = await archive()
+  const project = projects.find(item => item.id === options.project)
+  if (!project) return { checks: { 'ingest.project-known': false }, evidence: {} }
+  // The event goes to a topic of its own, so the team's real topic stays quiet; the run restores the source afterwards.
+  const topic = `pub_superagent_story_${marker.replace(/[^a-z0-9]/gi, '').slice(-10)}`
+  const settings = await panel('settings')
+  const ntfySource = settings.sources.find(source => source.id === 'ntfy')
+  if (!ntfySource) return { checks: { 'ingest.source-present': false }, evidence: {} }
+  await panel('settings/source:ntfy', { method: 'PUT', body: {
+    value: { ...ntfySource.value, enabled: true, config: { ...ntfySource.value.config, topic } },
+    revision: ntfySource.revision } })
+  await waitForService()
+  // The event itself: one message on the topic. ntfy takes the topic in the payload and the server root as the URL.
+  const title = `[story ${marker}] 入库验证`
+  const server = ntfySource.value.config.server || 'https://msn.feg.cn'
+  const published = await fetch(server, {
+    method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ topic, title, message: '这条消息应当先变成看板上的一张卡，再由岗位接手。', markdown: false, priority: 3, tags: [] }),
+  })
+  if (!published.ok) return { checks: { 'ingest.event-published': false }, evidence: { status: published.status } }
+  // The filed card: labelled from:ntfy, waiting in to-do, with nobody assigned.
+  const filed = await until(async () => {
+    const board = await kaneo.api('GET', `/task/tasks/${encodeURIComponent(options.project)}?status=to-do&limit=100`)
+    const tasks = (board?.data?.columns ?? board?.columns ?? []).flatMap(column => column.tasks ?? [])
+    return tasks.find(task => String(task.title ?? '').includes(marker)) ?? undefined
+  }, 240_000, 10_000)
+  if (!filed) return { checks: { 'ingest.card-filed': false }, evidence: { note: 'no card with the story marker was filed' } }
+  const labels = await kaneo.getLabels(filed.id)
+  const filedTask = await kaneo.getTask(filed.id)
+  // The PM dispatches it: assign the post and move it into the watched column. The story label keeps the run's
+  // narrowing (only labelled cards become requests) from swallowing the filed card.
+  const post = project.posts.find(item => item.role === 'pm')
+  await attachLabel(options.label, filed.id, '#8250df')
+  await kaneo.api('PUT', `/task/assignee/${encodeURIComponent(filed.id)}`, { userId: post.kaneoUserId })
+  await kaneo.api('PUT', `/task/status/${encodeURIComponent(filed.id)}`, { status: 'ready' })
+  const duty = await dutyWithRedispatch(filed.id, 240_000).then(result => result.duty)
+  const delivery = await until(async () => {
+    const task = await kaneo.getTask(filed.id)
+    return task.status === 'done' ? task : undefined
+  }, options.timeout * 1000 * 3, 10_000)
+  const comments = await kaneo.getComments(filed.id)
+  return {
+    checks: {
+      'ingest.card-filed': true,
+      'ingest.card-waits-in-todo': filedTask.status === 'to-do',
+      'ingest.card-has-source-label': labels.includes('from:ntfy'),
+      'ingest.card-has-no-assignee': !filedTask.assigneeId,
+      'ingest.card-became-a-duty': !!duty,
+      'ingest.card-got-the-worklog': comments.length > 1,
+      'ingest.card-reached-the-delivery-column': delivery?.status === 'done',
+    },
+    evidence: {
+      cardId: filed.id, title: filed.title, column: filedTask.status, labels, comments: comments.length,
+      dutyId: duty?.id, deliveredTo: delivery?.status,
+      excerpt: String(comments.at(-1)?.content ?? '').slice(0, 200),
+    },
+  }
+})
+
+story('US-11', 'PM', '权限：这个 Host 的账号身份与管理权限可见', async () => {
+  const { projects } = await archive()
+  const project = projects.find(item => item.id === options.project)
+  const capabilities = await panel('capabilities')
+  const post = project?.posts.find(item => item.kaneoUserId)
+  return {
+    checks: {
+      'permission.account-known': !!capabilities.account?.id,
+      'permission.account-is-the-post': !!post && capabilities.account?.id === post.kaneoUserId,
+      'permission.management-follows-the-role': capabilities.canManageFlow === ['admin', 'owner'].includes(capabilities.account?.role ?? ''),
+      'permission.reason-explains-a-missing-right': capabilities.canManageFlow || !!capabilities.reason,
+    },
+    evidence: {
+      account: capabilities.account, canManageFlow: capabilities.canManageFlow,
+      canPublishCharter: capabilities.canPublishCharter, reason: capabilities.reason,
+      workspaces: capabilities.workspaces.map(item => item.name),
+    },
+  }
+})
+
 story('US-06', '系统', '看板查询：带 status 过滤才不漏任务', async () => {
   const unfiltered = await kaneo.api('GET', `/task/tasks/${encodeURIComponent(options.project)}`)
   const columns = unfiltered?.data?.columns ?? unfiltered?.columns ?? []
@@ -399,7 +485,14 @@ async function restore () {
     const settings = await panel('settings')
     const current = settings.sources.find(item => item.id === id)
     if (!current) continue
-    await panel(`settings/source:${id}`, { method: 'PUT', body: { value: previous.value, revision: current.revision } })
+    // A source save restarts the plugin; wait for it before the next one, and let a source that is not installed
+    // (its kind is off) stay as it is rather than failing the whole restore.
+    try {
+      await panel(`settings/source:${id}`, { method: 'PUT', body: { value: previous.value, revision: current.revision } })
+      await waitForService()
+    } catch (error) {
+      console.error(`could not restore the ${id} Source: ${error.message}`)
+    }
   }
   if (saved.eval) {
     const settings = await panel('settings')

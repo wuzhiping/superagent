@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, vi } from 'vitest'
 import { z } from 'zod'
 import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { Api, ApiResponse, RouteParams } from '../../src/app/api.ts'
+import type { Capabilities } from '../../src/app/capabilities.ts'
 import { SKILL_NAME, SKILL_PREFIX, TEAM_SECTIONS, builtInBase, builtInPart, builtInParts, composePrompt, composeSkill, defaultPrompts,
   environmentSection, policySection, promptParts } from '../../src/app/prompts.ts'
 import type { DroppedReply, HistoryView, Problem, PromptsView, SetupView, SourceStatusRow, SourceView, StateView, ThreadPageView,
@@ -83,6 +84,20 @@ const KINDS = [feishuKind, githubKind] as unknown as SourceKind[]
 export const MACHINE = { stateDir: '/srv/dsh-superagent', promptMaxChars: 100000, admissionContextMaxPages: 10,
   admissionContextTimeoutMs: 15000 }
 
+/** The KanEO account of a PM Host: a workspace admin that may manage the board's flow. */
+export const adminCapabilities = (): Capabilities => ({
+  account: { id: 'bsFdwgQX', name: 'pm-fdep', role: 'admin' },
+  workspaces: [{ id: 'w1', name: 'ATEAM' }],
+  canManageFlow: true, canPublishCharter: true, reason: '',
+})
+/** A worker's account: a plain member, which may work cards but not manage the board's flow. */
+export const memberCapabilities = (): Capabilities => ({
+  account: { id: 'mQ2rT1yU', name: 'sa-w1-fdep', role: 'member' },
+  workspaces: [{ id: 'w1', name: 'ATEAM' }],
+  canManageFlow: false, canPublishCharter: true,
+  reason: 'The KanEO account sa-w1-fdep is a member; managing the board\'s flow needs a workspace admin.',
+})
+
 type Settings = ReturnType<typeof SettingsSchema.parse>
 export interface PanelServer {
   joined?: Record<string, string>; joining?: Record<string, string>
@@ -112,6 +127,8 @@ export interface PanelServer {
   /** The project archive the panel edits; the fixture keeps the last written value. */
   archive?: unknown
   archiveRevision?: number
+  /** The KanEO account of this Host and the rights it has; the panel asks before it lets someone sit as PM. */
+  capabilities: Capabilities
 }
 export let server: PanelServer
 
@@ -269,6 +286,7 @@ function initial(): PanelServer {
         summary: 'LlmError: no adapter registered for provider "provider-a"',
         note: { text: 'LlmError: no adapter registered for provider "provider-a"', error: true } }, { stage: 'person', action: 'failed' })],
     search: { items: [], threads: [] },
+    capabilities: adminCapabilities(),
     history: { current: 3, policyVersion: 'abcdef1234567890', items: [
       { revision: 4, savedAt: '2026-09-23T00:00:00Z', source: 'panel', policyVersion: '9876543210fedcba', policyChanged: true, notified: [],
         block: 'source:feishu',
@@ -297,6 +315,7 @@ const SourceSave = z.object({ enabled: z.boolean(), config: z.unknown() })
 
 const ROUTES: { [K in keyof Api]: Route<K> } = {
   'GET state': { answer: stateView },
+  'GET capabilities': { answer: (): ApiResponse<'GET capabilities'> => server.capabilities },
   'GET overview': { answer: overviewView },
   'GET narrative': { answer: (): ApiResponse<'GET narrative'> => ({
     configured: true,

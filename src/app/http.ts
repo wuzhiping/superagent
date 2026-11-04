@@ -19,6 +19,7 @@ import type { SourceRegistry } from '../sources/registry.ts'
 import type { Sessions } from './sessions.ts'
 import type { Store } from './store.ts'
 import { writeArchive } from './narrative.ts'
+import { readCapabilities } from './capabilities.ts'
 import { archiveView, narrativeView } from './views/narrative.ts'
 import type { TextCache } from './cache.ts'
 import type { LinkTarget, ViewHost } from './views/records.ts'
@@ -170,6 +171,11 @@ function routes(runtime: HttpHost): Routes {
   const promptBody = (input: { body: (maxBytes?: number) => Promise<unknown> }) => input.body(4 * runtime.machine.promptMaxChars.get() + 4096)
   return {
     'GET state': () => stateView(runtime),
+    // What this Host may do as a post: its KanEO account and the management rights that come with it (RD.md §4).
+    'GET capabilities': async () => {
+      const account = runtime.configured() ? runtime.deployment.kaneo : undefined
+      return readCapabilities(account)
+    },
     'GET overview': () => overview(views(runtime), runtime.health, policyVersion(store.settings()),
       executorLoad(store, runtime.executor.activeCount()), runtime.setupProblem ?? runtime.feishuProblem),
     // The narrative view: projects, posts, the charter each PM published, the duties in flight and the exceptions.
