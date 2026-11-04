@@ -15,12 +15,14 @@
 | 条件 | 说明 |
 | --- | --- |
 | **DSH 已安装并初始化** | 目标机器上 DSH 能正常启动（至少打开过一次 `dsh web` 或对应 profile）。安装脚本通过 `dsh plugin --profile <名字> add` 写入 profile。 |
-| **Node.js** | 包声明 `engines.node = ^22.19.0 || >=24.0.0`；便携包自带的 Node 一般已满足。 |
+| **Node.js** | 包声明 `engines.node = ^22.19.0 || >=24.0.0`；便携包自带的 Node 一般已满足（npm/npx 随 Node 提供）。 |
 | **git** | `npx` 的 `git+https` 依赖 git clone；`git --version` 可用，且能访问 `git.feg.cn`。 |
+| **npm registry** | 安装器仅需下载运行时依赖 `zod` / `proper-lockfile`（体积很小）；本机使用内网 `registry.feg.cn` 正常。 |
 | **pnpm** | DSH 的插件安装内部使用 pnpm；便携包应已带 pnpm（或在 PATH 上）。 |
 | **网络** | 能访问 `https://git.feg.cn`。仓库**已设为 public**，匿名可读，无需账号；若改为私有，则目标设备需要配置 git 凭据（Credential Manager / `.netrc` / Gitea token）。 |
 | **DSH 版本兼容** | 包声明 `engines.dsh = ^0.2.1-alpha.2`；DSH 启动安装前会做兼容检查，版本不符会拒绝并提示如何豁免。 |
-| **仓库内容完整** | 仓库里必须包含 **`lib/`（已构建产物）** 和 **`bin/install.mjs`**。本仓库已按此方式提交，安装时**不需要**在目标机器上编译。 |
+| **仓库内容完整** | 仓库里必须包含 **`lib/`（已构建产物）** 和 **`bin/install.mjs`**。本仓库已按此方式提交，安装时**不需要**在目标机器上编译；构建工具链放在私有 `dev/` 工作区，不会随 npx 下载。 |
+| **prefix / cache 可写** | 便携命令里的 `node\global`、`node\cache` 两目录需存在且可写（DSH 便携包通常已创建；缺失时 `npx` 会报 `ENOENT lstat`，先建目录即可）。 |
 | **profile 名** | 默认 `web`；其他 profile 用 `--profile <name>`。 |
 
 > 如果目标设备的 DSH_HOME 不是默认值，安装脚本按以下顺序解析：
@@ -32,13 +34,15 @@
 
 `npx -y git+https://git.feg.cn/shawoo/superagent install` 会：
 
-1. 从 Gitea 拉取本仓库并安装其 bin（`dsh-superagent`）；
+1. 从 Gitea 拉取本仓库并安装其 bin（`dsh-superagent`）；只会下载运行时依赖（zod / proper-lockfile），**不会**下载 vitest 等开发工具链；
 2. 解析目标 DSH（PATH 上的 `dsh`，或便携目录里的 `node/global/node_modules/@deepseek-ai/dsh/lib/bin.js`）；
 3. 执行官方安装路径：
    `dsh plugin --profile web add git+https://git.feg.cn/shawoo/superagent`
    —— 与 DSH「插件」页面安装 bundle 等价，会把 `dsh-superagent` 加入 profile 的依赖与 `dsh.profile.bundles`；
 4. 在该 profile 的 `cordis.patch.yml` 中补一行 `stateDir`（默认 `<DSH_HOME>/state/superagent`，可用 `--state-dir` 覆盖）；
 5. 打印后续步骤。
+
+> 本机实测：**冷启动约 90–100 秒**（git clone + npm 缓存 + 依赖下载），**缓存后约 50 秒**（其中 DSH 的 `dsh plugin add` 用 pnpm 从 Gitea 安装 bundle 约 35 秒）。
 
 安装后可用的选项：
 
@@ -100,6 +104,7 @@ git push origin main
 - 需要 **可复现安装** 时可固定提交：
   `git+https://git.feg.cn/shawoo/superagent#<commit>`
 - **`lib/` 必须提交**：本仓库的分发方式是「提交构建产物」，这样其他设备安装时不需要 build script 审批。
+- 构建工具链（vitest / tsdown / typescript / jsdom…）在 `dev/package.json` 中；`pnpm install` 会随 workspace 安装，`pnpm build` / `typecheck` / `test` 都已代理到该工作区。**不要**把它们挪回根 `package.json`，否则 `npx` 会下载整套开发依赖。
 - 如果仓库改为 **私有**：在目标设备配置 git 凭据，或使用带 token 的 https 地址；`npx` 会使用系统 git 凭据。
 
 ---
@@ -120,5 +125,8 @@ git push origin main
 
 ## 7. 本机已验证
 
-- 仓库：`shawoo/superagent`（public，`main`），含 `bin/install.mjs`、提交的 `lib/`、`cordis.patch.yml`。
-- 在 DSH `0.2.1-rc.5`、Node 24.19 上验证：`dsh plugin --profile <temp> add <本仓库>` 成功、bundle 自动加入 `dsh.profile.bundles`、`stateDir` 正确写入 profile patch。
+- 仓库：`shawoo/superagent`（public，`main`），含 `bin/install.mjs`、提交的 `lib/`、`cordis.patch.yml`；构建工具链在 `dev/` 工作区，不随安装下载。
+- 在 DSH `0.2.1-rc.5`、Node 24.19 上验证：
+  - `npx --yes git+https://git.feg.cn/shawoo/superagent install --profile <temp>` **完整成功**（冷启动约 94s / 缓存后约 53s）；
+  - 生成的临时 profile 中：`dependencies` 为 git spec、`dsh.profile.bundles` 含 `dsh-superagent`、node_modules 内含 `bin/` 与 `lib/`、`cordis.patch.yml` 中 `stateDir` 正确；
+  - 安装前后本机 `dsh web` profile（`runtime / kaneo / gitea / ntfy`）保持 `ready`，临时 profile 已清理。
