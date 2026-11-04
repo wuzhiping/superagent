@@ -2,6 +2,11 @@ packages:
   - .
   - dev
 
-nodeLinker: hoisted
+# The DSH host resolves a plugin's bare imports through the virtual store
+# (`node_modules/.pnpm/<pkg>@<version>/node_modules/<pkg>`), so the layout must keep the
+# isolated store; `shamefullyHoist` also puts every package at the root, which is what the
+# `dev` workspace's tooling and the bundle's own imports need.
+nodeLinker: isolated
+shamefullyHoist: true
 autoInstallPeers: false
 

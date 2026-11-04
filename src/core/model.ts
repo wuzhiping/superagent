@@ -209,6 +209,8 @@ export interface Decision {
 }
 
 export type AssignmentState = 'pending' | 'running' | 'ended'
+/** What a duty is expected to produce; the panel routes each kind to its carrier (RD.md §7). */
+export type DeliverableType = 'code' | 'doc' | 'plan' | 'memo' | 'log'
 /**
  * What an Assignment reports: work is in progress (`progress`), its worker waits for a Trigger (`waiting`), a result is
  * ready (`ready`), a person must act to unblock or recover it (`blocked` or `failed`), or nothing is left to do (`dropped`).
@@ -281,6 +283,16 @@ export interface Ticket {
   mandate: Mandate
   /** The Channels of the messages it was accepted from, which its replies go to. */
   channels: ChannelRef[]
+  /** The post that owns this duty: the SuperAgent instance that runs it (RD.md §5). */
+  postId?: string
+  /** The project this duty belongs to, when the deployment knows it. */
+  projectId?: string
+  /** What the duty is expected to produce: code, a document, a plan, a memo, or a work log. */
+  deliverableType?: DeliverableType
+  /** The repositories the task names, when the task says so: `owner/name` (RD.md §9). */
+  repos?: string[]
+  /** The charter version the duty was started under, so later charter changes do not rewrite it (RD.md §8). */
+  charterVersion?: number
   /** When, by whom, and how the ticket ended, with a person's or the host's reason beyond the outcome; an open ticket has none. */
   ended?: { at: string; by: TicketEndBy; outcome: TicketOutcome; reason?: string }
   /** Open question for a person; cleared by the executor or when the ticket ends. */

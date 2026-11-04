@@ -1,7 +1,7 @@
 /**
  * Kaneo Source kind: a Kaneo project board whose watched column is the stream of requests. A task in a watched column is
- * one explicit request and one Thread (`kaneo:<taskId>`); replies go back as task comments, and the task may move to a
- * claim column once its request is recorded. The plugin entry polls each watched column on an interval.
+ * one explicit request and one Thread (`kaneo:<taskId>`); replies go back as task comments, and the task moves to the
+ * claim column when the post first writes to it. The plugin entry polls each watched column on an interval.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
@@ -43,8 +43,13 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
       hint: { zh: '默认是 FDEP 项目（dgctny8ibgpn72ei2j8qj2hc）。', en: 'Defaults to the FDEP project (dgctny8ibgpn72ei2j8qj2hc).' } },
     { key: 'watchColumns', type: 'text', label: { zh: '监听的列（slug，逗号分隔）', en: 'Watched columns (slugs, comma separated)' },
       hint: { zh: '默认 ready（待開工）。任务进入这些列才成为请求。', en: 'Defaults to ready. Only tasks entering these columns become requests.' } },
+    { key: 'ingestEvents', type: 'switch', label: { zh: '其它来源先入库成卡', en: 'File other sources as cards' },
+      hint: { zh: '打开（默认）：Gitea/ntfy 等其它来源的事件先在本项目的 to-do 列建卡，由看板统一调度；关闭：其它来源的事件直接成为请求（旧行为）。',
+        en: 'On (default): events of other Sources such as Gitea and ntfy become cards in the to-do column of this project first, and the board schedules them; off: those events become requests directly (the old behavior).' } },
     { key: 'claimColumn', type: 'text', label: { zh: '认领列（slug）', en: 'Claim column (slug)' },
-      hint: { zh: '请求被记录后把任务移到这里，默认 in-progress（進行中）；留空表示不移动。', en: 'Tasks move here once their request is recorded; defaults to in-progress. Empty never moves a task.' } },
+      hint: { zh: '岗位第一次就这张卡回写时把任务移到这里，默认 in-progress（進行中）；留空表示不移动。', en: 'The task moves here when the post first writes to it; defaults to in-progress. Empty never moves a task.' } },
+    { key: 'doneColumn', type: 'text', label: { zh: '交付列（slug）', en: 'Delivery column (slug)' },
+      hint: { zh: '岗位交付结果（回写工作日志）后把任务移到这里，按看板流程填 done 或 in-review；留空表示不移动。', en: 'The task moves here when the post delivers its result; fill in done or in-review to match the board flow. Empty never moves a task.' } },
     { key: 'bootstrap', type: 'select', label: { zh: '首次轮询', en: 'First poll' },
       hint: { zh: 'skip：把监听列里已有的任务记为已见、不产生请求（推荐，避免一次抓爆整列）；trigger：把已有任务也当作请求。', en: 'skip records tasks already in the watched columns without requesting them (recommended); trigger treats them as requests too.' },
       options: [{ value: 'skip', label: { zh: '跳过已有任务', en: 'Skip existing tasks' } }, { value: 'trigger', label: { zh: '已有任务也触发', en: 'Trigger existing tasks' } }] },
@@ -146,10 +151,8 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
         })
         if (result === 'filtered') continue
         received += 1
-        if (config.claimColumn && task.status !== config.claimColumn) {
-          try { await client.move(task.id, config.claimColumn, { signal }) }
-          catch (error) { failures.push(`claim ${task.id}: ${String(error)}`) }
-        }
+        // The card is not claimed here: a request that is read is not yet a duty. The post claims it when it first
+        // writes to the card (the Channel moves it to the claim column), so a request nobody admitted stays untouched.
       }
       ctx.state.set(KV.kaneo.cursor(slug), new Date().toISOString())
     } catch (error) {

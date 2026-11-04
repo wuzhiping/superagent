@@ -1,8 +1,8 @@
 /**
- * ntfy Source kind: a topic is the Thread; every message is an event. A message that mentions `@<agent>` becomes an
- * explicit request (the sender is the `#name` in the title, by convention). Replies are published back to the topic.
- * `pub_` topics are public, so their sender identity is low-trust; a private topic can be protected with an account and
- * password (HTTP Basic) or a bearer token, and only credential holders can read or publish.
+ * ntfy Source kind: a topic is the Thread; every message is an event. The messages are filed as cards in the KanEO board
+ * (the only direct source), which schedules them from there; the answer goes back to that card. `pub_` topics are public,
+ * so their sender identity is low-trust; a private topic can be protected with an account and password (HTTP Basic) or a
+ * bearer token, and only credential holders can read or publish.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
@@ -13,6 +13,8 @@ import { health, sourceContext, type SourceContext } from './host.ts'
 import type { Localized, SourceKind, ContextPart, ContextPartName, ThreadContext } from './kind.ts'
 import { pause } from './poll.ts'
 import { NtfyClient, NtfyError, type NtfyMessage } from './ntfy-api.ts'
+import { KaneoClient } from './kaneo-api.ts'
+import { fileEventOnce, inboxAccount, ingestEvents, type InboxEvent } from './kaneo-inbox.ts'
 import { DEFAULT_NTFY_URL, NtfyConfigSchema, ntfyAccountOf, ntfyTopicUrl, type NtfyConfig } from './ntfy-config.ts'
 
 export const SOURCE = 'ntfy'
@@ -35,12 +37,19 @@ export function ntfyTrigger(message: NtfyMessage, config: NtfyConfig, at = new D
       contentType: message.content_type } }
 }
 
+/** The card a message becomes: its title, or the first line of its text when it has no title. */
+export function messageEvent(message: NtfyMessage, config: NtfyConfig): InboxEvent {
+  const title = message.title.trim() || (message.message.split('\n')[0] ?? '').trim() || '(no title)'
+  return { source: SOURCE, title, body: message.message, url: ntfyTopicUrl(config.baseUrl, config.topic),
+    by: ntfySenderOf(message.title) }
+}
+
 export const ntfyKind: SourceKind<NtfyConfig> = {
   kind: SOURCE,
   title: { zh: 'ntfy 主题', en: 'ntfy topic' },
   description: {
-    zh: '订阅一个 ntfy 主题（默认 https://msn.feg.cn）。消息提到 @智能体 即成为请求；回复以消息发布回同一主题。私有 topic 可用账号+密码（HTTP Basic）或访问令牌保护；公开的 pub_ 主题无需认证，其发送者身份只能靠 title 约定，属低信任。',
-    en: 'Subscribes to an ntfy topic (default https://msn.feg.cn). A message that mentions the agent becomes a request; replies are published back to the topic. A private topic can be protected with an account and password (HTTP Basic) or a bearer token; public pub_ topics need no authentication, so their sender identity comes from the title convention only and is low-trust.',
+    zh: '订阅一个 ntfy 主题（默认 https://msn.feg.cn）。消息先在 KanEO 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。私有 topic 可用账号+密码（HTTP Basic）或访问令牌保护；公开的 pub_ 主题无需认证，其发送者身份只能靠 title 约定，属低信任。',
+    en: 'Subscribes to an ntfy topic (default https://msn.feg.cn). Every message is filed as a card in the KanEO board (to-do column) first, the board schedules it from there, and the result is written back to that card. A private topic can be protected with an account and password (HTTP Basic) or a bearer token; public pub_ topics need no authentication, so their sender identity comes from the title convention only and is low-trust.',
   },
   schema: NtfyConfigSchema,
   /** Settings-panel probe: read the entered topic with the entered authentication, without saving. */
@@ -65,9 +74,11 @@ export const ntfyKind: SourceKind<NtfyConfig> = {
     { key: 'pollSeconds', type: 'number', advanced: true, min: 15, max: 3600, label: { zh: '轮询间隔 / 秒', en: 'Polling interval / seconds' } },
     { key: 'failuresBeforeError', type: 'number', advanced: true, min: 1, max: 20, label: { zh: '连续失败几次后报告异常', en: 'Failed polls before reporting an error' } },
     { key: 'maxMessages', type: 'number', advanced: true, min: 1, max: 500, label: { zh: '每次最多读取消息数', en: 'Messages read per poll' } },
-    { key: 'bootstrap', type: 'select', advanced: true, label: { zh: '首次读取', en: 'First read' }, options: [
+    { key: 'bootstrap', type: 'select', advanced: true, label: { zh: '首次读取', en: 'First read' },
+      hint: { zh: '从当前时间开始 / 把保留的历史也入库成卡（会一次建很多张卡）。', en: 'Start from now / file the retained history as cards too (that creates many cards at once).' },
+      options: [
       { value: 'skip', label: { zh: '从当前时间开始', en: 'Start from now' } },
-      { value: 'history', label: { zh: '把保留的历史也当请求', en: 'Treat retained history as requests' } },
+      { value: 'history', label: { zh: '保留的历史也入库', en: 'File the retained history too' } },
     ] },
   ],
   scope: () => ({ listened: true, observed: false }),
@@ -137,7 +148,11 @@ export const ntfyKind: SourceKind<NtfyConfig> = {
     : {},
 }
 
-/** One polling round: baseline on first read, then each newer message becomes a Trigger. */
+/**
+ * One polling round: baseline on first read, then every newer message is filed as a card in the KanEO board. KanEO is
+ * the only direct source, so a message does not become a request here (unless the KanEO Source switched its inbox off);
+ * it becomes a card in the `to-do` pool, and the board schedules it from there.
+ */
 export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: NtfyClient, signal?: AbortSignal): Promise<number> {
   const stored = ctx.state.get(KV.ntfy.since)
   if (stored === undefined) {
@@ -152,14 +167,27 @@ export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: 
   const elapsed = Math.max(1, nowSec() - cursor)
   const messages = await client.history(`${elapsed}s`, { limit: config.maxMessages, signal })
   let received = 0
+  let filed = 0
+  const ingest = ingestEvents(ctx)
+  const account = ingest ? inboxAccount(ctx) : undefined
+  // Without a KanEO account the messages cannot be filed; the round fails instead of dropping them.
+  if (ingest && !account) throw new Error('The KanEO Source has no API key: ntfy messages are filed as KanEO cards')
+  const kaneo = account ? new KaneoClient(account) : undefined
   for (const message of messages) {
     if (message.time <= cursor) continue
+    if (account && kaneo) {
+      if (await fileEventOnce(ctx, account, messageEvent(message, config), message.id, { client: kaneo, signal })) filed += 1
+      continue
+    }
     if (await ctx.receive(ntfyTrigger(message, config)) !== 'filtered') received += 1
   }
   ctx.state.set(KV.ntfy.since, nowSec())
   ctx.state.set(KV.ntfy.topic, config.topic)
   const latest = messages.at(-1)
-  ctx.report('ntfy', { state: 'ready', detail: `${received} new message(s) in ${config.topic}${latest?.title ? `; latest: ${latest.title}` : ''}`, at: new Date().toISOString() })
+  const detail = ingest
+    ? `${filed} card(s) filed in KanEO from ${config.topic}`
+    : `${received} new message(s) in ${config.topic}`
+  ctx.report('ntfy', { state: 'ready', detail: `${detail}${latest?.title ? `; latest: ${latest.title}` : ''}`, at: new Date().toISOString() })
   return config.pollSeconds
 }
 
@@ -173,6 +201,8 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
     try {
       if (!config) ctx.report('ntfy', health('paused', 'sourceOff'))
       else if (!config.topic) ctx.report('ntfy', { state: 'paused', detail: 'The ntfy Source names no topic' })
+      // The messages are filed as KanEO cards, so without a KanEO account they cannot be filed at all.
+      else if (ingestEvents(ctx) && !inboxAccount(ctx)) ctx.report('ntfy', { state: 'error', detail: 'Configure the KanEO Source first: ntfy messages are filed as KanEO cards' })
       else { failures = 0; await pollRound(ctx, config, new NtfyClient(ntfyAccountOf(config) ?? { baseUrl: config.baseUrl, topic: config.topic,
         sender: config.sender, auth: { mode: 'none', user: '', password: '', token: '' } }), signal) }
     } catch (error) {

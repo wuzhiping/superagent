@@ -138,6 +138,9 @@ export function TicketPage({ id }: { id: string }) {
       <StageMark state={status.dot} icon={status.icon} label={status.label} />
       <LabelValue label={t('ticketMandateLabel')} value={valueLabel(t, 'strength', data.mandate.strength)} />
       <LabelValue label={t('ticketActorLabel')} value={`${valueLabel(t, 'source', data.mandate.actor.source)} · ${actor}`} />
+      {data.postId && <LabelValue label={t('ticketPostLabel')} value={data.postId} />}
+      {data.deliverableType && <LabelValue label={t('ticketDeliverableLabel')} value={t(`deliverable.${data.deliverableType}`)} />}
+      {data.charterVersion ? <LabelValue label={t('ticketCharterLabel')} value={`v${data.charterVersion}`} /> : null}
       <LabelValue label={t('ticketUpdatedLabel')} value={when(data.updatedAt, t('lang'))} />
     </div>
     {ended && <Hint>{ended}</Hint>}

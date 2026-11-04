@@ -19,13 +19,31 @@ const issue = (overrides: Record<string, unknown> = {}): Record<string, unknown>
 const comment = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({ id: 9, body: 'looks good', user: { login: 'bob' },
   created_at: '2026-11-02T01:00:00Z', updated_at: '2026-11-02T01:00:00Z', html_url: 'https://git.feg.cn/acme/widgets/issues/5#issuecomment-9',
   issue_url: 'https://git.feg.cn/api/v1/repos/acme/widgets/issues/5', ...overrides })
-function context(cfg: GiteaConfig) {
+/** The KanEO account of the deployed KanEO Source; the events are filed with it. */
+const kaneoAccount = { baseUrl: 'https://pl.feg.cn', apiKey: 'k', projectId: 'project-1', workspaceId: 'ws-1' }
+/** The Kaneo REST calls one poll makes: the source label, the card, and the label attached to the card. */
+function kaneoRest() {
+  const calls: { method: string; url: string; body?: unknown }[] = []
+  const stub = () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      calls.push({ method, url, ...init?.body ? { body: JSON.parse(String(init.body)) } : {} })
+      if (url.endsWith('/label')) return response({ id: 'label-1', name: 'from:gitea' })
+      if (url.includes('/task/')) return response({ id: 'card-1', number: 42, title: 'Fix it', status: 'to-do' })
+      return response({ id: 'label-1' })
+    }))
+  }
+  return { calls, stub }
+}
+function context(cfg: GiteaConfig, options: { kaneo?: typeof kaneoAccount | undefined; ingestEvents?: boolean } = { kaneo: kaneoAccount }) {
   const state = new Map<string, unknown>()
   const triggers: Trigger[] = []
   const reports: { entry: string; health: { state: string; detail: string } }[] = []
+  const kaneoConfig = { ingestEvents: options.ingestEvents ?? true }
   const ctx: SourceContext = {
-    deployment: {} as Deployment, commands: {} as Commands, ready: Promise.resolve(), configured: () => true,
-    config: <C extends Record<string, unknown>>(id: string) => (id === SOURCE ? cfg as unknown as C : undefined),
+    deployment: { kaneo: options.kaneo } as unknown as Deployment, commands: {} as Commands, ready: Promise.resolve(), configured: () => true,
+    config: <C extends Record<string, unknown>>(id: string) => (id === SOURCE ? cfg as unknown as C : id === 'kaneo' ? kaneoConfig as unknown as C : undefined),
     receive: async trigger => { triggers.push(trigger); return 'stored' as const },
     atomic: work => work(),
     state: {
@@ -106,9 +124,11 @@ describe('gitea triggers', () => {
 })
 
 describe('gitea polling', () => {
-  it('records a baseline first, then turns issues and comments into Triggers', async () => {
+  it('records a baseline first, then files issues and comments as KanEO cards', async () => {
     const cfg = config()
-    const { ctx, state, triggers } = context(cfg)
+    const { ctx, state, triggers, reports } = context(cfg)
+    const kaneo = kaneoRest()
+    kaneo.stub()
     const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', token: '' }, stubFetch(async url => {
       if (url.includes('/issues/comments')) return response([comment()])
       if (url.includes('/issues')) return response([issue()])
@@ -117,17 +137,77 @@ describe('gitea polling', () => {
     await pollRound(ctx, cfg, client)
     expect(triggers).toHaveLength(0)
     expect(state.get(KV.gitea.repo)).toBeTruthy()
+    expect(kaneo.calls).toHaveLength(0)
 
+    await pollRound(ctx, cfg, client)
+    // KanEO is the only direct source: the events became cards, not Triggers.
+    expect(triggers).toHaveLength(0)
+    const card = kaneo.calls.find(call => call.method === 'POST' && call.url.includes('/task/project-1'))
+    expect(card).toBeDefined()
+    const body = card?.body as { title: string; description: string; status: string; userId?: string; assigneeId?: string }
+    expect(body.title).toBe('Fix it')
+    expect(body.description).toContain('Please @dsh-superagent')
+    expect(body.description).toContain('Source URL: https://git.feg.cn/acme/widgets/issues/5')
+    expect(body.description).toContain('此卡由 gitea 入库')
+    expect(body.status).toBe('to-do')
+    // The card waits in the pool: nobody is assigned to it.
+    expect(body.userId).toBeUndefined()
+    expect(body.assigneeId).toBeUndefined()
+    // The source label is created once and attached to the card.
+    const label = kaneo.calls.find(call => call.method === 'POST' && call.url.endsWith('/label'))
+    expect((label?.body as { name: string; workspaceId: string }).name).toBe('from:gitea')
+    expect((label?.body as { workspaceId: string }).workspaceId).toBe('ws-1')
+    const attach = kaneo.calls.find(call => call.method === 'PUT' && call.url.includes('/label/label-1/task'))
+    expect((attach?.body as { taskId: string }).taskId).toBe('card-1')
+    expect(reports.at(-1)?.health.detail).toContain('card(s) filed in KanEO')
+  })
+
+  it('files the same event only once', async () => {
+    const cfg = config()
+    const { ctx, state } = context(cfg)
+    const kaneo = kaneoRest()
+    kaneo.stub()
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', token: '' }, stubFetch(async url =>
+      url.includes('/issues/comments') ? response([]) : response([issue()])))
+    state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
+    await pollRound(ctx, cfg, client)
+    const first = kaneo.calls.filter(call => call.method === 'POST' && call.url.includes('/task/')).length
+    await pollRound(ctx, cfg, client)
+    const second = kaneo.calls.filter(call => call.method === 'POST' && call.url.includes('/task/')).length
+    expect(first).toBe(1)
+    expect(second).toBe(1)
+  })
+
+  it('reports the missing KanEO account instead of dropping the events', async () => {
+    const cfg = config()
+    const { ctx, state, triggers } = context(cfg, { kaneo: undefined })
+    state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', token: '' }, stubFetch(async url =>
+      url.includes('/issues/comments') ? response([]) : response([issue()])))
+    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/KanEO Source has no API key/)
+    expect(triggers).toHaveLength(0)
+  })
+
+  it('produces Triggers again when the KanEO inbox is switched off', async () => {
+    const cfg = config()
+    const { ctx, state, triggers } = context(cfg, { ingestEvents: false })
+    state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', token: '' }, stubFetch(async url => {
+      if (url.includes('/issues/comments')) return response([comment()])
+      if (url.includes('/issues')) return response([issue()])
+      return response([])
+    }))
     await pollRound(ctx, cfg, client)
     expect(triggers.map(trigger => trigger.id)).toEqual([
       key('gitea', 'acme/widgets#5', 'i:2026-11-02T00:00:00Z'),
       key('gitea', 'acme/widgets#5', 'c:9'),
     ])
-    expect(triggers[0]?.addressed).toBe('mention')
   })
+
   it('keeps polling when one stream fails, reporting the partial result', async () => {
     const cfg = config()
     const { ctx, state, reports } = context(cfg)
+    kaneoRest().stub()
     state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
     const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', user: '', password: '' }, stubFetch(async url => {
       if (url.includes('/issues/comments')) return response({ message: 'issue does not exist' }, 500)
@@ -151,7 +231,7 @@ describe('gitea channel', () => {
     const message = { id: 'reply-1', kind: 'reply' as const, text: 'done', channel: { source: SOURCE, thread: 'acme/widgets#5',
       address: { owner: 'acme', repo: 'widgets', index: '5', url: 'https://git.feg.cn/acme/widgets/issues/5' } } }
     const commands = { deployment } as unknown as Commands
-    await expect(giteaKind.channel!.send({ commands }, message)).resolves.toBe('sent')
+    await expect(giteaKind.channel!.send({ commands, config: () => undefined }, message)).resolves.toBe('sent')
     const post = calls.find(call => call.init?.method === 'POST')
     expect(String(post?.init?.body)).toContain('<!-- dsh-superagent:reply-1 -->')
 
@@ -159,7 +239,7 @@ describe('gitea channel', () => {
       calls.push({ url: String(input), init })
       return response([comment({ body: 'done\n\n<!-- dsh-superagent:reply-1 -->' })])
     }))
-    await expect(giteaKind.channel!.send({ commands }, message)).resolves.toBe('sent')
+    await expect(giteaKind.channel!.send({ commands, config: () => undefined }, message)).resolves.toBe('sent')
     expect(calls.some(call => call.init?.method === 'POST')).toBe(true)
   })
 })

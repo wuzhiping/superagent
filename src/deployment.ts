@@ -67,7 +67,7 @@ export const FeishuBotSchema = z.object({ cli: z.string().trim().default('') })
  * no CLI account, so their account fields are checked over their own REST APIs while GitHub and Feishu go through CLIs.
  */
 export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape),
-  feishu: Object.keys(FeishuBotSchema.shape), kaneo: ['baseUrl', 'apiKey', 'projectId'],
+  feishu: Object.keys(FeishuBotSchema.shape), kaneo: ['baseUrl', 'apiKey', 'projectId', 'workspaceId'],
   gitea: ['baseUrl', 'user', 'password', 'token', 'repository'], ntfy: ['baseUrl', 'topic', 'authMode', 'authUser', 'authPassword', 'authToken', 'sender'] }
 
 export interface Deployment extends Machine {

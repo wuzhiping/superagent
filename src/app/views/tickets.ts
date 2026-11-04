@@ -45,7 +45,8 @@ export function ticketRow(view: Snapshot, ticket: Ticket) {
   const line = ticketLine(view, ticket)
   const channel = ticket.channels[0]
   const reply = line.stage === 'person' && channel ? channelLink(view, channel) : undefined
-  return { ...line, ...reply ? { reply } : {} }
+  // The post that owns this duty, so a list can show whose seat it runs in.
+  return { ...line, ...ticket.postId ? { postId: ticket.postId } : {}, ...reply ? { reply } : {} }
 }
 /** Executor slot utilization: `running` worker Sessions in an active turn (which occupy slots and are interrupted by a restart), and tickets `queued` for a slot. */
 export interface ExecutorLoad { running: number; queued: number }
@@ -73,6 +74,11 @@ export function ticketDetail(host: ViewHost, id: string) {
   const human = ticket.mandate.basis.via !== 'bot'
   return { ...ticketLine(view, ticket), mandate: { ...ticket.mandate, actor: view.actor(ticket.mandate.actor, human) },
     basis: basisFacts(ticket.mandate.basis, view.rule), paused: store.settings().paused,
+    // The narrative fields: which post runs this duty, what it produces, and the charter version it started under.
+    ...ticket.postId ? { postId: ticket.postId } : {}, ...ticket.projectId ? { projectId: ticket.projectId } : {},
+    ...ticket.deliverableType ? { deliverableType: ticket.deliverableType } : {},
+    ...ticket.repos?.length ? { repos: ticket.repos } : {},
+    ...ticket.charterVersion ? { charterVersion: ticket.charterVersion } : {},
     channels: ticket.channels.map(channel => channelLink(view, channel)),
     decision: decision ? decisionView(view, decision) : undefined,
     // Every started Assignment ran in the ticket's one worker Session. A running assignment whose worker reported a non-progress state has finished its turn unless a human response resumed the ticket.

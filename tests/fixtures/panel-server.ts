@@ -109,6 +109,9 @@ export interface PanelServer {
   opened: string[]
   dropped: DroppedReply[]
   failing: Extract<Problem, { kind: 'outgoing' }>['outgoing'][]
+  /** The project archive the panel edits; the fixture keeps the last written value. */
+  archive?: unknown
+  archiveRevision?: number
 }
 export let server: PanelServer
 
@@ -295,6 +298,47 @@ const SourceSave = z.object({ enabled: z.boolean(), config: z.unknown() })
 const ROUTES: { [K in keyof Api]: Route<K> } = {
   'GET state': { answer: stateView },
   'GET overview': { answer: overviewView },
+  'GET narrative': { answer: (): ApiResponse<'GET narrative'> => ({
+    configured: true,
+    projects: [{
+      id: 'p1', name: 'FDEP', slug: 'FDE', topics: ['pub_fdep_pm'],
+      flow: {
+        declared: [{ column: 'ready', meaning: '待开工' }, { column: 'in-progress', meaning: '进行中' }],
+        board: [{ slug: 'ready', name: '待开工', count: 2 }, { slug: 'in-progress', name: '进行中', count: 1 }],
+        drift: { added: [], removed: [] }, aligned: true,
+      },
+      charter: { version: 3, publishedAt: '2026-09-22T00:00:00Z', publishedBy: 'agent:pm', text: 'version: 3',
+        ageDays: 1, stale: false, hasDraft: false, versions: [], detail: 'The charter is current' },
+      posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', projectId: 'p1', projectName: 'FDEP',
+        kaneoUserId: 'u-pm', giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web',
+        watchColumns: 'ready,in-progress',
+        dutyCount: 1, duties: [{ ticketId: 't1', title: '修复回归', postId: 'pm-fdep', projectId: 'p1', state: 'running',
+          waiting: false, updatedAt: '2026-09-23T00:00:00Z' }], overLimit: false }],
+    }],
+    posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', projectId: 'p1', projectName: 'FDEP',
+      kaneoUserId: 'u-pm', giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web',
+      watchColumns: 'ready,in-progress',
+      dutyCount: 1, duties: [{ ticketId: 't1', title: '修复回归', postId: 'pm-fdep', projectId: 'p1', state: 'running',
+        waiting: false, updatedAt: '2026-09-23T00:00:00Z' }], overLimit: false }],
+    duties: [{ ticketId: 't1', title: '修复回归', postId: 'pm-fdep', projectId: 'p1', state: 'running',
+      waiting: false, updatedAt: '2026-09-23T00:00:00Z' }],
+    exceptions: [{ ticketId: 't1', title: '修复回归', kind: 'waiting', postId: 'pm-fdep', projectId: 'p1',
+      detail: '需要确认验收口径', updatedAt: '2026-09-23T00:00:00Z' }],
+    overLimit: 0,
+  }) },
+  'GET project-archive': { answer: (): ApiResponse<'GET project-archive'> => ({
+    archive: { version: 1, projects: [{ id: 'p1', name: 'FDEP', slug: 'FDE',
+      charter: { version: 3, publishedAt: '2026-09-22T00:00:00Z', publishedBy: 'agent:pm', text: 'version: 3', draft: '', history: [] },
+      topics: ['pub_fdep_pm'],
+      posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', kaneoUserId: 'u-pm',
+        giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web', watchColumns: 'ready' }] }] },
+    revision: 7,
+  }) },
+  'PUT project-archive': { body: true, answer: ({ body }) => {
+    server.archive = body.archive
+    server.archiveRevision = (server.archiveRevision ?? 0) + 1
+    return { revision: server.archiveRevision }
+  } },
   'GET search': { query: ['q'], answer: async ({ query }) => {
     const q = query.q ?? ''
     await server.searching?.(q)

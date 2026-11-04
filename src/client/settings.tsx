@@ -3,9 +3,11 @@ import type { StateView } from './api.ts'
 import { DeploymentPage, type DeploymentForm } from './deployment.tsx'
 import { EvalSettings } from './eval.tsx'
 import { ExecutionSettings } from './execution.tsx'
+import { ProjectSettings } from './project.tsx'
 import { PromptsPage } from './prompts.tsx'
 import { usePanel } from './provider.tsx'
-import { SETTINGS_GROUPS, settingsRoute, type SettingsGroup } from './route.ts'
+import { usePerspective } from './perspective.tsx'
+import { SETTINGS_GROUPS_BY_PERSPECTIVE, settingsRoute, type SettingsGroup } from './route.ts'
 import { SettingsProvider } from './settings-kit.tsx'
 import { SourceSettings } from './source.tsx'
 
@@ -14,8 +16,11 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
   group: SettingsGroup; query: { source?: string; version?: string }; state: StateView; deploymentForm: DeploymentForm
 }) {
   const { t, navigate } = usePanel()
+  const { perspective } = usePerspective()
+  const groups = SETTINGS_GROUPS_BY_PERSPECTIVE[perspective]
   const content = (() => {
     switch (group) {
+      case 'project': return <ProjectSettings />
       case 'source': return <SettingsProvider><SourceSettings {...query.source ? { focus: query.source } : {}} /></SettingsProvider>
       case 'eval': return <SettingsProvider><EvalSettings version={query.version} /></SettingsProvider>
       case 'execution': return <SettingsProvider><ExecutionSettings /></SettingsProvider>
@@ -25,7 +30,7 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
   })()
   return <div className="dt-settings">
     <nav className="dt-settings-nav" aria-label={t('tab.settings')}>
-      {SETTINGS_GROUPS.map(value => <button key={value} type="button" className="dt-settings-link" data-stage={STAGE_GROUPS.includes(value)
+      {groups.map(value => <button key={value} type="button" className="dt-settings-link" data-stage={STAGE_GROUPS.includes(value)
         || undefined}
         aria-current={value === group ? 'page' : undefined} onClick={() => navigate(settingsRoute(value),
           true)}>{t(`settingsGroup.${value}`)}</button>)}

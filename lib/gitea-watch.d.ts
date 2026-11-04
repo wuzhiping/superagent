@@ -1,5 +1,6 @@
-import { U as Trigger, mt as GiteaConfig, pt as DEFAULT_GITEA_URL } from "./intake-Cr0pk4VV.js";
-import { n as SourceContext, t as SourceKind } from "./kind-WF9My7tQ.js";
+import { W as Trigger, ht as GiteaConfig, mt as DEFAULT_GITEA_URL } from "./intake-LzTuo899.js";
+import { n as SourceContext, t as SourceKind } from "./kind-DUtZFUu7.js";
+import { t as InboxEvent } from "./kaneo-inbox-EA3qOtMv.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/gitea-api.d.ts
@@ -163,12 +164,22 @@ declare function commentTrigger(comment: GiteaComment, ref: GiteaRef, config: Gi
 declare function notificationTrigger(notification: GiteaNotification, ref: GiteaRef, config: GiteaConfig, issue?: GiteaIssue, at?: string): Trigger;
 /** `owner/repo/issues/5` (or `/pulls/5`) from a Gitea URL. */
 declare function refFromUrl(value: string | null | undefined): GiteaRef | undefined;
+/** The card an issue or a pull request becomes: its title, its body and its link. */
+declare function issueEvent(issue: GiteaIssue): InboxEvent;
+/** The card a comment becomes: the issue it belongs to, the comment itself and its link. */
+declare function commentEvent(comment: GiteaComment, ref: GiteaRef, title?: string): InboxEvent;
+/** The card a notification becomes: the title of the issue or pull request it points at. */
+declare function notificationEvent(notification: GiteaNotification, issue?: GiteaIssue): InboxEvent;
 declare const giteaKind: SourceKind<GiteaConfig>;
-/** One polling round: baseline on first poll, then issue/comment/notification increments become Triggers. */
+/**
+ * One polling round: baseline on first poll, then issue/comment/notification increments are filed as cards in the
+ * KanEO board. KanEO is the only direct source, so the events do not become requests here (unless the KanEO Source
+ * switched its inbox off); they become cards in the `to-do` pool, and the board schedules them from there.
+ */
 declare function pollRound(ctx: SourceContext, config: GiteaConfig, client: GiteaClient, signal?: AbortSignal): Promise<number>;
 declare const name = "dsh-superagent-gitea";
 declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_GITEA_URL, GiteaRef, SOURCE, apply, commentTrigger, giteaKind, giteaRef, giteaRefOfThread, giteaThreadId, giteaThreadKey, inject, issueTrigger, name, notificationTrigger, pollRound, refFromUrl };
+export { DEFAULT_GITEA_URL, GiteaRef, SOURCE, apply, commentEvent, commentTrigger, giteaKind, giteaRef, giteaRefOfThread, giteaThreadId, giteaThreadKey, inject, issueEvent, issueTrigger, name, notificationEvent, notificationTrigger, pollRound, refFromUrl };

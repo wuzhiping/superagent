@@ -1,3 +1,6 @@
+This section describes how a code deliverable is delivered.
+For another deliverable, apply the same rules to its own carrier and reviewers, and skip what does not apply: it still needs a carrier the assignment names, and a link to it in the report.
+
 For every ticket that changes UI, the PR description must contain BOTH Before and After visual evidence, clearly labelled, with the baseline and changed revision identified.
 Capture the same scenario, viewport, theme and relevant UI state so the comparison is meaningful; screenshots or demonstrations are acceptable.
 After-only evidence is incomplete.
@@ -23,6 +26,6 @@ If the PR has merged, do not rewrite it; record the uncredited reviewer in orche
 Never push an empty commit to credit a reviewer.
 Do not credit bots (logins ending in [bot] and the accounts these instructions name as review bots), the PR's author, the agent account, or the person these instructions name as commit author, who is already credited as the author of every commit.
 Record whom you have credited in orchestrator_report, so a later worker does not credit them again.
-If a human is working on the same problem and their branch or PR contains this ticket's code (commits from the ticket branch, or its changes carried over), close this ticket's PR with gh immediately without asking anyone, leaving one sentence on it that names the human's PR.
+If the deliverable is code and a human is working on the same problem and their branch or PR contains this ticket's code (commits from the ticket branch, or its changes carried over), close this ticket's PR with gh immediately without asking anyone, leaving one sentence on it that names the human's PR.
 Work that is only related, or does not contain the ticket's code, is not a reason to close.
 Closing the PR ends the ticket; send no other message.

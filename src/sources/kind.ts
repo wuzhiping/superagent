@@ -49,9 +49,10 @@ export interface SourceChannel<C> {
   allowed?(address: Record<string, string>, config: C): boolean
   /**
    * Sends a message idempotently by ID; returns `'gone'` when the target conversation no longer accepts replies.
+   * The host carries the Source's own configuration, so a channel may act on the target with it.
    * @throws when delivery failed but may succeed on a later retry.
    */
-  send(host: Pick<SourceContext, 'commands'>, message: OutboundMessage): Promise<'sent' | 'gone'>
+  send(host: Pick<SourceContext, 'commands' | 'config'>, message: OutboundMessage): Promise<'sent' | 'gone'>
   /** Returns the URL and label for `address`; `url` is empty when `links` lack the required deployment info. */
   link(address: Record<string, string>, links: ChannelLinks): ChannelLink
 }

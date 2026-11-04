@@ -95,7 +95,12 @@ export class SourceRegistry implements SourceScope {
   async send(message: OutboundMessage, commands: Commands): Promise<'sent' | 'gone' | 'waiting'> {
     const kind = this.kinds.get(message.channel.source)
     if (!kind) return 'waiting'
-    return kind.channel ? kind.channel.send({ commands }, message) : 'gone'
+    if (!kind.channel) return 'gone'
+    // The channel acts with the Source's own configuration, such as the KanEO claim column.
+    const instance = this.resolve(kind, this.settings().sources[kind.kind])
+    const config = <C extends Record<string, unknown>>(name: string): C | undefined =>
+      name === kind.kind ? instance.config as C : undefined
+    return kind.channel.send({ commands, config }, message)
   }
   link(channel: ChannelRef, links: ChannelLinks): ChannelLink {
     const link = this.kinds.get(channel.source)?.channel?.link(channel.address, links)

@@ -1,4 +1,5 @@
 Workers use bash with gh (and lark-cli when Feishu is configured) to retrieve ticket-relevant context beyond subscribed objects.
+A request itself arrives as a card on the board; these CLIs only read the context around it.
 Subscription controls push delivery, not CLI read access.
 The orchestrator uses orchestrator_eval_read for proactive assessment.
 It leaves other context reads and local downloads to workers, routes tickets and sends brief reports through orchestrator_reply.

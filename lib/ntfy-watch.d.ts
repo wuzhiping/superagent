@@ -1,5 +1,6 @@
-import { U as Trigger, dt as DEFAULT_NTFY_URL, ft as NtfyConfig } from "./intake-Cr0pk4VV.js";
-import { n as SourceContext, t as SourceKind } from "./kind-WF9My7tQ.js";
+import { W as Trigger, ft as DEFAULT_NTFY_URL, pt as NtfyConfig } from "./intake-LzTuo899.js";
+import { n as SourceContext, t as SourceKind } from "./kind-DUtZFUu7.js";
+import { t as InboxEvent } from "./kaneo-inbox-EA3qOtMv.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/ntfy-api.d.ts
@@ -60,12 +61,18 @@ declare const SOURCE = "ntfy";
 /** The title convention for a sender: `#name` or `@name`. */
 declare const ntfySenderOf: (title: string) => string | undefined;
 declare function ntfyTrigger(message: NtfyMessage, config: NtfyConfig, at?: string): Trigger;
+/** The card a message becomes: its title, or the first line of its text when it has no title. */
+declare function messageEvent(message: NtfyMessage, config: NtfyConfig): InboxEvent;
 declare const ntfyKind: SourceKind<NtfyConfig>;
-/** One polling round: baseline on first read, then each newer message becomes a Trigger. */
+/**
+ * One polling round: baseline on first read, then every newer message is filed as a card in the KanEO board. KanEO is
+ * the only direct source, so a message does not become a request here (unless the KanEO Source switched its inbox off);
+ * it becomes a card in the `to-do` pool, and the board schedules it from there.
+ */
 declare function pollRound(ctx: SourceContext, config: NtfyConfig, client: NtfyClient, signal?: AbortSignal): Promise<number>;
 declare const name = "dsh-superagent-ntfy";
 declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_NTFY_URL, SOURCE, apply, inject, name, ntfyKind, ntfySenderOf, ntfyTrigger, pollRound };
+export { DEFAULT_NTFY_URL, SOURCE, apply, inject, messageEvent, name, ntfyKind, ntfySenderOf, ntfyTrigger, pollRound };

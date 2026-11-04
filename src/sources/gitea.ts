@@ -1,7 +1,8 @@
 /**
  * Gitea Source kind: issues, pull requests and comments of a self-hosted Gitea repository (default https://git.feg.cn).
- * Addressed events become Triggers; replies are posted as issue/PR comments. It polls the agent's notifications (token) or
- * repository-wide increments (works anonymously for public repositories).
+ * Addressed events are filed as cards in the KanEO board (the only direct source); the board schedules them from
+ * there. It polls the agent's notifications (token) or repository-wide increments (works anonymously for public
+ * repositories).
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
@@ -12,6 +13,8 @@ import { health, sourceContext, type SourceContext } from './host.ts'
 import type { Localized, SourceKind, ThreadContext, ContextPart, ContextPartName } from './kind.ts'
 import { pause } from './poll.ts'
 import { GiteaClient, GiteaError, type GiteaComment, type GiteaIssue, type GiteaNotification } from './gitea-api.ts'
+import { KaneoClient } from './kaneo-api.ts'
+import { fileEventOnce, inboxAccount, ingestEvents, type InboxEvent } from './kaneo-inbox.ts'
 import { DEFAULT_GITEA_URL, giteaBot, giteaHasAuth, GiteaConfigSchema, repositoryOf, type GiteaConfig } from './gitea-config.ts'
 
 export const SOURCE = 'gitea'
@@ -84,12 +87,32 @@ export function refFromUrl(value: string | null | undefined): GiteaRef | undefin
   return match ? { owner: match[1]!, repo: match[2]!, index: Number(match[3]) } : undefined
 }
 
+/** The card an issue or a pull request becomes: its title, its body and its link. */
+export function issueEvent(issue: GiteaIssue): InboxEvent {
+  return { source: SOURCE, title: issue.title, body: issue.body ?? '', url: issue.html_url, by: issue.user?.login }
+}
+
+/** The card a comment becomes: the issue it belongs to, the comment itself and its link. */
+export function commentEvent(comment: GiteaComment, ref: GiteaRef, title?: string): InboxEvent {
+  return { source: SOURCE, title: `#${ref.index} ${title ?? `${ref.owner}/${ref.repo} 的评论`}`, body: comment.body,
+    url: comment.html_url, by: comment.user?.login }
+}
+
+/** The card a notification becomes: the title of the issue or pull request it points at. */
+export function notificationEvent(notification: GiteaNotification, issue?: GiteaIssue): InboxEvent {
+  return { source: SOURCE, title: notification.subject.title || 'Gitea 通知', body: issue?.body ?? '',
+    url: issue?.html_url, by: issue?.user?.login }
+}
+
+/** The key of one event, so the same event is filed as a card once. */
+const eventKey = (ref: GiteaRef, kind: string, id: string): string => `${giteaThreadId(ref)}:${kind}:${id}`
+
 export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
   title: { zh: 'Gitea 仓库', en: 'Gitea repository' },
   description: {
-    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。用邮箱+密码（或 API token）登录，读取 agent 通知或仓库里的 Issue/PR/评论增量；被 @ 的事件成为请求，回复以 Issue/PR 评论写回。',
-    en: 'A self-hosted Gitea repository (default https://git.feg.cn). It signs in with the account e-mail and password (or an API token), reads the agent notifications or repository issue/PR/comment increments; an event that mentions the agent becomes a request, and replies are posted as issue/PR comments.',
+    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。用邮箱+密码（或 API token）登录，读取 agent 通知或仓库里的 Issue/PR/评论增量；事件先在 KanEO 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
+    en: 'A self-hosted Gitea repository (default https://git.feg.cn). It signs in with the account e-mail and password (or an API token), reads the agent notifications or repository issue/PR/comment increments; every event is filed as a card in the KanEO board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
   },
   schema: GiteaConfigSchema,
   /** Settings-panel probe: log in with the entered account and read the entered repository, without saving. */
@@ -111,14 +134,16 @@ export const giteaKind: SourceKind<GiteaConfig> = {
       { value: 'repo', label: { zh: '仓库增量（Issue/评论/PR）', en: 'Repository increments (issues/comments/PRs)' } },
       { value: 'notifications', label: { zh: 'agent 通知（需 token）', en: 'Agent notifications (needs a token)' } },
     ] },
-    { key: 'agent', type: 'text', label: { zh: 'agent 的 Gitea 登录名', en: 'Agent Gitea login' }, hint: { zh: '评论或描述里 @ 这个名字即视为明确请求。', en: 'Mentioning this name in a comment or description is an explicit request.' } },
+    { key: 'agent', type: 'text', label: { zh: 'agent 的 Gitea 登录名', en: 'Agent Gitea login' }, hint: { zh: '评论或描述里 @ 这个名字即视为明确请求（入库模式下由 PM 在看板上决定是否派工）。', en: 'Mentioning this name in a comment or description is an explicit request (with the inbox on, the PM decides on the board whether to assign it).' } },
     { key: 'bots', type: 'text', advanced: true, label: { zh: '机器人账号（逗号分隔）', en: 'Bot accounts (comma separated)' } },
     { key: 'observeIssues', type: 'switch', label: { zh: '读 Issue 变化', en: 'Read issue changes' } },
     { key: 'observeComments', type: 'switch', label: { zh: '读评论', en: 'Read comments' } },
     { key: 'observePulls', type: 'switch', advanced: true, label: { zh: '读 PR 变化', en: 'Read pull request changes' } },
-    { key: 'bootstrap', type: 'select', advanced: true, label: { zh: '首次轮询', en: 'First poll' }, options: [
+    { key: 'bootstrap', type: 'select', advanced: true, label: { zh: '首次轮询', en: 'First poll' },
+      hint: { zh: 'skip：跳过已有事件；trigger：把已有事件也入库成卡（会一次建很多张卡）。', en: 'skip ignores the existing events; trigger files them as cards too (that creates many cards at once).' },
+      options: [
       { value: 'skip', label: { zh: '跳过已有事件', en: 'Skip existing events' } },
-      { value: 'trigger', label: { zh: '已有事件也触发', en: 'Trigger existing events' } },
+      { value: 'trigger', label: { zh: '已有事件也入库', en: 'File existing events too' } },
     ] },
     { key: 'pollSeconds', type: 'number', advanced: true, min: 15, max: 3600, label: { zh: '轮询间隔 / 秒', en: 'Polling interval / seconds' } },
     { key: 'failuresBeforeError', type: 'number', advanced: true, min: 1, max: 20, label: { zh: '连续失败几次后报告异常', en: 'Failed polls before reporting an error' } },
@@ -201,7 +226,11 @@ export const giteaKind: SourceKind<GiteaConfig> = {
     : {},
 }
 
-/** One polling round: baseline on first poll, then issue/comment/notification increments become Triggers. */
+/**
+ * One polling round: baseline on first poll, then issue/comment/notification increments are filed as cards in the
+ * KanEO board. KanEO is the only direct source, so the events do not become requests here (unless the KanEO Source
+ * switched its inbox off); they become cards in the `to-do` pool, and the board schedules them from there.
+ */
 export async function pollRound(ctx: SourceContext, config: GiteaConfig, client: GiteaClient, signal?: AbortSignal): Promise<number> {
   const cursorKey = config.listen === 'notifications' ? KV.gitea.notifications : KV.gitea.repo
   const cursor = ctx.state.get(cursorKey)
@@ -211,16 +240,30 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
     return config.pollSeconds
   }
   let received = 0
+  let filed = 0
+  const ingest = ingestEvents(ctx)
+  const account = ingest ? inboxAccount(ctx) : undefined
+  // Without a KanEO account the events cannot be filed; the round fails instead of dropping them.
+  if (ingest && !account) throw new Error('The KanEO Source has no API key: Gitea events are filed as KanEO cards')
+  const kaneo = account ? new KaneoClient(account) : undefined
+  /** Files one event as a card, or (with the KanEO inbox switched off) hands it to the Engine as a request. */
+  const deliver = async (event: InboxEvent, id: string, trigger: () => Trigger): Promise<void> => {
+    if (account && kaneo) {
+      if (await fileEventOnce(ctx, account, event, id, { client: kaneo, signal })) filed += 1
+      return
+    }
+    if (await ctx.receive(trigger()) !== 'filtered') received += 1
+  }
   const repo = repositoryOf(config.repository)
   const problems: string[] = []
   if (config.listen === 'notifications') {
     const items = await client.notifications({ since: cursor, all: false, limit: config.maxItems }, signal)
     for (const item of items) {
-      const ref = refFromUrl(item.subject.url) ?? refFromUrl(item.repository?.full_name ? `/repos/${item.repository.full_name}` : undefined)
-      const target = ref ?? (item.subject.url ? refFromUrl(item.subject.url) : undefined)
+      const target = refFromUrl(item.subject.url) ?? refFromUrl(item.repository?.full_name ? `/repos/${item.repository.full_name}` : undefined)
       if (!target) continue
       const issue = await client.issue(target.owner, target.repo, target.index).catch(() => undefined)
-      if (await ctx.receive(notificationTrigger(item, target, config, issue)) !== 'filtered') received += 1
+      await deliver(notificationEvent(item, issue), eventKey(target, 'notification', item.id),
+        () => notificationTrigger(item, target, config, issue))
     }
   } else if (repo) {
     // Each stream is independent: one broken stream (for example orphaned comments after an issue was deleted) must not
@@ -234,7 +277,7 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
       const issues = await client.issues(repo.owner, repo.name, { state: 'all', since: cursor, limit: config.maxItems }, signal)
       for (const issue of issues) {
         const ref = { owner: repo.owner, repo: repo.name, index: issue.number }
-        if (await ctx.receive(issueTrigger(issue, ref, config)) !== 'filtered') received += 1
+        await deliver(issueEvent(issue), eventKey(ref, 'issue', issue.updated_at), () => issueTrigger(issue, ref, config))
       }
     })
     if (config.observeComments) await attempt('comments', async () => {
@@ -242,7 +285,7 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
       for (const comment of comments) {
         const ref = refFromUrl(comment.issue_url)
         if (!ref) continue
-        if (await ctx.receive(commentTrigger(comment, ref, config)) !== 'filtered') received += 1
+        await deliver(commentEvent(comment, ref), eventKey(ref, 'comment', String(comment.id)), () => commentTrigger(comment, ref, config))
       }
     })
     // Follow-ups on threads a ticket follows: new comments reach the subscribed tickets as context.
@@ -253,7 +296,7 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
         const start = ctx.state.get(KV.gitea.thread(thread.key)) ?? thread.createdAt
         const comments = await client.issueCommentsOf(ref.owner, ref.repo, ref.index, { since: start, limit: config.maxItems }, signal)
         for (const comment of comments) {
-          if (await ctx.receive(commentTrigger(comment, ref, config)) !== 'filtered') received += 1
+          await deliver(commentEvent(comment, ref), eventKey(ref, 'comment', String(comment.id)), () => commentTrigger(comment, ref, config))
         }
         ctx.state.set(KV.gitea.thread(thread.key), now())
       })
@@ -261,7 +304,10 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
     if (succeeded === 0 && problems.length) throw new Error(problems.join('; '))
   } else throw new Error('The Gitea Source names no repository')
   ctx.state.set(cursorKey, now())
-  ctx.report('gitea', { state: 'ready', detail: `${received} new event(s) from ${config.repository || 'notifications'}${problems.length ? ` (partial: ${problems.join('; ')})` : ''}`, at: now() })
+  const detail = ingest
+    ? `${filed} card(s) filed in KanEO from ${config.repository || 'notifications'}`
+    : `${received} new event(s) from ${config.repository || 'notifications'}`
+  ctx.report('gitea', { state: 'ready', detail: `${detail}${problems.length ? ` (partial: ${problems.join('; ')})` : ''}`, at: now() })
   return config.pollSeconds
 }
 
@@ -276,6 +322,8 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
       if (!config) ctx.report('gitea', health('paused', 'sourceOff'))
       else if (config.listen === 'notifications' && !giteaHasAuth(config)) ctx.report('gitea', { state: 'paused', detail: 'The notification mode needs an account and password (or an API token)' })
       else if (config.listen === 'repo' && !repositoryOf(config.repository)) ctx.report('gitea', { state: 'paused', detail: 'The Gitea Source names no repository' })
+      // The events are filed as KanEO cards, so without a KanEO account they cannot be filed at all.
+      else if (ingestEvents(ctx) && !inboxAccount(ctx)) ctx.report('gitea', { state: 'error', detail: 'Configure the KanEO Source first: Gitea events are filed as KanEO cards' })
       else if (config.bootstrap === 'trigger' && !ctx.state.get(config.listen === 'notifications' ? KV.gitea.notifications : KV.gitea.repo)) {
         // Trigger mode starts the cursor in the distant past so the first poll reports what is already there.
         ctx.state.set(config.listen === 'notifications' ? KV.gitea.notifications : KV.gitea.repo, '1970-01-01T00:00:00.000Z')

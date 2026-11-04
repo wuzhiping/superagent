@@ -382,5 +382,35 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 /* Source settings use segmented controls for short choices; long option labels (Gitea read mode, ntfy auth) must wrap
    inside their own button instead of overlapping neighbours. */
 .dt-field-segmented { max-width: 100%; }
-.dt-field-segmented .dt-segment { height: auto; min-height: 28px; min-width: 0; padding: 4px 10px; white-space: normal;
-  line-height: 18px; overflow-wrap: anywhere; text-align: center; }
+.dt-field-segmented .dt-segment { height: auto; min-height: 28px; min-width: 0; padding: 4px 10px; white-space: normal; line-height: 18px; overflow-wrap: anywhere; text-align: center; }
+
+/* The perspective switch: the same deployment read from the PM's seat or from a post's seat. */
+.dt-perspective { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover); border: 0.5px solid var(--dsw-alias-border-l3); }
+.dt-perspective-option { height: 26px; padding: 0 12px; border: none; border-radius: 999px; background: transparent; color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 18px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.dt-perspective-option:hover { color: var(--dsw-alias-label-primary); }
+.dt-perspective-option[aria-pressed="true"] { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-button-ghost-active-fill, var(--dsw-alias-interactive-bg-hover)); box-shadow: 0 0 0 0.5px var(--dsw-alias-border-l3); }
+
+/* The posts page: projects, posts, charters, duties and exceptions (RD.md §4–§8). */
+.dt-posts { display: flex; flex-direction: column; gap: 20px; }
+.dt-posts-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dt-post { border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 10px; padding: 10px 12px; }
+.dt-post-over { border-color: var(--dsw-alias-state-error-primary); }
+.dt-post-name { font-weight: 500; }
+.dt-role { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; margin-right: 8px; border-radius: 10px; font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+.dt-role-pm { color: var(--dsw-alias-state-warn-primary); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dt-role-worker { color: var(--dsw-alias-brand-primary); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 14%, transparent); }
+.dt-post-duties { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.dt-post-duties .dt-detail { margin-left: 8px; color: var(--dsw-alias-label-tertiary); }
+.dt-pill-ok { color: var(--dsw-alias-state-success-primary); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
+.dt-pill-warn { color: var(--dsw-alias-state-warn-primary); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dt-pill-muted { color: var(--dsw-alias-label-tertiary); background: var(--dsw-alias-interactive-bg-hover); }
+.dt-flowline { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.dt-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px 0; color: var(--dsw-alias-label-secondary); }
+
+/* The project and post settings page. */
+.dt-project-settings { display: flex; flex-direction: column; gap: 16px; }
+.dt-archive-card { border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.dt-post-editor { background: var(--dsw-alias-bg-layer-1); }
+.dt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 16px; }
+.dt-archive-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dt-field-label { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary); }

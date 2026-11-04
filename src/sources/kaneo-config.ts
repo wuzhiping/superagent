@@ -9,12 +9,14 @@ export const DEFAULT_CLAIM_COLUMN = 'in-progress'
 
 /**
  * The account fields deployment setup resolves and restarts for. `apiKey` empty means the Kaneo Source is not configured;
- * `projectId` defaults to the FDEP board so a first save only needs the key.
+ * `projectId` defaults to the FDEP board so a first save only needs the key; `workspaceId` names the workspace the
+ * labels of the inbox live in (empty: the first workspace the API key can read).
  */
 export const KaneoAccountSchema = z.object({
   baseUrl: z.string().trim().default(DEFAULT_BASE_URL),
   apiKey: z.string().trim().default(''),
   projectId: z.string().trim().default(DEFAULT_PROJECT),
+  workspaceId: z.string().trim().default(''),
 })
 export type KaneoAccount = z.infer<typeof KaneoAccountSchema>
 
@@ -29,7 +31,9 @@ export const KaneoConfigSchema = z.object({
   projectId: z.string().trim().default(DEFAULT_PROJECT).describe('Kaneo project id whose board this Source watches'),
   workspaceId: z.string().trim().default('').describe('Optional workspace id; used only for display and links'),
   watchColumns: z.string().trim().default(DEFAULT_WATCH_COLUMNS).describe('Column slugs whose tasks become requests, comma separated'),
-  claimColumn: z.string().trim().default(DEFAULT_CLAIM_COLUMN).describe('Column a task moves to once its request is recorded; empty to never move'),
+  ingestEvents: z.boolean().default(true).describe('Other Sources file their events as cards in this project instead of producing requests'),
+  claimColumn: z.string().trim().default(DEFAULT_CLAIM_COLUMN).describe('Column a task moves to when the post starts working on it; empty to never move'),
+  doneColumn: z.string().trim().default('').describe('Column a task moves to when the post delivers its result; empty to never move'),
   bootstrap: z.enum(['skip', 'trigger']).default('skip').describe('First poll: record tasks already in the watched columns, or treat them as requests'),
   requiredLabels: z.string().trim().default('').describe('Only tasks with one of these labels (comma separated); empty accepts every task'),
   pollSeconds: z.number().int().min(15).max(3600).default(60).describe('Poll interval in seconds'),
@@ -44,6 +48,10 @@ const split = (value: string): string[] => value.split(',').map(item => item.tri
 export const watchColumnsOf = (config: Pick<KaneoConfig, 'watchColumns'>): string[] => split(config.watchColumns)
 /** Required task labels from the comma-separated config field. */
 export const requiredLabelsOf = (config: Pick<KaneoConfig, 'requiredLabels'>): string[] => split(config.requiredLabels)
+/** The claim column a task moves to when the post starts working on it; empty means the task never moves. */
+export const claimColumnOf = (config: Pick<KaneoConfig, 'claimColumn'> | undefined): string => config?.claimColumn.trim() ?? ''
+/** The column a task moves to when the post delivers its result; empty means the task never moves. */
+export const doneColumnOf = (config: Pick<KaneoConfig, 'doneColumn'> | undefined): string => config?.doneColumn.trim() ?? ''
 
 /** The account fields of a stored Kaneo Source config, or undefined when no API key is configured. */
 export function kaneoAccountOf(stored: Record<string, unknown> | undefined): KaneoAccount | undefined {

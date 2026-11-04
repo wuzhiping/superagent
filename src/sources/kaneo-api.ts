@@ -24,6 +24,13 @@ export const KaneoBoardSchema = z.looseObject({
   pagination: z.looseObject({ total: z.number().default(0), page: z.number().default(1), totalPages: z.number().default(1) }).default({ total: 0, page: 1, totalPages: 1 }),
 })
 
+/** A task as Kaneo answers a card creation: the id and number identify it, the column slug says where it landed. */
+const CreatedTaskSchema = z.looseObject({ id: z.string().min(1), number: z.number().int().optional(), title: z.string().default(''), status: z.string().default('') })
+/** A label as Kaneo answers a label creation; the same name answers with the label that already exists. */
+const LabelSchema = z.looseObject({ id: z.string().min(1), name: z.string().default('') })
+/** A workspace as Kaneo answers the workspace list; labels live in a workspace. */
+const WorkspaceSchema = z.looseObject({ id: z.string().min(1), name: z.string().default('') })
+
 const errorText = (text: string, status: number): string => {
   try {
     const value = JSON.parse(text) as { message?: unknown; error?: unknown }
@@ -118,5 +125,29 @@ export class KaneoClient {
   /** Moves a task to another column of its project. */
   async move(id: string, status: string, options: RequestOptions = {}): Promise<void> {
     await this.request(z.unknown(), 'PUT', `/task/status/${encodeURIComponent(id)}`, { status }, options)
+  }
+
+  /**
+   * Creates a card in a project. `status` is the slug of the column it lands in; no assignee is written, so the card
+   * waits in the pool until a person assigns it. Kaneo requires `priority`, so the caller always names one.
+   */
+  async createTask(projectId: string, body: { title: string; description?: string; status?: string; priority?: string },
+    options: RequestOptions = {}): Promise<z.infer<typeof CreatedTaskSchema>> {
+    return this.request(CreatedTaskSchema, 'POST', `/task/${encodeURIComponent(projectId)}`, body, options)
+  }
+
+  /** Creates a label in a workspace; the same name answers with the label that already exists. */
+  async createLabel(name: string, color: string, workspaceId: string, options: RequestOptions = {}): Promise<z.infer<typeof LabelSchema>> {
+    return this.request(LabelSchema, 'POST', '/label', { name, color, workspaceId }, options)
+  }
+
+  /** Attaches a label to a card, so the board shows where the card came from. */
+  async attachLabel(labelId: string, taskId: string, options: RequestOptions = {}): Promise<void> {
+    await this.request(z.unknown(), 'PUT', `/label/${encodeURIComponent(labelId)}/task`, { taskId }, options)
+  }
+
+  /** The workspaces the API key can read; labels belong to one of them. */
+  async workspaces(options: RequestOptions = {}): Promise<z.infer<typeof WorkspaceSchema>[]> {
+    return this.request(z.array(WorkspaceSchema), 'GET', '/workspace', undefined, options)
   }
 }

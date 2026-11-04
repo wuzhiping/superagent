@@ -1,4 +1,4 @@
-import { F as Thread, I as ThreadFact, R as ThreadRef, S as ChannelRef, U as Trigger, h as SourceScope, l as OutboundMessage, lt as Deployment, m as ScopeResult, t as ReceiveResult, v as AdmissionCell, z as Ticket } from "./intake-Cr0pk4VV.js";
+import { B as Ticket, I as Thread, L as ThreadFact, S as ChannelRef, W as Trigger, h as SourceScope, l as OutboundMessage, m as ScopeResult, t as ReceiveResult, ut as Deployment, v as AdmissionCell, z as ThreadRef } from "./intake-LzTuo899.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 import { DatabaseSync } from "node:sqlite";
@@ -866,9 +866,10 @@ interface SourceChannel<C> {
   allowed?(address: Record<string, string>, config: C): boolean;
   /**
    * Sends a message idempotently by ID; returns `'gone'` when the target conversation no longer accepts replies.
+   * The host carries the Source's own configuration, so a channel may act on the target with it.
    * @throws when delivery failed but may succeed on a later retry.
    */
-  send(host: Pick<SourceContext, 'commands'>, message: OutboundMessage): Promise<'sent' | 'gone'>;
+  send(host: Pick<SourceContext, 'commands' | 'config'>, message: OutboundMessage): Promise<'sent' | 'gone'>;
   /** Returns the URL and label for `address`; `url` is empty when `links` lack the required deployment info. */
   link(address: Record<string, string>, links: ChannelLinks): ChannelLink;
 }

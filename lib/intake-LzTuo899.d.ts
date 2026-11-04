@@ -9,12 +9,14 @@ declare const DEFAULT_BASE_URL = "https://pl.feg.cn";
 declare const DEFAULT_CLAIM_COLUMN = "in-progress";
 /**
  * The account fields deployment setup resolves and restarts for. `apiKey` empty means the Kaneo Source is not configured;
- * `projectId` defaults to the FDEP board so a first save only needs the key.
+ * `projectId` defaults to the FDEP board so a first save only needs the key; `workspaceId` names the workspace the
+ * labels of the inbox live in (empty: the first workspace the API key can read).
  */
 declare const KaneoAccountSchema: z.ZodObject<{
   baseUrl: z.ZodDefault<z.ZodString>;
   apiKey: z.ZodDefault<z.ZodString>;
   projectId: z.ZodDefault<z.ZodString>;
+  workspaceId: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 type KaneoAccount = z.infer<typeof KaneoAccountSchema>;
 /**
@@ -28,7 +30,9 @@ declare const KaneoConfigSchema: z.ZodObject<{
   projectId: z.ZodDefault<z.ZodString>;
   workspaceId: z.ZodDefault<z.ZodString>;
   watchColumns: z.ZodDefault<z.ZodString>;
+  ingestEvents: z.ZodDefault<z.ZodBoolean>;
   claimColumn: z.ZodDefault<z.ZodString>;
+  doneColumn: z.ZodDefault<z.ZodString>;
   bootstrap: z.ZodDefault<z.ZodEnum<{
     skip: "skip";
     trigger: "trigger";
@@ -443,6 +447,8 @@ interface Decision {
   dismissed?: true;
 }
 type AssignmentState = 'pending' | 'running' | 'ended';
+/** What a duty is expected to produce; the panel routes each kind to its carrier (RD.md §7). */
+type DeliverableType = 'code' | 'doc' | 'plan' | 'memo' | 'log';
 /**
  * What an Assignment reports: work is in progress (`progress`), its worker waits for a Trigger (`waiting`), a result is
  * ready (`ready`), a person must act to unblock or recover it (`blocked` or `failed`), or nothing is left to do (`dropped`).
@@ -558,6 +564,16 @@ interface Ticket {
   mandate: Mandate;
   /** The Channels of the messages it was accepted from, which its replies go to. */
   channels: ChannelRef[];
+  /** The post that owns this duty: the SuperAgent instance that runs it (RD.md §5). */
+  postId?: string;
+  /** The project this duty belongs to, when the deployment knows it. */
+  projectId?: string;
+  /** What the duty is expected to produce: code, a document, a plan, a memo, or a work log. */
+  deliverableType?: DeliverableType;
+  /** The repositories the task names, when the task says so: `owner/name` (RD.md §9). */
+  repos?: string[];
+  /** The charter version the duty was started under, so later charter changes do not rewrite it (RD.md §8). */
+  charterVersion?: number;
   /** When, by whom, and how the ticket ended, with a person's or the host's reason beyond the outcome; an open ticket has none. */
   ended?: {
     at: string;
@@ -853,4 +869,4 @@ interface Repositories {
 //#region src/core/intake.d.ts
 type ReceiveResult = 'stored' | 'duplicate' | 'filtered';
 //#endregion
-export { settled as $, MandateBasis as A, TicketEndBy as B, Decision as C, Follow as D, Execution as E, Thread as F, followupOwners as G, TicketOutcome as H, ThreadFact as I, latestReport as J, isoTime as K, ThreadFacts as L, ReportState as M, Strength as N, FollowupRecords as O, Text as P, runningAssignment as Q, ThreadRef as R, ChannelRef as S, Evaluation as T, Trigger as U, TicketInput as V, TriggerDisposition as W, reached as X, liveTicket as Y, readUntil as Z, ActorRef as _, DEFAULT_PROJECT as _t, DomainEvent as a, ReasonCode as at, AssignmentState as b, GateResult as c, Config as ct, Policy as d, DEFAULT_NTFY_URL as dt, threadKey as et, ReplyStatus as f, NtfyConfig as ft, AcceptMode as g, DEFAULT_CLAIM_COLUMN as gt, SourceScope as h, DEFAULT_BASE_URL as ht, Candidate as i, Reason as it, PolicyEffect as j, Mandate as k, OutboundMessage as l, Deployment as lt, ScopeResult as m, GiteaConfig as mt, AssessmentOutcome as n, waitsForPerson as nt, DomainEvents as o, reasonText as ot, Repositories as p, DEFAULT_GITEA_URL as pt, latestAssignment as q, Assessor as r, REASONS as rt, Executor as s, said as st, ReceiveResult as t, ticketOutcome as tt, Outbox as u, DeploymentConfig as ut, AdmissionCell as v, KaneoConfig as vt, DecisionKind as w, Attention as x, Assignment as y, Ticket as z };
+export { runningAssignment as $, Mandate as A, Ticket as B, Decision as C, Execution as D, Evaluation as E, Text as F, TriggerDisposition as G, TicketInput as H, Thread as I, latestAssignment as J, followupOwners as K, ThreadFact as L, PolicyEffect as M, ReportState as N, Follow as O, Strength as P, readUntil as Q, ThreadFacts as R, ChannelRef as S, DeliverableType as T, TicketOutcome as U, TicketEndBy as V, Trigger as W, liveTicket as X, latestReport as Y, reached as Z, ActorRef as _, DEFAULT_CLAIM_COLUMN as _t, DomainEvent as a, Reason as at, AssignmentState as b, GateResult as c, said as ct, Policy as d, DeploymentConfig as dt, settled as et, ReplyStatus as f, DEFAULT_NTFY_URL as ft, AcceptMode as g, DEFAULT_BASE_URL as gt, SourceScope as h, GiteaConfig as ht, Candidate as i, REASONS as it, MandateBasis as j, FollowupRecords as k, OutboundMessage as l, Config as lt, ScopeResult as m, DEFAULT_GITEA_URL as mt, AssessmentOutcome as n, ticketOutcome as nt, DomainEvents as o, ReasonCode as ot, Repositories as p, NtfyConfig as pt, isoTime as q, Assessor as r, waitsForPerson as rt, Executor as s, reasonText as st, ReceiveResult as t, threadKey as tt, Outbox as u, Deployment as ut, AdmissionCell as v, DEFAULT_PROJECT as vt, DecisionKind as w, Attention as x, Assignment as y, KaneoConfig as yt, ThreadRef as z };

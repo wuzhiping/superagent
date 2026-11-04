@@ -67,4 +67,8 @@ export const KV = {
     thread: family<string, [thread: string]>('gitea-thread-since:') },
   /** ntfy Source: the read position in Unix seconds and the topic it belongs to (P2 read-only). */
   ntfy: { since: record<number>('ntfy-since'), topic: record<string>('ntfy-topic') },
+  /**
+   * KanEO 入库：其它来源的事件已经落成卡片的记录（来源 + 事件键），这样半个失败的轮询不会把同一事件建两次卡。
+   */
+  inbox: { filed: family<{ cardId: string; at: string }, [source: string, event: string]>('inbox-filed:') },
 }

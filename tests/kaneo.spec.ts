@@ -93,7 +93,7 @@ describe('kaneo trigger', () => {
 })
 
 describe('kaneo polling', () => {
-  it('skips the tasks already in the watched column on the first poll, then requests only new ones and claims them', async () => {
+  it('skips the tasks already in the watched column on the first poll, then requests only new ones without claiming them', async () => {
     const cfg = config()
     const { ctx, recorded, state } = context(cfg)
     let listed = [task('t1'), task('t2')]
@@ -113,14 +113,13 @@ describe('kaneo polling', () => {
     expect(state.get(KV.kaneo.seen('t1'))).toMatchObject({ status: 'ready' })
     expect(writes.some(write => write.method === 'PUT')).toBe(false)
 
-    // A third task appears: one request and one claim.
+    // A third task appears: one request. The card is not claimed yet — a request that was read is not yet a duty;
+    // the post claims it when it first writes to the card.
     listed = [task('t1'), task('t2'), task('t3')]
     writes.length = 0
     await pollRound(ctx, cfg, client)
     expect(recorded.triggers.map(trigger => trigger.id)).toEqual([kaneoTriggerId('t3')])
-    const moves = writes.filter(write => write.method === 'PUT')
-    expect(moves).toHaveLength(1)
-    expect(moves[0]?.body).toEqual({ status: 'in-progress' })
+    expect(writes.filter(write => write.method === 'PUT')).toHaveLength(0)
     expect(recorded.described.get(kaneoThreadKey('t3'))).toMatchObject({ label: '#3 Task t3' })
 
     // Polling again produces nothing new.
@@ -154,7 +153,8 @@ describe('kaneo polling', () => {
 
 describe('kaneo channel', () => {
   const commands = { deployment: { kaneo: { baseUrl: 'https://pl.feg.cn', apiKey: 'k', projectId: 'p' } } } as unknown as Commands
-  const message = (id: string): Parameters<typeof sendKaneo>[1] => ({ id, text: 'hello there', kind: 'reply',
+  const message = (id: string, ticketId?: string): Parameters<typeof sendKaneo>[1] => ({ id, text: 'hello there', kind: 'reply',
+    ...ticketId ? { ticketId } : {},
     channel: { source: 'kaneo', thread: 't1', address: { taskId: 't1', url: 'https://pl.feg.cn/dashboard' } } })
 
   it('posts a marker-carrying comment and does not repeat one already posted', async () => {
@@ -164,7 +164,7 @@ describe('kaneo channel', () => {
       if ((init?.method ?? 'GET') === 'GET') return response([{ id: 'c1', content: 'old' }])
       return response({})
     }))
-    await expect(sendKaneo({ commands }, message('dsh-1'))).resolves.toBe('sent')
+    await expect(sendKaneo({ commands, config: () => undefined }, message('dsh-1'))).resolves.toBe('sent')
     const post = calls.find(call => call.init?.method === 'POST')
     expect(post).toBeDefined()
     expect(String(post?.init?.body)).toContain('hello there')
@@ -176,13 +176,83 @@ describe('kaneo channel', () => {
       calls.push({ url: String(input), init })
       return response([{ id: 'c2', content: 'hello there\n\n<!-- dsh-superagent:dsh-1 -->' }])
     }))
-    await expect(sendKaneo({ commands }, message('dsh-1'))).resolves.toBe('sent')
+    await expect(sendKaneo({ commands, config: () => undefined }, message('dsh-1'))).resolves.toBe('sent')
     expect(calls.filter(call => call.init?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('claims the card in the claim column when the post first writes to it', async () => {
+    const calls: { url: string; method: string; body?: string }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      calls.push({ url, method, body: init?.body ? String(init.body) : undefined })
+      if (url.endsWith('/comment/t1')) return response([])
+      if (url.endsWith('/task/t1')) return response({ id: 't1', status: 'ready' })
+      return response({})
+    }))
+    await expect(sendKaneo({ commands, config: () => config() as never }, message('dsh-3', 'ticket-1'))).resolves.toBe('sent')
+    const move = calls.find(call => call.method === 'PUT' && call.url.includes('/task/status/'))
+    expect(move?.body).toContain('in-progress')
+    // The comment follows the claim: the card shows that the post is on it.
+    expect(calls.findIndex(call => call.method === 'PUT')).toBeLessThan(calls.findIndex(call => call.method === 'POST'))
+  })
+
+  it('leaves a card that nobody acted on alone: a notice without a duty does not claim it', async () => {
+    const calls: { url: string; method: string }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      calls.push({ url: String(input), method: init?.method ?? 'GET' })
+      if (String(input).endsWith('/comment/t1')) return response([])
+      if (String(input).endsWith('/task/t1')) return response({ id: 't1', status: 'ready' })
+      return response({})
+    }))
+    await expect(sendKaneo({ commands, config: () => config() as never }, message('dsh-5'))).resolves.toBe('sent')
+    expect(calls.some(call => call.method === 'PUT')).toBe(false)
+  })
+
+  it('leaves a card that already sits in the claim column alone', async () => {
+    const calls: { url: string; method: string }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      calls.push({ url: String(input), method: init?.method ?? 'GET' })
+      if (String(input).endsWith('/comment/t1')) return response([])
+      if (String(input).endsWith('/task/t1')) return response({ id: 't1', status: 'in-progress' })
+      return response({})
+    }))
+    await expect(sendKaneo({ commands, config: () => config() as never }, message('dsh-4', 'ticket-2'))).resolves.toBe('sent')
+    expect(calls.some(call => call.method === 'PUT')).toBe(false)
+  })
+
+  it('moves the card to the delivery column when the post delivers its result', async () => {
+    const calls: { url: string; method: string; body?: string }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      calls.push({ url, method, body: init?.body ? String(init.body) : undefined })
+      if (url.endsWith('/comment/t1')) return response([])
+      if (url.endsWith('/task/t1')) return response({ id: 't1', status: 'in-progress' })
+      return response({})
+    }))
+    await expect(sendKaneo({ commands, config: () => config({ doneColumn: 'in-review' }) as never },
+      { ...message('dsh-6', 'ticket-3'), kind: 'reply' })).resolves.toBe('sent')
+    const move = calls.find(call => call.method === 'PUT' && call.url.includes('/task/status/'))
+    expect(move?.body).toContain('in-review')
+  })
+
+  it('keeps the card where it is when no delivery column is set', async () => {
+    const calls: { url: string; method: string }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      calls.push({ url: String(input), method: init?.method ?? 'GET' })
+      if (String(input).endsWith('/comment/t1')) return response([])
+      if (String(input).endsWith('/task/t1')) return response({ id: 't1', status: 'ready' })
+      return response({})
+    }))
+    await expect(sendKaneo({ commands, config: () => config({ doneColumn: '', claimColumn: '' }) as never },
+      { ...message('dsh-7', 'ticket-4'), kind: 'reply' })).resolves.toBe('sent')
+    expect(calls.some(call => call.method === 'PUT')).toBe(false)
   })
 
   it('reports a gone task when the comment target no longer exists', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => response({ error: 'Task not found' }, 404)))
-    await expect(sendKaneo({ commands }, message('dsh-2'))).resolves.toBe('gone')
+    await expect(sendKaneo({ commands, config: () => undefined }, message('dsh-2'))).resolves.toBe('gone')
   })
 })
 

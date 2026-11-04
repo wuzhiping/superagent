@@ -8,7 +8,7 @@ import { SourceRegistry } from '../src/sources/registry.ts'
 import { feishuKind } from '../src/sources/feishu.ts'
 import { githubKind } from '../src/sources/github.ts'
 import { snapshot, threadSummary, ticketSummary, triggerView } from '../src/app/views/records.ts'
-import { basisFacts, ticketDetail } from '../src/app/views/tickets.ts'
+import { basisFacts, ticketDetail, ticketRow } from '../src/app/views/tickets.ts'
 import { threadDetail } from '../src/app/views/threads.ts'
 import { droppedReplies, sourcesStatus } from '../src/app/views/sources.ts'
 import { overview } from '../src/app/views/overview.ts'
@@ -131,6 +131,24 @@ it('follows the Ticket\'s stage: a blocked Ticket a person answered since is wor
   expect(answered).toMatchObject({ stage: 'working', actions: { retry: false } })
   expect(answered).not.toHaveProperty('note')
   expect(ticketDetail(host, 't1')!.assignments[0]).not.toHaveProperty('turnEndedAt')
+})
+
+it('shows the narrative fields of a duty: the post that owns it, its project, its deliverable and the charter version', () => {
+  const host = views()
+  live('t1')
+  const ticket = { id: 't1', title: 'Write the plan', decisionId: 'd', channels: [], undelivered: [], createdAt: at, updatedAt: at,
+    mandate: { strength: 'explicit' as const, policyVersion: 'v', basis: { via: 'listed' as const }, actor: { source: 'kaneo',
+      id: 'u-w1' }, scope: '' },
+    origin: { triggerId: 'e1', triggerIds: ['e1'] }, assignments: [], inputs: [],
+    postId: 'w1-fdep', projectId: 'dgctny8ibgpn72ei2j8qj2hc', deliverableType: 'doc' as const, charterVersion: 3 }
+  store.tickets.save(ticket)
+  expect(ticketDetail(host, 't1')).toMatchObject({ postId: 'w1-fdep', projectId: 'dgctny8ibgpn72ei2j8qj2hc',
+    deliverableType: 'doc', charterVersion: 3 })
+  expect(ticketRow(snapshot(host), store.tickets.get('t1')!)).toMatchObject({ postId: 'w1-fdep' })
+  // A duty without a post shows nothing rather than empty fields.
+  store.tickets.save({ ...ticket, postId: undefined, projectId: undefined, deliverableType: undefined, charterVersion: undefined })
+  expect(ticketDetail(host, 't1')).not.toHaveProperty('postId')
+  expect(ticketDetail(host, 't1')).not.toHaveProperty('charterVersion')
 })
 
 it('does not show a follow-up that reached a ticket as waiting for an Eval, though an older version queued it', () => {

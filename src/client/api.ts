@@ -138,3 +138,11 @@ export type PromptsView = ApiResponse<'GET prompts'>
 export type PromptConfig = PromptsView['defaults']
 export type ThreadFacts = TicketRow['threads'][number]
 export type Actor = TriggerRow['actor']
+/** The narrative view: projects, posts, charters, duties in flight and exceptions (RD.md §4–§8). */
+export type NarrativeView = ApiResponse<'GET narrative'>
+export type PostView = NarrativeView['posts'][number]
+export type ProjectView = NarrativeView['projects'][number]
+export type DutyRow = NarrativeView['duties'][number]
+export type ExceptionRow = NarrativeView['exceptions'][number]
+/** The project archive the settings page edits. */
+export type ProjectArchive = ApiResponse<'GET project-archive'>['archive']

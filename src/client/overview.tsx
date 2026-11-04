@@ -1,7 +1,8 @@
 /** Overview page: pending Tickets requiring human action, active system problems, 24-hour flow counts, and Executor load. */
 import type { ReactNode } from 'react'
-import { usePoll, type Problem } from './api.ts'
+import { usePoll, type NarrativeView, type Problem } from './api.ts'
 import { Button, Icon } from './controls.tsx'
+import { usePerspective } from './perspective.tsx'
 import { useAction, usePanel, usePanelData } from './provider.tsx'
 import { setupPage, settingsRoute, type Route } from './route.ts'
 import { TicketLine } from './rows.tsx'
@@ -61,7 +62,9 @@ function ProblemLine({ problem, onChanged }: { problem: Problem; onChanged: () =
 export function OverviewPage() {
   const { t, call, navigate } = usePanel()
   const { setup } = usePanelData()
+  const { perspective, postId } = usePerspective()
   const { data, error, reload } = usePoll(() => call('GET overview'), [])
+  const { data: narrative } = usePoll(() => call('GET narrative'), [])
   if (!data) return <LoadState error={error} loading />
   const stat = (label: string, value: ReactNode, route?: Route) => <span className="dt-stat">
     <span className="dt-stat-label">{label}</span>
@@ -99,5 +102,41 @@ export function OverviewPage() {
         {stat(t('idleLabel'), data.executor.idle)}
       </div>}
     </Section>
+    {narrative?.configured && (perspective === 'post' ? <PostSeatSummary narrative={narrative} postId={postId} />
+      : <Section title={t('postsTeam')} action={more({ page: 'posts' })}>
+        {/* The narrative summary: how many posts run, how many duties they carry, and whether a charter needs a new version. */}
+        <div className="dt-stats">
+          {stat(t('postsPostsCount'), narrative.posts.length)}
+          {stat(t('postsDutiesCount'), narrative.duties.length)}
+          {stat(t('postsExceptionsCount'), narrative.exceptions.length)}
+          {stat(t('postsCharterFreshness'), narrative.projects.filter(project => project.charter?.stale).length
+            ? t('postsCharterStaleCount', { count: narrative.projects.filter(project => project.charter?.stale).length })
+            : t('postsCharterAllCurrent'), { page: 'posts' })}
+        </div>
+      </Section>)}
   </>
+}
+
+/** The post perspective's own summary: the seat, its duties, its exceptions and the charter it works under. */
+function PostSeatSummary({ narrative, postId }: { narrative: NarrativeView; postId: string }) {
+  const { t } = usePanel()
+  const post = narrative.posts.find(item => item.postId === postId)
+  const project = post ? narrative.projects.find(item => item.id === post.projectId) : undefined
+  const exceptions = narrative.exceptions.filter(row => row.postId === postId)
+  if (!post) return <Section title={t('postsMySeat')} icon="user" hint={t('postsWhoAreYouHint')}>
+    <Hint>{t('postsChooseSeatOnPosts')}</Hint>
+  </Section>
+  return <Section title={t('postsMySeat')} icon="user" badge={project?.charter
+    ? <span className={`dt-pill ${project.charter.stale ? 'dt-pill-warn' : 'dt-pill-ok'}`}>{project.charter.stale
+      ? t('postsCharterStale', { days: project.charter.ageDays < 0 ? '?' : project.charter.ageDays })
+      : t('postsCharterCurrent', { version: project.charter.version })}</span> : undefined}>
+    <div className="dt-stats">
+      <span className="dt-stat"><span className="dt-stat-label">{t('postsDutiesCount')}</span>
+        <span className="dt-stat-value">{post.dutyCount} / {post.wipLimit}</span></span>
+      <span className="dt-stat"><span className="dt-stat-label">{t('postsExceptionsCount')}</span>
+        <span className="dt-stat-value">{exceptions.length}</span></span>
+      <span className="dt-stat"><span className="dt-stat-label">{t('postsKanEOIdentity')}</span>
+        <span className="dt-stat-value">{post.kaneoUserId || t('postsUnset')}</span></span>
+    </div>
+  </Section>
 }

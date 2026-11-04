@@ -9,7 +9,9 @@ import { ticketMark } from './marks.ts'
 import { GLOSSARY, GLOSSARY_VALUES, en, zh, type DshSuperagentKey } from './locales.ts'
 import { OverviewPage } from './overview.tsx'
 import { PanelProvider, usePanel, usePanelData } from './provider.tsx'
-import { HOME, TABS, initialLocation, lastSettingsGroup, remember, routeLabel, settingsRoute, type Location, type Route,
+import { PerspectiveProvider, usePerspective, type Perspective } from './perspective.tsx'
+import { PostsPage } from './posts.tsx'
+import { HOME, TABS_BY_PERSPECTIVE, HOME_BY_PERSPECTIVE, initialLocation, lastSettingsGroup, remember, routeLabel, settingsRoute, type Location, type Route,
   type Tab } from './route.ts'
 import { SettingsPage } from './settings.tsx'
 import { SourceStatus } from './source.tsx'
@@ -18,6 +20,10 @@ import { ThreadPage } from './thread.tsx'
 import { TicketPage } from './ticket.tsx'
 import { TriggerStatus } from './trigger.tsx'
 import { When } from './widgets.tsx'
+
+/** The tab label each perspective shows; the post perspective names things by its own seat. */
+export const tabLabel = (t: T, perspective: Perspective, tab: Tab): string =>
+  perspective === 'post' && (tab === 'posts' || tab === 'execution') ? t(`tab.${tab}.post`) : t(`tab.${tab}`)
 
 export interface AppProps {
   t: T; openSession: (sessionId: string) => Promise<void>
@@ -98,6 +104,20 @@ function SearchResults({ result, query, onClose }: { result: SearchView; query: 
   </div>
 }
 
+/** The perspective switch: the same deployment read from the PM's seat or from a post's seat. */
+function PerspectiveSwitch() {
+  const { t, navigate } = usePanel()
+  const { perspective, setPerspective } = usePerspective()
+  return <div className="dt-perspective" role="group" aria-label={t('perspectiveLabel')}>
+    {(['pm', 'post'] as const).map(value => <button key={value} type="button" className="dt-perspective-option"
+      aria-pressed={perspective === value} onClick={() => {
+        if (perspective === value) return
+        setPerspective(value)
+        navigate(HOME_BY_PERSPECTIVE[value], true)
+      }}>{t(`perspective.${value}`)}</button>)}
+  </div>
+}
+
 function Header({ masterId }: { masterId: string | undefined }) {
   const { t, call, openSession, notify } = usePanel()
   const [glossary, setGlossary] = useState(false)
@@ -131,6 +151,7 @@ function Header({ masterId }: { masterId: string | undefined }) {
       </form>
       <Button variant="ghost" size="sm" icon={<Icon name="question" />} aria-label={t('glossary')} title={t('glossary')} aria-haspopup="dialog"
         onClick={() => setGlossary(true)} />
+      <PerspectiveSwitch />
       <Button variant="outline" size="sm" icon={<Icon name="session" size={14} />} disabled={!masterId}
         onClick={() => { if (masterId) openSession(masterId).catch(failure => notify(errorText(failure))) }}>{t('openMaster')}</Button>
     </div>
@@ -139,14 +160,20 @@ function Header({ masterId }: { masterId: string | undefined }) {
 }
 
 function Pages({ route, openTab, deploymentForm }: { route: Route; openTab: (tab: Tab) => void; deploymentForm: DeploymentForm }) {
-  const { t } = usePanel()
+  const { t, navigate } = usePanel()
+  const { perspective } = usePerspective()
   const { state, error, reload } = usePanelData()
   // Keep the active tab scrolled into view on narrow screens when routes change via links.
   useEffect(() => { document.getElementById(`dt-tab-${route.page}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }, [route.page])
+  // A page the current perspective does not offer (the PM's Eval) is left behind when the reader changes seats.
+  useEffect(() => {
+    if (!TABS_BY_PERSPECTIVE[perspective].includes(route.page as Tab)) navigate(HOME_BY_PERSPECTIVE[perspective], true)
+  }, [perspective, route.page, navigate])
   const waiting = error ? <p className="dt-error" role="alert">{error.message}</p> : <p className="dt-hint">{t('loading')}</p>
   const page = (() => {
     switch (route.page) {
       case 'overview': return <OverviewPage />
+      case 'posts': return <PostsPage />
       case 'source': return <SourceStatus />
       case 'trigger': return route.id !== undefined ? <ThreadPage key={route.id} id={route.id} target={route.query?.trigger} />
         : <TriggerStatus filter={route.query?.filter ?? 'subscribed'} />
@@ -163,7 +190,8 @@ function Pages({ route, openTab, deploymentForm }: { route: Route; openTab: (tab
       <Header masterId={state?.masterId} />
       {error && state && <p className="dt-error" role="status">{error.message}</p>}
       <SegmentedTabs className="dt-tabs" label={t('pagesLabel')} value={route.page} onChange={openTab}
-        items={TABS.map(value => ({ value, label: t(`tab.${value}`), id: `dt-tab-${value}`, panelId: 'dt-page' }))} />
+        items={TABS_BY_PERSPECTIVE[perspective].map(value => ({ value, label: tabLabel(t, perspective, value), id: `dt-tab-${value}`,
+          panelId: 'dt-page' }))} />
       <main id="dt-page" role="tabpanel" aria-labelledby={`dt-tab-${route.page}`} className="dt-main">{page}</main>
     </div>
   </div>
@@ -182,7 +210,9 @@ export function App({ t, openSession, deploymentForm }: AppProps) {
   const back = useCallback(() => move(current => ({ route: current.stack.at(-1) ?? HOME, stack: current.stack.slice(0, -1) })), [move])
   const openTab = useCallback((tab: Tab) => move(current => ({ stack: [], route: tab === 'settings'
     ? settingsRoute(lastSettingsGroup(current)) : { page: tab, id: undefined } })), [move])
-  return <PanelProvider t={t} openSession={openSession} navigate={navigate} back={back} backLabel={routeLabel(t, location.stack.at(-1) ?? HOME)}>
-    <Pages route={location.route} openTab={openTab} deploymentForm={deploymentForm} />
-  </PanelProvider>
+  return <PerspectiveProvider>
+    <PanelProvider t={t} openSession={openSession} navigate={navigate} back={back} backLabel={routeLabel(t, location.stack.at(-1) ?? HOME)}>
+      <Pages route={location.route} openTab={openTab} deploymentForm={deploymentForm} />
+    </PanelProvider>
+  </PerspectiveProvider>
 }

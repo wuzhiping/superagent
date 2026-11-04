@@ -18,6 +18,8 @@ import type { Health } from '../sources/host.ts'
 import type { SourceRegistry } from '../sources/registry.ts'
 import type { Sessions } from './sessions.ts'
 import type { Store } from './store.ts'
+import { writeArchive } from './narrative.ts'
+import { archiveView, narrativeView } from './views/narrative.ts'
 import type { TextCache } from './cache.ts'
 import type { LinkTarget, ViewHost } from './views/records.ts'
 import type { Variable } from './execution-environment.ts'
@@ -170,6 +172,18 @@ function routes(runtime: HttpHost): Routes {
     'GET state': () => stateView(runtime),
     'GET overview': () => overview(views(runtime), runtime.health, policyVersion(store.settings()),
       executorLoad(store, runtime.executor.activeCount()), runtime.setupProblem ?? runtime.feishuProblem),
+    // The narrative view: projects, posts, the charter each PM published, the duties in flight and the exceptions.
+    'GET narrative': () => narrativeView(store, runtime.sources, runtime.machine.stateDir),
+    'GET project-archive': () => archiveView(runtime.machine.stateDir),
+    'PUT project-archive': async ({ body }) => {
+      const input = await body(256 * 1024) as { archive?: unknown; revision?: unknown }
+      const revision = z.number().int().nonnegative().catch(0).parse(input?.revision)
+      try {
+        return writeArchive(runtime.machine.stateDir, input?.archive, revision)
+      } catch (error) {
+        throw new RouteError(400, error instanceof Error ? error.message : String(error))
+      }
+    },
     'GET search': ({ query }) => search(views(runtime), query.q ?? '', runtime.sourceLinks),
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),
