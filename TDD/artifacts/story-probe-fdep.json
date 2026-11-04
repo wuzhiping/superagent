@@ -1,0 +1,56 @@
+{
+  "stamp": "2026-11-04T08:31:12.599Z",
+  "verify": "b9ok84k1yizw68aue5yfaqcu",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "card": {
+    "id": "b9ok84k1yizw68aue5yfaqcu",
+    "number": 472,
+    "status": "to-do",
+    "labels": [
+      "role:pm",
+      "role:ux",
+      "role:worker"
+    ],
+    "boardLabels": [
+      "role:pm",
+      "role:worker",
+      "role:ux"
+    ]
+  },
+  "relations": [
+    {
+      "id": "b1ojfeubzuopsxhakwxurzg3",
+      "sourceTaskId": "bb6tz6h19qahpfoddudybmi2",
+      "targetTaskId": "b9ok84k1yizw68aue5yfaqcu",
+      "relationType": "subtask",
+      "createdAt": "2026-11-04T08:29:33.942Z",
+      "sourceTask": {
+        "id": "bb6tz6h19qahpfoddudybmi2",
+        "title": "[probe] 子任务 A",
+        "status": "to-do",
+        "isCompleted": false,
+        "priority": "no-priority",
+        "number": 474,
+        "projectId": "dgctny8ibgpn72ei2j8qj2hc",
+        "userId": null,
+        "assigneeName": null
+      },
+      "targetTask": {
+        "id": "b9ok84k1yizw68aue5yfaqcu",
+        "title": "[probe] 岗位模型验证卡",
+        "status": "to-do",
+        "isCompleted": false,
+        "priority": "no-priority",
+        "number": 472,
+        "projectId": "dgctny8ibgpn72ei2j8qj2hc",
+        "userId": null,
+        "assigneeName": null
+      }
+    }
+  ],
+  "checks": {
+    "card.labels-readable-via-label-endpoint": true,
+    "card.visible-in-status-filtered-board": true,
+    "card.labels-visible-on-board": true
+  }
+}

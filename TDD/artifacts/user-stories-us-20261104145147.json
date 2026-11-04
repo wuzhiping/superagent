@@ -1,0 +1,207 @@
+{
+  "started": "2026-11-04T14:51:47.747Z",
+  "finished": "2026-11-04T14:57:27.694Z",
+  "marker": "us-20261104145147",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "created": "g5nsy72yauxm1yy223uy43ar",
+  "stories": [
+    {
+      "id": "US-01",
+      "persona": "PM",
+      "title": "编队页给出项目、岗位与宪章的现状",
+      "ok": true,
+      "failed": [],
+      "ms": 22,
+      "checks": {
+        "narrative.configured": true,
+        "narrative.has-project": true,
+        "narrative.charter-read": true,
+        "narrative.charter-fresh": true,
+        "narrative.has-post": true,
+        "narrative.post-has-kaneo-identity": true,
+        "narrative.exception-queue-present": true
+      },
+      "evidence": {
+        "project": "FDEP",
+        "charter": 2,
+        "posts": [
+          "pm-fdep",
+          "w1-fdep"
+        ]
+      }
+    },
+    {
+      "id": "US-02",
+      "persona": "PM",
+      "title": "派工：建卡、指派给岗位账号、放进监听列",
+      "ok": true,
+      "failed": [],
+      "ms": 1448,
+      "checks": {
+        "dispatch.card-created": true,
+        "dispatch.assignee-is-post": true,
+        "dispatch.in-watched-column": true,
+        "dispatch.kind-label": true,
+        "dispatch.story-label": true
+      },
+      "evidence": {
+        "taskId": "g5nsy72yauxm1yy223uy43ar",
+        "status": "ready",
+        "assigneeId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+        "labels": [
+          "kind:doc",
+          "story-test"
+        ]
+      }
+    },
+    {
+      "id": "US-03",
+      "persona": "岗位",
+      "title": "接单：工单落到正确的岗位上",
+      "ok": true,
+      "failed": [],
+      "ms": 15717,
+      "checks": {
+        "claim.ticket-found": true,
+        "claim.ticket-owns-post": true,
+        "claim.ticket-has-project": true,
+        "claim.ticket-has-deliverable": true,
+        "claim.ticket-pins-charter": true,
+        "claim.kaneo-claimed": true
+      },
+      "evidence": {
+        "ticketId": "6219fa947fb00ec7b423fa57b47a45e0",
+        "title": "Kaneo 用户故事冒烟：在任务评论回写不超过 100 字的中文工作日志并移到 done",
+        "postId": "pm-fdep",
+        "projectId": "dgctny8ibgpn72ei2j8qj2hc",
+        "deliverableType": "doc",
+        "charterVersion": 2,
+        "kaneoStatus": "in-progress",
+        "kaneoAssignee": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG"
+      }
+    },
+    {
+      "id": "US-04",
+      "persona": "岗位",
+      "title": "交付：状态回写与工作日志回到看板",
+      "ok": true,
+      "failed": [],
+      "ms": 203080,
+      "checks": {
+        "deliver.ticket-ended": true,
+        "deliver.kaneo-has-worklog": true,
+        "deliver.kaneo-left-ready": true
+      },
+      "evidence": {
+        "ticketId": "6219fa947fb00ec7b423fa57b47a45e0",
+        "outcome": "completed",
+        "kaneoStatus": "done",
+        "comments": 2,
+        "logExcerpt": "工作日志：已核对用户故事卡的冒烟要求，确认本轮只需在任务评论回写工作日志、不改代码。结论：回写口径与验收标准已确认，冒烟验证通过，本卡可转入 done。\n\n<!-- dsh-superagent:d79988fd57c8257d544cbc20b5d74cf5 -->"
+      }
+    },
+    {
+      "id": "US-05",
+      "persona": "PM",
+      "title": "宪章：面板显示的版本与看板上的载体一致",
+      "ok": false,
+      "failed": [
+        "charter.carrier-set"
+      ],
+      "ms": 10,
+      "checks": {
+        "charter.carrier-set": false
+      },
+      "evidence": {}
+    },
+    {
+      "id": "US-06",
+      "persona": "系统",
+      "title": "看板查询：带 status 过滤才不漏任务",
+      "ok": true,
+      "failed": [],
+      "ms": 9998,
+      "checks": {
+        "board.columns-listed": true,
+        "board.filtered-query-sees-the-card": true,
+        "board.unfiltered-can-miss-tasks": true
+      },
+      "evidence": {
+        "columns": [
+          "to-do:3",
+          "ready:2",
+          "in-progress:1",
+          "blocked:3",
+          "in-review:0",
+          "qa:4",
+          "staging:0",
+          "done:4"
+        ],
+        "cardColumn": "done",
+        "unfilteredCount": 17,
+        "filteredCount": 100,
+        "missingFromUnfiltered": 96,
+        "columnCutAtLimit": true
+      }
+    },
+    {
+      "id": "US-07",
+      "persona": "系统",
+      "title": "限流：连续读写不会把脚本打死",
+      "ok": true,
+      "failed": [],
+      "ms": 1181,
+      "checks": {
+        "limit.no-failure-after-backoff": true
+      },
+      "evidence": {
+        "requests": 15,
+        "failures": 0,
+        "waitedMs": 0,
+        "limit": 100,
+        "remaining": 9
+      }
+    },
+    {
+      "id": "US-08",
+      "persona": "系统",
+      "title": "一个后台：叙事视图与工单列表说的是同一件事",
+      "ok": true,
+      "failed": [],
+      "ms": 183,
+      "checks": {
+        "unified.narrative-has-posts": true,
+        "unified.duties-counted-once": true,
+        "unified.archive-shared": true
+      },
+      "evidence": {
+        "duties": 0,
+        "ticketsOwned": 10,
+        "open": 0,
+        "projects": 1
+      }
+    },
+    {
+      "id": "US-09",
+      "persona": "岗位",
+      "title": "不代领：没有指派的卡被忽略，而且不被认领",
+      "ok": true,
+      "failed": [],
+      "ms": 106947,
+      "checks": {
+        "not-claimed.no-duty": true,
+        "not-claimed.no-reply": true,
+        "not-claimed.decision-ignore": true
+      },
+      "evidence": {
+        "taskId": "p7xu7hnibg8xbocvuufuh684",
+        "kaneoStatus": "ready",
+        "decision": "ignore",
+        "reason": "not_a_member",
+        "replies": 0
+      }
+    }
+  ],
+  "passed": 8,
+  "failed": 1
+}

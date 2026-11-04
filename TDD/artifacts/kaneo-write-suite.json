@@ -1,0 +1,152 @@
+{
+  "taskId": "nugjcfepnypa9f3wv3pyenri",
+  "stamp": "2026-11-04T08:10:00.133Z",
+  "token": "probe-mw1u6fyg",
+  "baseline": {
+    "status": "to-do",
+    "assigneeId": null,
+    "labels": [
+      "需求"
+    ]
+  },
+  "final": {
+    "status": "to-do",
+    "assigneeId": null,
+    "labels": [
+      "需求"
+    ]
+  },
+  "rateLimit": {
+    "limit": 100,
+    "remaining": 12,
+    "reset": 1793779877,
+    "hits": 0,
+    "waitedMs": 0
+  },
+  "steps": [
+    {
+      "name": "baseline",
+      "ok": true,
+      "detail": {
+        "status": "to-do",
+        "assigneeId": null,
+        "labels": [
+          "需求"
+        ]
+      }
+    },
+    {
+      "name": "label.create",
+      "ok": true,
+      "detail": {
+        "id": "xb3d3tbfmger4agxy652eaq5",
+        "name": "probe-mw1u6fyg-label"
+      }
+    },
+    {
+      "name": "label.attach",
+      "ok": true,
+      "detail": {
+        "labels": [
+          "probe-mw1u6fyg-label",
+          "需求"
+        ]
+      }
+    },
+    {
+      "name": "label.detach",
+      "ok": true,
+      "detail": {
+        "labels": [
+          "需求"
+        ]
+      }
+    },
+    {
+      "name": "comment.create",
+      "ok": true,
+      "detail": {
+        "id": "oqijz8ki5d6jdztk8u13dk0o",
+        "createdAt": "2026-11-04T08:10:05.118Z",
+        "total": 8
+      }
+    },
+    {
+      "name": "comment.delete",
+      "ok": true,
+      "detail": {
+        "total": 7
+      }
+    },
+    {
+      "name": "lease.earliest-wins",
+      "ok": true,
+      "detail": {
+        "leases": [
+          {
+            "id": "modlrklwr677yblsh4swe0os",
+            "claim": "A",
+            "createdAt": "2026-11-04T08:10:06.530Z"
+          },
+          {
+            "id": "scptw8k2qwwp6t9e1uwttclr",
+            "claim": "B",
+            "createdAt": "2026-11-04T08:10:07.709Z"
+          }
+        ],
+        "winner": "A"
+      }
+    },
+    {
+      "name": "status.move",
+      "ok": true,
+      "detail": {
+        "status": "in-progress",
+        "column": "in-progress"
+      }
+    },
+    {
+      "name": "status.restore",
+      "ok": true,
+      "detail": {
+        "status": "to-do"
+      }
+    },
+    {
+      "name": "assignee.claim",
+      "ok": true,
+      "detail": {
+        "assigneeId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+        "assigneeName": "吴志平"
+      }
+    },
+    {
+      "name": "assignee.release",
+      "ok": true,
+      "detail": {
+        "assigneeId": null
+      }
+    },
+    {
+      "name": "restore.matches-baseline",
+      "ok": true,
+      "detail": {
+        "baseline": {
+          "status": "to-do",
+          "assigneeId": null,
+          "labels": [
+            "需求"
+          ]
+        },
+        "final": {
+          "status": "to-do",
+          "assigneeId": null,
+          "labels": [
+            "需求"
+          ]
+        }
+      }
+    }
+  ],
+  "failed": []
+}

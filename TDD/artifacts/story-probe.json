@@ -1,0 +1,66 @@
+{
+  "stamp": "2026-11-04T08:22:16.919Z",
+  "project": "wwo9d2mmqddjq8otbj8jh2hs",
+  "workspaceId": "lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o",
+  "card": {
+    "id": "bzdlb6apynhzf5w8jlnb6nag",
+    "number": 67,
+    "status": "to-do",
+    "labels": [
+      "role:pm",
+      "role:ux",
+      "role:worker"
+    ],
+    "boardLabels": [
+      "role:ux",
+      "role:worker",
+      "role:pm"
+    ]
+  },
+  "charter": {
+    "id": "iqf51ex3icb8i8lpzmh5zbm4",
+    "version": "1",
+    "title": "[probe] 宪章载体 v1"
+  },
+  "relation": {
+    "childId": "uos4n4d1ulcpdksi54cfv57z",
+    "readBack": [
+      {
+        "id": "hpr5dqd7butwddmwtaezfpwv",
+        "sourceTaskId": "uos4n4d1ulcpdksi54cfv57z",
+        "targetTaskId": "bzdlb6apynhzf5w8jlnb6nag",
+        "relationType": "subtask",
+        "createdAt": "2026-11-04T08:23:17.392Z",
+        "sourceTask": {
+          "id": "uos4n4d1ulcpdksi54cfv57z",
+          "title": "[probe] 子任务 A",
+          "status": "to-do",
+          "isCompleted": false,
+          "priority": "no-priority",
+          "number": 69,
+          "projectId": "wwo9d2mmqddjq8otbj8jh2hs",
+          "userId": null,
+          "assigneeName": null
+        },
+        "targetTask": {
+          "id": "bzdlb6apynhzf5w8jlnb6nag",
+          "title": "[probe] 岗位模型验证卡",
+          "status": "to-do",
+          "isCompleted": false,
+          "priority": "no-priority",
+          "number": 67,
+          "projectId": "wwo9d2mmqddjq8otbj8jh2hs",
+          "userId": null,
+          "assigneeName": null
+        }
+      }
+    ]
+  },
+  "checks": {
+    "card.created": true,
+    "card.labels-readable-via-label-endpoint": true,
+    "card.labels-visible-on-board": true,
+    "charter.readable-and-version-pinned": true,
+    "subtask-relation-visible": true
+  }
+}

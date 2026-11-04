@@ -1,0 +1,47 @@
+{
+  "taskId": "ykzca87ern9lj8wnk620gkjl",
+  "token": "race-mw1ulkxr",
+  "durationMs": 3750,
+  "baseline": {
+    "status": "to-do",
+    "assigneeId": null
+  },
+  "results": [
+    {
+      "index": 0,
+      "name": "吴志平",
+      "identity": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+      "tag": "0:吴志平",
+      "outcome": "lost-assignee",
+      "assigneeSeen": "7y0EgcTw0zZpFyv55BW1OWNpJWz7ZAV7"
+    },
+    {
+      "index": 1,
+      "name": "王常军",
+      "identity": "7y0EgcTw0zZpFyv55BW1OWNpJWz7ZAV7",
+      "tag": "1:王常军",
+      "outcome": "won",
+      "leaseId": "fgne8ve1akr2xijq8432i9uc",
+      "assigneeSeen": "7y0EgcTw0zZpFyv55BW1OWNpJWz7ZAV7",
+      "leaseCount": 2,
+      "winnerLease": "1:王常军"
+    },
+    {
+      "index": 2,
+      "name": "解雨心",
+      "identity": "yO6O7gZ2PCnrvwGwvW2PUmEHuTxx7VvE",
+      "tag": "2:解雨心",
+      "outcome": "lost-lease",
+      "leaseId": "xecx9nod0l7q3ikc3nkqtkmd",
+      "assigneeSeen": "yO6O7gZ2PCnrvwGwvW2PUmEHuTxx7VvE",
+      "leaseCount": 2,
+      "winnerLease": "1:王常军"
+    }
+  ],
+  "winners": 1,
+  "exactlyOneWinner": true,
+  "restored": {
+    "status": "to-do",
+    "assigneeId": null
+  }
+}

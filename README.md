@@ -31,7 +31,13 @@ It asks one short question at a time, shows the full plan once, and then install
 Read the numbered documents in order; each builds only on the ones before it.
 
 - [INSTALL](INSTALL.md): install from the Gitea address on another device, and what it requires
+- [RD](RD.md): the collaboration narrative (Kaneo as the only task source, PM + Worker posts, dynamic repos/topics, charter, deliverables)
+- [008 岗位账号](docs/009-post-accounts.md): unified KanEO bot accounts per post and how to wire each one into a SuperAgent instance
+- [TDD 008](TDD/008-real-data-validation.md): validation of the narrative against real KanEO / Gitea / ntfy / MinIO data
+- [TDD 009](TDD/009-narrative-ui.md): the narrative-shaped panel (编队 page, projects & posts settings) and the SOP delivery
+- [TDD 010](TDD/010-user-stories-validation.md): nine user stories run again and again in the test environment — dispatch, claim, delivery, "no claiming for others" — and the bugs they found (B-1 ~ B-11)
 - [STORY](STORY.md): a user story of the three-source deployment (Kaneo + Gitea + ntfy) and the full lifecycle
+- [SOP](SOP.md): the operating guide for the two roles — the PM post and the worker posts (also as [SOP.html](SOP.html), a 16:9 slide deck)
 - [000 Philosophy](docs/000-philosophy.md)
 - [001 Domain model](docs/001-domain.md)
 - [002 Authorization](docs/002-authorization.md)

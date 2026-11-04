@@ -1,0 +1,166 @@
+{
+  "taskId": "b9ok84k1yizw68aue5yfaqcu",
+  "stamp": "2026-11-04T08:32:59.117Z",
+  "token": "probe-mw1uzzzk",
+  "baseline": {
+    "status": "to-do",
+    "assigneeId": null,
+    "labels": [
+      "role:pm",
+      "role:ux",
+      "role:worker"
+    ]
+  },
+  "final": {
+    "status": "to-do",
+    "assigneeId": null,
+    "labels": [
+      "role:pm",
+      "role:ux",
+      "role:worker"
+    ]
+  },
+  "rateLimit": {
+    "limit": 100,
+    "remaining": 40,
+    "reset": 1793781255,
+    "hits": 0,
+    "waitedMs": 0
+  },
+  "steps": [
+    {
+      "name": "baseline",
+      "ok": true,
+      "detail": {
+        "status": "to-do",
+        "assigneeId": null,
+        "labels": [
+          "role:pm",
+          "role:ux",
+          "role:worker"
+        ]
+      }
+    },
+    {
+      "name": "label.create",
+      "ok": true,
+      "detail": {
+        "id": "qnrkn7rz56rsvznvvpdxr6wr",
+        "name": "probe-mw1uzzzk-label"
+      }
+    },
+    {
+      "name": "label.attach",
+      "ok": true,
+      "detail": {
+        "labels": [
+          "probe-mw1uzzzk-label",
+          "role:pm",
+          "role:ux",
+          "role:worker"
+        ]
+      }
+    },
+    {
+      "name": "label.detach",
+      "ok": true,
+      "detail": {
+        "labels": [
+          "role:pm",
+          "role:ux",
+          "role:worker"
+        ]
+      }
+    },
+    {
+      "name": "comment.create",
+      "ok": true,
+      "detail": {
+        "id": "q1k88fxhjqna8ek0sci4je33",
+        "createdAt": "2026-11-04T08:33:04.070Z",
+        "total": 1
+      }
+    },
+    {
+      "name": "comment.delete",
+      "ok": true,
+      "detail": {
+        "total": 0
+      }
+    },
+    {
+      "name": "lease.earliest-wins",
+      "ok": true,
+      "detail": {
+        "leases": [
+          {
+            "id": "u2pqvjf0htzcx2f1ahtymiyq",
+            "claim": "A",
+            "createdAt": "2026-11-04T08:33:05.745Z"
+          },
+          {
+            "id": "ff9n5di45wdxegk5ayod26op",
+            "claim": "B",
+            "createdAt": "2026-11-04T08:33:06.935Z"
+          }
+        ],
+        "winner": "A"
+      }
+    },
+    {
+      "name": "status.move",
+      "ok": true,
+      "detail": {
+        "status": "in-progress",
+        "column": "in-progress"
+      }
+    },
+    {
+      "name": "status.restore",
+      "ok": true,
+      "detail": {
+        "status": "to-do"
+      }
+    },
+    {
+      "name": "assignee.claim",
+      "ok": true,
+      "detail": {
+        "assigneeId": "bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG",
+        "assigneeName": "吴志平"
+      }
+    },
+    {
+      "name": "assignee.release",
+      "ok": true,
+      "detail": {
+        "assigneeId": null
+      }
+    },
+    {
+      "name": "restore.matches-baseline",
+      "ok": true,
+      "detail": {
+        "baseline": {
+          "status": "to-do",
+          "assigneeId": null,
+          "labels": [
+            "role:pm",
+            "role:ux",
+            "role:worker"
+          ]
+        },
+        "final": {
+          "status": "to-do",
+          "assigneeId": null,
+          "labels": [
+            "role:pm",
+            "role:ux",
+            "role:worker"
+          ]
+        }
+      }
+    }
+  ],
+  "failed": []
+}

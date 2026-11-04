@@ -1,0 +1,269 @@
+{
+  "started": "2026-11-04T10:22:28.646Z",
+  "finished": "2026-11-04T10:32:36.842Z",
+  "marker": "us-20261104102228",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "created": "h6d0f61490cfs4c0j80iqugg",
+  "stories": [
+    {
+      "id": "US-01",
+      "persona": "PM",
+      "title": "编队页给出项目、岗位与宪章的现状",
+      "ok": true,
+      "failed": [],
+      "ms": 109,
+      "checks": {
+        "narrative.configured": true,
+        "narrative.has-project": true,
+        "narrative.charter-read": true,
+        "narrative.charter-fresh": true,
+        "narrative.has-post": true,
+        "narrative.post-has-kaneo-identity": true,
+        "narrative.exception-queue-present": true
+      },
+      "evidence": {
+        "project": "FDEP",
+        "charter": 1,
+        "posts": [
+          "pm-fdep",
+          "w1-fdep"
+        ]
+      }
+    },
+    {
+      "id": "US-02",
+      "persona": "PM",
+      "title": "派工：建卡、指派给岗位账号、放进监听列",
+      "ok": false,
+      "failed": [
+        "dispatch.assignee-is-post"
+      ],
+      "ms": 754,
+      "checks": {
+        "dispatch.card-created": true,
+        "dispatch.assignee-is-post": false,
+        "dispatch.in-watched-column": true,
+        "dispatch.kind-label": true,
+        "dispatch.story-label": true
+      },
+      "evidence": {
+        "taskId": "h6d0f61490cfs4c0j80iqugg",
+        "status": "ready",
+        "assigneeId": null,
+        "labels": [
+          "kind:doc",
+          "story-test"
+        ]
+      }
+    },
+    {
+      "id": "US-03",
+      "persona": "岗位",
+      "title": "接单：工单落到正确的岗位上",
+      "ok": false,
+      "failed": [
+        "claim.ticket-found"
+      ],
+      "ms": 302422,
+      "checks": {
+        "claim.ticket-found": false
+      },
+      "evidence": {
+        "note": "no ticket within the timeout",
+        "decisions": [
+          {
+            "id": "d17f1fc073a1cf8485a127ed249e7bc3",
+            "kind": "accept",
+            "outcome": "accept",
+            "reason": [
+              {
+                "code": "explicitRouted"
+              }
+            ],
+            "at": "2026-11-03T07:24:33.503Z",
+            "strength": "explicit",
+            "ticketId": "7ca650f8fb5c413cbc8a855e991e8989",
+            "triggerIds": [
+              "5dc7d2819299cbf47628c043a584cf53"
+            ],
+            "thread": "gitea:shawoo/PDP#1",
+            "rules": [],
+            "threadTitle": "#1 [smoke-3src] Gitea 端到端 gitea-3src-152424 @shawoo 三来源改造的 Gitea 冒烟测试：请只回复一句 git",
+            "preview": "#1 [smoke-3src] Gitea 端到端 gitea-3src-152424 @shawoo 三来源改造的 Gitea 冒烟测试：请只回复一句 gitea-3src-152424，不要做其他事，不要改文件。",
+            "ticketTitle": "Gitea 三来源冒烟测试：仅回复一句 gitea-3src-152424"
+          },
+          {
+            "id": "eb758904e4ba094558fd2020719484bd",
+            "kind": "accept",
+            "outcome": "accept",
+            "reason": [
+              {
+                "code": "explicitRouted"
+              }
+            ],
+            "at": "2026-11-03T06:55:45.067Z",
+            "strength": "explicit",
+            "ticketId": "9f2766ac2477db5e658a8b650b543aca",
+            "triggerIds": [
+              "0a31236d138995aacb1c374bf849118a"
+            ],
+            "thread": "ntfy:pub_dgctny8ibgpn72ei2j8qj2hc",
+            "rules": [],
+            "threadTitle": "[#wu.zhiping] triggered",
+            "preview": "[#wu.zhiping] @dsh-superagent 三来源改造的 ntfy 冒烟测试：请只回复一句 ntfy-3src-145529，不要做其他事。",
+            "ticketTitle": "ntfy 三来源冒烟测试：仅回复一句 ntfy-3src-145529"
+          },
+          {
+            "id": "68b481b907e01fe6936de281bb07cb70",
+            "kind": "accept",
+            "outcome": "accept",
+            "reason": [
+              {
+                "code": "explicitRouted"
+              }
+            ],
+            "at": "2026-11-03T06:51:11.468Z",
+            "strength": "explicit",
+            "ticketId": "bfff5a794199e49a4fb9fea4ea8e93ef",
+            "triggerIds": [
+              "f37f63c6c28d4f782f8fc42ca36ba10d"
+            ],
+            "thread": "kaneo:vcyq10va3fi1cwodbgl7zobx",
+            "rules": [],
+            "threadTitle": "#471 [smoke-3src] Kaneo 端到端 2026-11-03",
+            "preview": "#471 [smoke-3src] Kaneo 端到端 2026-11-03 目的 三来源改造的 Kaneo 端到端冒烟测试，验证后删除。 要做的事（只做这一件） 1. 在执行目录新建文件 kaneo-3src.txt，内容写一行 kaneo-3src-ok。 2. 用一句话报告结果，结束。 不要修改其他文件，不要访问",
+            "ticketTitle": "Kaneo 三来源冒烟测试：新建 kaneo-3src.txt 内容为 kaneo-3src-ok"
+          },
+          {
+            "id": "1de50a01c2dd68a214033b5722d83c86",
+            "kind": "accept",
+            "outcome": "accept",
+            "reason": [
+              {
+                "code": "explicitRouted"
+              }
+            ],
+            "at": "2026-11-03T05:54:51.763Z",
+            "strength": "explicit",
+            "ticketId": "69732805abc10876a80b8570718f6ed2",
+            "triggerIds": [
+              "c5e6f47756688b714c8d5d07e70fe905"
+            ],
+            "thread": "kaneo:fhsw6n9ggq5r3t5al1ccxwjl",
+            "rules": [],
+            "threadTitle": "#470 [smoke] dsh-superagent Kaneo 来源端到端测试 2026-11-03",
+            "preview": "#470 [smoke] dsh-superagent Kaneo 来源端到端测试 2026-11-03 目的 验证 dsh-superagent 能把 Kaneo 任务提取为工单。本卡由自动化测试创建，验证后删除。 要做的事（只做这一件事） 1. 在你自己的执行目录里新建文件 smoke.txt，内容写一行 kane",
+            "ticketTitle": "Kaneo 来源端到端冒烟测试：新建 smoke.txt 内容为 kaneo-e2e-ok"
+          }
+        ]
+      }
+    },
+    {
+      "id": "US-04",
+      "persona": "岗位",
+      "title": "交付：状态回写与工作日志回到看板",
+      "ok": false,
+      "failed": [
+        "deliver.ticket-ended",
+        "deliver.kaneo-has-worklog"
+      ],
+      "ms": 301402,
+      "checks": {
+        "deliver.ticket-ended": false,
+        "deliver.kaneo-has-worklog": false,
+        "deliver.kaneo-left-ready": true
+      },
+      "evidence": {
+        "kaneoStatus": "in-progress",
+        "comments": 0,
+        "logExcerpt": ""
+      }
+    },
+    {
+      "id": "US-05",
+      "persona": "PM",
+      "title": "宪章：面板显示的版本与看板上的载体一致",
+      "ok": true,
+      "failed": [],
+      "ms": 114,
+      "checks": {
+        "charter.carrier-set": true,
+        "charter.versions-match": true
+      },
+      "evidence": {
+        "kaneoVersion": 1,
+        "panelVersion": 1,
+        "carrier": "vsrelqw8xbd9js0m13hb7qve"
+      }
+    },
+    {
+      "id": "US-06",
+      "persona": "系统",
+      "title": "看板查询：带 status 过滤才不漏任务",
+      "ok": false,
+      "failed": [
+        "board.filtered-query-sees-the-card"
+      ],
+      "ms": 136,
+      "checks": {
+        "board.columns-listed": true,
+        "board.filtered-query-sees-the-card": false,
+        "board.unfiltered-can-miss-tasks": true
+      },
+      "evidence": {
+        "columns": [
+          "to-do:3",
+          "ready:2",
+          "in-progress:1",
+          "blocked:3",
+          "in-review:0",
+          "qa:4",
+          "staging:0",
+          "done:4"
+        ],
+        "unfilteredCount": 17,
+        "filteredCount": 28,
+        "missingFromUnfiltered": 26
+      }
+    },
+    {
+      "id": "US-07",
+      "persona": "系统",
+      "title": "限流：连续读写不会把脚本打死",
+      "ok": true,
+      "failed": [],
+      "ms": 1917,
+      "checks": {
+        "limit.no-failure-after-backoff": true
+      },
+      "evidence": {
+        "requests": 25,
+        "failures": 0,
+        "waitedMs": 0,
+        "limit": 100,
+        "remaining": 68
+      }
+    },
+    {
+      "id": "US-08",
+      "persona": "系统",
+      "title": "一个后台：叙事视图与工单列表说的是同一件事",
+      "ok": true,
+      "failed": [],
+      "ms": 76,
+      "checks": {
+        "unified.narrative-has-posts": true,
+        "unified.duties-counted-once": true,
+        "unified.archive-shared": true
+      },
+      "evidence": {
+        "duties": 0,
+        "ticketsOwned": 0,
+        "open": 0,
+        "projects": 1
+      }
+    }
+  ],
+  "passed": 4,
+  "failed": 4
+}

@@ -1,0 +1,62 @@
+{
+  "workspaceId": "lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o",
+  "baseUrl": "https://pl.feg.cn",
+  "posts": [
+    {
+      "postId": "pm-pipeline",
+      "role": "pm",
+      "projectId": "wwo9d2mmqddjq8otbj8jh2hs",
+      "name": "SuperAgent PM (pipeline)",
+      "email": "sa-pm-pipeline@feg.cn",
+      "kaneoUserId": "",
+      "apiKeyFile": "keys/sa-pm-pipeline.key",
+      "giteaUser": "sa-pm-pipeline",
+      "ntfySender": "#sa-pm-pipeline",
+      "ntfyTopic": "pub_pipeline_pm",
+      "watchColumns": "to-do,in-progress,blocked",
+      "claimColumn": "in-progress"
+    },
+    {
+      "postId": "w1-pipeline",
+      "role": "worker",
+      "projectId": "wwo9d2mmqddjq8otbj8jh2hs",
+      "name": "SuperAgent Worker 1 (pipeline)",
+      "email": "{{EMAIL_v3nlyfp4}}",
+      "kaneoUserId": "",
+      "apiKeyFile": "keys/sa-w1-pipeline.key",
+      "giteaUser": "sa-w1-pipeline",
+      "ntfySender": "#sa-w1-pipeline",
+      "ntfyTopic": "pub_pipeline_w1",
+      "watchColumns": "to-do,in-progress,blocked",
+      "claimColumn": "in-progress"
+    },
+    {
+      "postId": "pm-fdep",
+      "role": "pm",
+      "projectId": "dgctny8ibgpn72ei2j8qj2hc",
+      "name": "SuperAgent PM (FDEP)",
+      "email": "{{EMAIL_qrkqi4dd}}",
+      "kaneoUserId": "",
+      "apiKeyFile": "keys/sa-pm-fdep.key",
+      "giteaUser": "sa-pm-fdep",
+      "ntfySender": "#sa-pm-fdep",
+      "ntfyTopic": "pub_fdep_pm",
+      "watchColumns": "to-do,ready,in-progress,blocked",
+      "claimColumn": "in-progress"
+    },
+    {
+      "postId": "w1-fdep",
+      "role": "worker",
+      "projectId": "dgctny8ibgpn72ei2j8qj2hc",
+      "name": "SuperAgent Worker 1 (FDEP)",
+      "email": "{{EMAIL_oaynlban}}",
+      "kaneoUserId": "",
+      "apiKeyFile": "keys/sa-w1-fdep.key",
+      "giteaUser": "sa-w1-fdep",
+      "ntfySender": "#sa-w1-fdep",
+      "ntfyTopic": "pub_fdep_w1",
+      "watchColumns": "ready,in-progress,blocked",
+      "claimColumn": "in-progress"
+    }
+  ]
+}

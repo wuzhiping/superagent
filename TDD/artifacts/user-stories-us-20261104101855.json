@@ -1,0 +1,37 @@
+{
+  "started": "2026-11-04T10:18:55.538Z",
+  "finished": "2026-11-04T10:18:56.227Z",
+  "marker": "us-20261104101855",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "created": null,
+  "evalModeBefore": "observe",
+  "stories": [
+    {
+      "id": "US-01",
+      "persona": "PM",
+      "title": "编队页给出项目、岗位与宪章的现状",
+      "ok": true,
+      "failed": [],
+      "ms": 95,
+      "checks": {
+        "narrative.configured": true,
+        "narrative.has-project": true,
+        "narrative.charter-read": true,
+        "narrative.charter-fresh": true,
+        "narrative.has-post": true,
+        "narrative.post-has-kaneo-identity": true,
+        "narrative.exception-queue-present": true
+      },
+      "evidence": {
+        "project": "FDEP",
+        "charter": 1,
+        "posts": [
+          "pm-fdep",
+          "w1-fdep"
+        ]
+      }
+    }
+  ],
+  "passed": 1,
+  "failed": 0
+}

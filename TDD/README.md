@@ -14,6 +14,9 @@
 | 005 | [测试与验收](005-test-verification.md) | 单测矩阵、集成/端到端验收、风险回归 |
 | 006 | [过程日志](006-process-log.md) | 逐次操作记录（命令、结果、失败与修复） |
 | 007 | [三来源实现、测试与部署记录](007-p2-readonly-skeleton.md) | Gitea/ntfy 完整 Source、信任设计、单测与真实实测、web profile 部署与 E2E 证据 |
+| 008 | [用真实数据验证协作叙事](008-real-data-validation.md) | RD.md 目标模型在真实 KanEO/Gitea/ntfy 上的验证：接口能力、互斥协议实测、限流与瞬时 401、MinIO 约束、结论与未验证项 |
+| 009 | [叙事化面板改造与 SOP 交付](009-narrative-ui.md) | 编队页（项目/岗位/宪章/职责/异常）、项目与岗位设置页、叙事 API、真实部署验证与 SOP.md / SOP.html |
+| 010 | [用用户故事反复验证](010-user-stories-validation.md) | 9 条用户故事在测试环境反复跑：派工/接单/交付/不代领的断言、B-1~B-11 的发现与修复（认领时机、交付列、看板自动化 20 秒搬卡、流程漂移）、真实证据 |
 
 ## 方法论
 
@@ -26,5 +29,6 @@
 ## 读者
 
 - 想继续做这个改造的工程师：先读 `../HANDOFF.md` §2–§4，再读本目录 001/003。
+- 想了解目标模型与真实数据验证：读根目录 [`../RD.md`](../RD.md) 与本目录 [008](008-real-data-validation.md)。
 - 想复现安装：`../HANDOFF.md` §5 与 `004-port-deployment.md`。
 - 想审计决策：`002-requirements-assumptions.md` 的决策表。

@@ -344,14 +344,27 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-03 13:54–13:57 | **端到端**：#470 移入 ready → Trigger → Ticket → Worker 执行 → 评论回写 → 删除测试卡 |
 | 2026-11-03 13:58–14:00 | 移除诊断/临时文件 → 最终 build → 禁用/启用冷重载 → 再验证 ready |
 | 2026-11-03 14:0x | 回填 HANDOFF 与 TDD/002/003/004/005/006 |
+| 2026-11-04 上午 | **叙事化面板**：编队页（项目/岗位/宪章/职责/异常）、项目与岗位设置页、叙事 API（`GET narrative`、`GET/PUT project-archive`）、工单带 `postId`/`deliverableType`/`charterVersion`；两种面板视角（PM / 岗位）共用一套后台；SOP.md + SOP.html（16 页）交付 → [TDD/009](TDD/009-narrative-ui.md) |
+| 2026-11-04 下午 | **用户故事反复验证**：写 `scripts/user-stories.mjs`（9 条故事，真实环境跑，带限流退避与配置还原），连跑 9 轮（4/8 → 9/9），逐条修 bug → [TDD/010](TDD/010-user-stories-validation.md) |
+| 2026-11-04 下午 | **B-4 认领时机**：从"读到请求就认领"改成"岗位第一次回写才认领"（只有带 `ticketId` 的消息才认领）→ `src/sources/kaneo-channel.ts` + `src/sources/registry.ts`（host 带 `config`） |
+| 2026-11-04 下午 | **B-9 交付列**：KanEO Source 新增 `doneColumn`——岗位交付结果时把卡移进交付列，Thread 随之关闭、工单才结束（此前岗位无法推进卡片状态，职责永远等不到卡关闭） |
+| 2026-11-04 傍晚 | **B-8 看板自动化**：隔离实验证实 FDEP 看板有"进入 ready 即开工"的自动化（~20 秒），60 秒轮询会漏掉请求 → 脚本轮询 15 秒 + 重新派工；写进 SOP 与 RD §6.4 |
+| 2026-11-04 傍晚 | **用户叙事校正**：任务不必然是编程、flow 是周复盘长出来的、项目类型多样 → RD §6.4/§7/§9 重写；档案新增 `kind`/`flow`/`workfaces`；编队页显示价值流与流程漂移；SOP.md/SOP.html 同步 |
+| 2026-11-04 晚 | **设置瘦身**：按"设置应该减少、应该通用、PM 直接在 KanEO 设置"——档案只剩**项目 / 岗位 / 宪章**三件事；价值流从服务器读 ✅；仓库由卡片自己说 ✅（工单新增 `repos[]` ✅）；监听列移到岗位 ✅ |
+| 2026-11-04 深夜 | **宪章改本地文档**：面板里写并「发布」（版本 +1、记发布者、旧版进历史 ✅）；工单仍钉开工那版 ✅；编队页拿宪章声明的流程与看板真实的列比对 ✅ |
+| 2026-11-04 深夜 | **KanEO 成为唯一直接来源**：新增 `src/sources/kaneo-inbox.ts` ✅，Gitea/ntfy 事件先入库成卡（`to-do` ✅、`from:gitea`/`from:ntfy` 标签 ✅、不指派 ✅），开关 `ingestEvents` ✅ |
+| 2026-11-04 深夜 | **内置提示词中性化**（12 个 `prompts/*.md` ✅）：交付物/载体/工作日志去编程味 ✅、GitHub 说法改条件句 ✅、新增 PM「当期流程」指引 ✅ |
+| 2026-11-04 深夜 | **插件装不上**：宿主按虚拟 store 路径解析插件裸导入 ✅，仓库却是 `nodeLinker: hoisted` ✅ → 改成 `isolated` + `shamefullyHoist` ✅（两种布局并存 ✅） |
+| 2026-11-05 00:00 | **用户故事全绿**：9 条故事 **9 ✅ / 0 ❌** ✅（run 16 ✅），报告见 [TDD/010](TDD/010-user-stories-validation.md) ✅ |
+| 2026-11-04 晚 | 全量回归：`pnpm typecheck` 通过；目标测试全绿（`kaneo` 16、`views` 16、`narrative` 8、`panel-posts` 4、`styles` 2、`gitea`/`ntfy` 40 ✅）；既有的 dev 环境失败与本次改动无关（用 `git worktree` 在 HEAD 上逐文件比对 ✅） |
 
 ---
 
 ## 7. 当前状态与下一步
 
-**当前阶段：⏸ 实施暂停；web profile 已回滚为「未部署」。等待方案评审（见 [REPORT.md](REPORT.md) P1）。**
+**当前阶段：✅ 已部署在 web profile（127.0.0.1:3080）并在真实测试环境反复验证；代码与文档都在仓库里，尚未提交。**
 
-> 历史进展（回滚前完成、仅作参考）：改造/移植/端到端验证曾全部跑通；用户要求先出原理与方案，故已暂停并回滚部署。代码与文档保留在仓库中，未提交。
+> 2026-11-04 的进展见 §6 的时间线与 [TDD/009](TDD/009-narrative-ui.md)（叙事化面板）与 [TDD/010](TDD/010-user-stories-validation.md)（用户故事反复验证）。
 
 - [x] 解读 bundle 架构与 DSH 集成
 - [x] 学习 Kaneo API 与 FDEP 数据
@@ -362,15 +375,20 @@ pnpm check        # typecheck + vitest + build
 - [x] 安装到 web profile（备份 + `install_bundle`）
 - [x] 配置与端到端验证（#470 全链路 + 冷重载复核）
 - [x] 文档回填（HANDOFF + TDD/001–006 + artifacts）
+- [x] 叙事化面板：编队页、项目与岗位设置、叙事 API、两种视角、SOP.md / SOP.html（TDD/009）
+- [x] 用户故事反复验证：9 条故事 × 16 轮，发现并修复 B-1 ~ B-17（TDD/010），**最终 9 ✅ / 0 ❌** ✅
+- [x] 用户叙事校正（任务不必然是编程 / flow 由复盘长出来 / 项目类型多样 / 设置要少要通用 / KanEO 是唯一直接来源 / 提示词要中性）落到 RD、档案模型、编队页、来源实现与提示词
 
 **下一步（建议，按优先级）**：
 
-1. **确认业务口径**：监听列是否 `ready`、是否用 label 收窄（如 `sprint-2026-W56`）、允许发起人名单、完成后的列推进目标（`qa`／`in-review`）。
-2. **执行器工作目录**：若任务需要真实代码仓库，配置 `executor.prepare` 与 `directory`（当前是空目录 `work/<ticket>`）。
-3. **任务链接路由**：在 Kaneo Web 中确认任务页 URL 格式，修正 `kaneoTaskUrl`（当前 `?task=` 未实测）。
-4. **专用身份**：为 agent 建专用 Kaneo 账号 + API key，使评论作者可区分（当前是吴志平）。
-5. **二期**：任务完成后自动进 `qa`、评论 @验收人、webhook 替代轮询、多项目/多列。
-6. **Windows 测试基线**（可选）：给上游 POSIX 测试补平台分支，使 `pnpm test` 全绿。
+1. **补上 B-10**：重启会吞掉工作日志（`src/executor/dsh.ts` 的 `resume()` 只管运行中与排队中的职责）→ 启动时补发"已报 ready 但结果没送出"的结果。
+2. **Worker 岗位的 KanEO 账号**：`w1-fdep` 还没有 KanEO 身份，两个岗位并发还没真跑过。
+3. **入库链路的端到端故事**：Gitea/ntfy 事件 → 入库卡 → PM 指派 → 岗位领 → 回写那张卡（实现已就位 ✅，还没有用户故事覆盖 ✅）。
+4. **非编程项目的真实故事**：客诉 / 物流这类项目跑一遍 US-02~US-04（`kind:` 标签与工作面已经支持 ✅）。
+5. **产出回写 MinIO**：执行会话能写桶，但"上传 → 取回链接 → 回写看板"的闭环还没跑通。
+6. **按角色的团队提示词段**：三个团队段（communication/scope/delivery）目前两个角色共用 ✅；要做到"只给 worker 一份交付要求"需要改 `PromptConfigSchema` ❓。
+7. **确认业务口径**：监听列/标签范围、允许发起人名单、完成后的列推进目标（`done` / `in-review`）——见 §8.1。
+8. **Windows 测试基线**（可选）：给上游 POSIX 测试补平台分支，使 `pnpm test` 全绿。
 
 ---
 
