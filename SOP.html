@@ -286,24 +286,55 @@
     </div>
   </section>
 
+  <!-- 5b three settings -->
+  <section class="slide airy">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>ONBOARDING · 三件事</div>
+      <h2>上手只要三步：贴钥匙、登记岗位、发布宪章</h2>
+      <p class="lead" style="font-size:18px">看板自己说的，面板不重复设置。</p>
+    </div>
+    <div class="content">
+      <div class="grid g3 fill">
+        <div class="card k"><span class="bar"></span>
+          <div class="num">STEP 01</div><h3>贴一把 API key</h3>
+          <p>设置 → 来源 → KanEO：服务器地址 + <b>API key</b> → 保存。</p>
+          <p>面板随即读出工作区、项目与<b>看板真实的列</b>。</p>
+        </div>
+        <div class="card g"><span class="bar"></span>
+          <div class="num">STEP 02</div><h3>登记岗位</h3>
+          <p>项目 id + 每个岗位的 <b>KanEO 用户 id</b> + 领哪些列 + 并发上限。</p>
+          <p>Gitea / ntfy 身份可留空——不是编程任务就不需要。</p>
+        </div>
+        <div class="card n"><span class="bar"></span>
+          <div class="num">STEP 03</div><h3>发布宪章</h3>
+          <p>设置 → 项目与岗位 → 宪章：写当期流程与交付标准 → <b>发布</b>。</p>
+          <p>版本号 +1、记发布者、旧版进历史；工单钉在开工那版。</p>
+        </div>
+      </div>
+      <p class="small"><b>KanEO 是唯一的直接来源</b>：Gitea / ntfy 的事件先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责——之后与 KanEO 原生的卡走完全一样的流程。</p>
+    </div>
+  </section>
+
   <!-- 6 archive fields -->
   <section class="slide airy">
     <div class="head">
       <div class="kicker"><span class="dot"></span>REGISTER</div>
-      <h2>在面板登记项目与岗位</h2>
+      <h2>面板里只登记三件事</h2>
       <p class="lead" style="font-size:18px">设置 → 项目与岗位 → 保存。档案里不放密码；保存带版本号校验，别人同时改过会拒绝覆盖。</p>
     </div>
     <div class="content">
       <table class="tight">
         <tr><th>字段</th><th>含义</th><th>例子</th></tr>
         <tr><td>项目 id / 名称 / slug</td><td>KanEO 项目标识与看板 slug</td><td>dgctny8ibgpn72ei2j8qj2hc · FDEP · FDE</td></tr>
-        <tr><td>宪章载体任务 id</td><td>常驻任务，描述里写 version: N</td><td>vsrelqw8xbd9js0m13hb7qve</td></tr>
-        <tr><td>监听列 / 仓库集 / 主题集</td><td>岗位关注的列、涉及的仓库与 topic</td><td>ready,in-progress · shawoo/PDP · pub_fdep_pm</td></tr>
+        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」</td><td>version: 2 · publishedBy: pm-fdep</td></tr>
+        <tr><td>主题集</td><td>该项目订阅的 ntfy topic</td><td>pub_fdep_pm</td></tr>
         <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 PM / Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
         <tr><td>KanEO 用户 id</td><td><b>决定它领得到哪张卡</b></td><td>bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG</td></tr>
-        <tr><td>Gitea 账号 / ntfy sender / 实例</td><td>代码与消息身份、跑在哪台机器</td><td>sa-w1-fdep · #sa-w1-fdep · web</td></tr>
+        <tr><td>监听列</td><td>该岗位领哪些列的卡（slug）</td><td>ready</td></tr>
+        <tr><td>Gitea 账号 / ntfy sender / 实例</td><td>代码与消息身份、跑在哪台机器（都可留空）</td><td>sa-w1-fdep · #sa-w1-fdep · web</td></tr>
         <tr><td>并发上限 WIP</td><td>同时在飞的职责数上限</td><td>3</td></tr>
       </table>
+      <p class="small"><b>不在这里设的</b>：看板的列（从服务器读）、仓库集（由那张卡自己说：repo:owner/name）、产出类型（由 kind: 标签说）、项目类型。</p>
     </div>
   </section>
 
