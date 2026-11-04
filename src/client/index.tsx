@@ -20,9 +20,11 @@ type ClientContext = Context & { sessions: ISessions }
 const NS = 'dshSuperagent'
 const PANEL_ID = 'dsh-superagent' as MainPanelId
 const ENTRY = 'dsh-superagent'
+/** Sidebar icon colour, matched to the red used by the MCP gateway icon. */
+const ICON_COLOR = '#EB3147'
 
 function HammerIcon({ size }: SidebarPanelIconOwnerProps) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={ICON_COLOR} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ color: ICON_COLOR }}>
     <path d="M6 3.5h9l3.5 1.75v2.5L15 9.5H6a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z" /><path d="M10 9.5v10.25a1.75 1.75 0 0 0 3.5 0V9.5" /><path d="M10 15.5h3.5" />
   </svg>
 }
