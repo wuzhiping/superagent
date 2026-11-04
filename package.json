@@ -4,8 +4,11 @@
   "license": "MIT",
   "version": "0.1.0",
   "private": true,
-  "description": "A proactive agent for one GitHub repository, as a DSH (DeepSeek Harness) bundle: it listens to GitHub and optionally Feishu, evaluates requests under a Policy, turns authorized ones into Tickets, and executes each in its own DSH Session.",
+  "description": "超级智能体 / SuperAgent: a proactive DSH bundle for Kaneo boards, Gitea repositories and ntfy topics — it evaluates requests under a Policy, turns authorized ones into Tickets, executes each in its own DSH Session and replies in the original conversation.",
   "type": "module",
+  "bin": {
+    "dsh-superagent": "./bin/install.mjs"
+  },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "exports": {
@@ -23,10 +26,12 @@
     "./locale/*.json": "./locale/*.json"
   },
   "files": [
+    "bin",
     "lib",
     "cordis.patch.yml",
     "locale/*.json",
     "README.md",
+    "INSTALL.md",
     "prompts",
     "skills"
   ],

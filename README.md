@@ -4,9 +4,19 @@
 >
 > We have adapted it for publication, so it is not identical to our internal version or the implementation described in *Exploring Super-agent Design: Towards a More Autonomous Agent System*. Some designs discussed in the article are directions for future development and are not implemented in this prototype.
 
-dsh-superagent is a proactive coding agent for one GitHub repository, packaged as a bundle for [DeepSeek Harness](https://www.deepseek.com/en/harness/). It listens to GitHub and, optionally, Feishu. When someone allowed asks the agent for work, it opens a work item, works on it in its own agent session and directory, and answers in the original conversation, for example with a pull request. A web panel shows what needs a person.
+dsh-superagent（超级智能体）是一个主动式 DSH bundle：从 **Kaneo 看板**、**Gitea 仓库**与 **ntfy 主题**读取请求，按 Policy 判定授权，把明确授权的请求变成工单，在独立 Session 中执行，并把结果写回原对话。Web 面板展示哪些工作正在等人处理。
 
-It is also a way of working with an agent: **take as little human attention as possible, and give as much value as possible.** An agent that can act for a whole team can also waste a whole team's attention, so it acts only when asked or when a rule the team wrote allows it, and speaks only when someone must act or can use a result. [docs/000-philosophy.md](docs/000-philosophy.md) explains the principle and what it asks of the operator.
+## Install from Gitea（其他设备）
+
+```powershell
+npx -y git+https://git.feg.cn/shawoo/superagent install
+```
+
+It installs this bundle into a DSH profile (default `web`) through `dsh plugin`, then records `stateDir`. Requirements and troubleshooting: **[INSTALL.md](INSTALL.md)**. 便携目录用：
+
+```powershell
+& "$bin\npx.cmd" --prefix (Join-Path $PWD "node\global") --cache (Join-Path $PWD "node\cache") -y git+https://git.feg.cn/shawoo/superagent install
+```
 
 ## Setup
 
@@ -20,6 +30,8 @@ It asks one short question at a time, shows the full plan once, and then install
 
 Read the numbered documents in order; each builds only on the ones before it.
 
+- [INSTALL](INSTALL.md): install from the Gitea address on another device, and what it requires
+- [STORY](STORY.md): a user story of the three-source deployment (Kaneo + Gitea + ntfy) and the full lifecycle
 - [000 Philosophy](docs/000-philosophy.md)
 - [001 Domain model](docs/001-domain.md)
 - [002 Authorization](docs/002-authorization.md)
