@@ -119,7 +119,11 @@ interface NtfyAccount {
 }
 //#endregion
 //#region src/deployment.d.ts
-/** Plugin configuration of the dsh-superagent entry. Volatile fields apply without a restart because dsh-superagent reads them on each use; changing `stateDir` remounts the plugin. */
+/**
+ * Plugin configuration of the dsh-superagent entry. Volatile fields apply without a restart because dsh-superagent reads
+ * them on each use; changing `stateDir` remounts the plugin. `stateDir` has a default so a raw
+ * `dsh plugin --profile web add git+...` install mounts without hand-editing the profile patch.
+ */
 declare const Config: s<Schemastery.ObjectS<NoInfer<{
   stateDir: s<string, string, "defined">;
   promptMaxChars: s<number, number, "volatile-defined">;
