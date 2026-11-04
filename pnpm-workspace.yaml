@@ -1,0 +1,7 @@
+packages:
+  - .
+  - dev
+
+nodeLinker: hoisted
+autoInstallPeers: false
+
