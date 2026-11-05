@@ -2,7 +2,7 @@
  * The narrative view the management panel shows: projects, posts, the charter each PM published, the duties a post
  * runs, and the exceptions a PM has to handle (RD.md §4–§8).
  */
-import { declaredFlowOf, kaneoAccount, publishWindow, readBoardColumns, readCharter } from '../charter.ts'
+import { charterTarget, declaredFlowOf, kaneoAccount, publishWindow, readBoardColumns, readCharter } from '../charter.ts'
 import type { SourceRegistry } from '../../sources/registry.ts'
 import {
   archiveRevision, dutyRows, dutiesOfPost, exceptionRows, readArchive,
@@ -71,9 +71,11 @@ export async function narrativeView (store: Store, sources: SourceRegistry, stat
   const duties = dutyRows(store, archive)
   const exceptions = exceptionRows(store, archive)
   const account = kaneoAccount(sources)
+  // The charter comes from the Gitea repository named on its Source card; the Kanban mirror is the fallback.
+  const target = charterTarget(sources)
   const projects: ProjectView[] = []
   for (const project of archive.projects) {
-    const charter = await readCharter(project, account)
+    const charter = await readCharter(project, target)
     // The charter may be published at most once a week; the panel says when it becomes due again.
     const window = publishWindow(charter.publishedAt || undefined)
     const board = await readBoardColumns(account, project.id)

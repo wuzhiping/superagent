@@ -23,7 +23,7 @@ import type { Sessions } from './sessions.ts'
 import type { Store } from './store.ts'
 import { writeArchive } from './narrative.ts'
 import { charterOfText } from './narrative.ts'
-import { kaneoAccount, publishCharter, publishWindow, readServerCharter } from './charter.ts'
+import { charterTarget, kaneoAccount, publishCharter, publishWindow, readPrimaryCharter } from './charter.ts'
 import { readProjectChoices } from './projects.ts'
 import { readCapabilities } from './capabilities.ts'
 import { storedKaneoAccount } from '../sources/bdd-storage.ts'
@@ -217,15 +217,15 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
       const current = archiveView(stateDir)
       const project = current.archive.projects.find(item => item.id === projectId)
       if (!project) throw new RouteError(404, 'Project not found in the archive')
-      const account = kaneoAccount(runtime.sources)
-      const previous = await readServerCharter(account, projectId)
+      const target = charterTarget(runtime.sources)
+      const previous = await readPrimaryCharter(target, projectId)
       const window = publishWindow(previous?.publishedAt ?? (project.charter.publishedAt || undefined))
       if (!window.ok && input?.force !== true) {
         throw new RouteError(400, `A project's charter changes at most once a week; it may be published again on ${new Date(window.dueAt).toISOString()}`)
       }
       let published
       try {
-        published = await publishCharter(account, projectId, text, publishedBy, previous)
+        published = await publishCharter(target, projectId, text, publishedBy, previous)
       } catch (error) {
         throw new RouteError(400, error instanceof Error ? error.message : String(error))
       }
@@ -241,7 +241,8 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
           : project.charter.history,
       }
       writeArchive(stateDir, current.archive, current.revision)
-      return { charter: charterOfText(published.text, published.publishedAt, project.charter.publishedBy) }
+      return { charter: charterOfText(published.text, published.publishedAt, project.charter.publishedBy),
+        carrier: published.carrier, carrierRef: published.carrierRef }
     },
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),

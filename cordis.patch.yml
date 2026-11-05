@@ -16,6 +16,10 @@
     # Kept off until its card (server, topic, auth) is set. `pub_` topics are public and low-trust.
     - id: dsh-superagent-ntfy
       name: dsh-superagent/ntfy-watch
+    # MinIO/S3 Source: the object store for non-code deliverables. It produces no tasks; it is configured (credentials
+    # default to the BDD storage record /BDD/API/AI/dsh/storage/s3) and reports whether its bucket is readable.
+    - id: dsh-superagent-s3
+      name: dsh-superagent/s3-watch
     # GitHub Source: kept but off by default. A deployment that works from Kaneo has no GitHub account, so enabling this
     # row before setting the GitHub card makes its polls report setup errors; set the card, then remove `disabled: true`.
     - id: dsh-superagent-github

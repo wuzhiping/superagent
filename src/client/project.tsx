@@ -72,6 +72,7 @@ function CharterEditor({ charter, projectId, onChange, onPublished, readOnly }: 
         onChange={event => onChange({ ...charter, draft: event.target.value })} />
     </label>
     <p className="dt-hint">{t('projectCharterHint')}</p>
+    <p className="dt-hint">{t('projectCharterCarrier')}</p>
     {refused && <div className="dt-charter-refused"><p className="dt-error" role="alert">{refused}</p>
       {!readOnly && <Button variant="outline" size="sm" disabled={busy} onClick={() => { void publish(true) }}>
         {t('projectCharterForce')}</Button>}</div>}

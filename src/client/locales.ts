@@ -620,6 +620,8 @@ const TEXT = {
     'version: 1\npublishedBy: pm-fdep\n\n# Charter v1\n- Current flow: ready → in-progress → done\n- Roles and duties: …\n- Delivery standards: …'],
   projectCharterHint: ['宪章是**整个项目一份**、各岗位共同遵守的约定：写完点「发布」即在项目上生效（版本号加一、记下时间与发布者，旧的留在历史里）。**每周至多发布一版**，开工的工单钉在开工那版上。',
     'One charter per project, shared by every post: publishing writes it onto the project (the next version, with its time and author; the version it replaces stays in the history). It changes **at most once a week**, and a duty pins the version it started under.'],
+  projectCharterCarrier: ['载体：Gitea 仓库的 README.md（在「来源 → Gitea」里填仓库与宪章文件）；未配置 Gitea 时写回 Kanban 项目描述作为镜像。',
+    'Carrier: the Gitea repository\'s README.md (set the repository and charter file under Sources → Gitea); without Gitea it is written to the Kanban project description as the mirror.'],
   projectCharterPublish: ['发布宪章', 'Publish the charter'],
   projectCharterPublished: ['宪章已发布到项目上', 'The charter is published onto the project'],
   projectCharterForce: ['仍然发布（覆盖每周一次的限制）', 'Publish anyway (override the weekly limit)'],

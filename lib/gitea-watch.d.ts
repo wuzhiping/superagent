@@ -1,6 +1,6 @@
-import { W as Trigger, ht as GiteaConfig, mt as DEFAULT_GITEA_URL } from "./intake-CTRyXM8C.js";
-import { n as SourceContext, t as SourceKind } from "./kind-Bdmm1MiD.js";
-import { t as InboxEvent } from "./kaneo-inbox-DM_fEjB6.js";
+import { W as Trigger, ht as GiteaConfig, mt as DEFAULT_GITEA_URL } from "./intake-CBtZHnWx.js";
+import { n as SourceKind, r as SourceContext } from "./kind-CbQpNmXi.js";
+import { t as InboxEvent } from "./kaneo-inbox-ObvdIwaC.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/gitea-api.d.ts
@@ -102,7 +102,7 @@ declare class GiteaClient {
   private readonly base;
   constructor(account: GiteaAuth, fetchImpl?: GiteaFetch, wait?: (ms: number) => Promise<void>);
   /** Sends one request and parses its JSON body; 429 and 5xx retry with backoff, others surface `GiteaError`. */
-  request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST', path: string, body?: unknown, signal?: AbortSignal): Promise<T>;
+  request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, signal?: AbortSignal): Promise<T>;
   /**
    * A readable failure: an anonymous read that was refused usually means the repository is private, so it names the
    * account fields that fix it instead of looking like an empty repository.
@@ -146,6 +146,26 @@ declare class GiteaClient {
   }, signal?: AbortSignal): Promise<GiteaComment[]>;
   /** `POST /repos/{owner}/{repo}/issues/{index}/comments`; returns the created comment. */
   createIssueComment(owner: string, name: string, index: number, body: string, signal?: AbortSignal): Promise<GiteaComment>;
+  /**
+   * One file of a repository through the contents API: its blob sha (needed to replace it) and its text. The repository
+   * may be public, so the read works anonymously; a private or missing path answers 404.
+   */
+  fileContents(owner: string, name: string, path: string, options?: {
+    ref?: string;
+  }, signal?: AbortSignal): Promise<{
+    sha: string;
+    text: string;
+  }>;
+  /**
+   * Creates or replaces one file with a commit: `sha` is the blob being replaced, omitted when the file is new. The
+   * commit message names what changed, so the repository's history is the document's history.
+   */
+  putFile(owner: string, name: string, path: string, input: {
+    content: string;
+    message: string;
+    sha?: string;
+    branch?: string;
+  }, signal?: AbortSignal): Promise<string | undefined>;
 }
 //#endregion
 //#region src/sources/gitea.d.ts

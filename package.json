@@ -22,6 +22,7 @@
     "./kaneo-watch": "./lib/kaneo-watch.js",
     "./gitea-watch": "./lib/gitea-watch.js",
     "./ntfy-watch": "./lib/ntfy-watch.js",
+  "./s3-watch": "./lib/s3-watch.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },

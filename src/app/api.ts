@@ -33,7 +33,8 @@ export interface Api {
   'GET project-archive': { response: { archive: ProjectArchive; revision: number } }
   'PUT project-archive': { body: { archive: unknown; revision: number }; response: { revision: number } }
   /** Publishes a project's charter into the project itself: one document per project, at most once a week. */
-  'POST narrative/charter': { body: { projectId: string; text: string; publishedBy: string; force?: boolean }; response: { charter: CharterInfo } }
+  'POST narrative/charter': { body: { projectId: string; text: string; publishedBy: string; force?: boolean };
+    response: { charter: CharterInfo; carrier?: 'gitea' | 'kanban'; carrierRef?: string } }
   'GET search': { query: { q: string }; response: SearchView }
   'GET sources': { response: SourceStatusView[] }
   'GET settings': { response: SettingsView }

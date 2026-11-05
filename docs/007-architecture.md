@@ -377,10 +377,13 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/kaneo-read.ts` | `kaneoThreadContext`: a task's description as the root and its comments as the thread, for assessments |
 | `src/sources/gitea.ts` | The Gitea kind and plugin entry, exported as `./gitea-watch`: polls notifications or repository increments, turns addressed issues/comments into Triggers, posts replies as issue comments |
 | `src/sources/gitea-config.ts` | The Gitea account fields, the kind's configuration schema, and `owner/name` parsing |
-| `src/sources/gitea-api.ts` | The Gitea REST client: token header, zod-validated JSON, retries, timeouts, issue/comment reads and comment creation |
+| `src/sources/gitea-api.ts` | The Gitea REST client: token header, zod-validated JSON, retries, timeouts, issue/comment reads, comment creation, and the contents API (`fileContents`/`putFile`) the charter is read from and published to |
 | `src/sources/ntfy.ts` | The ntfy kind and plugin entry, exported as `./ntfy-watch`: polls a topic for new messages, turns mentions into Triggers, publishes replies back |
 | `src/sources/ntfy-config.ts` | The ntfy configuration schema (server, topic, auth, identity, read mode) and account extraction |
 | `src/sources/ntfy-api.ts` | The ntfy client: history parsing with tombstone removal, publish with header metadata, auth headers |
+| `src/sources/s3.ts` | The MinIO/S3 kind and plugin entry, exported as `./s3-watch`: produces no tasks; is configured (every empty field falls back to the storage record) and reports whether its bucket is readable |
+| `src/sources/s3-config.ts` | The object-store configuration schema, the storage-record merge (`s3AccountOf`) and the credentials note |
+| `src/sources/s3-api.ts` | A minimal S3 client: SigV4 signing, region auto-detection from a refused signature, listing buckets/objects, the bucket probe |
 | `src/sources/feishu-trigger.ts` | Feishu messages as Triggers, by one rule for live events, history pages and topic pages |
 | `src/sources/feishu-loops.ts` | The Feishu loops: the event consumer, history recovery, chat names and polling of subscribed topics |
 | `src/sources/feishu-channel.ts` | The Feishu Channel: topic replies, `sent` or `gone` |
@@ -432,6 +435,8 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/maintenance.spec.ts` | The cleanup audit: only ended duties are listed, open duties block their directory, a huge workspace stops at its scan cap, and a removal path outside the executor root or at the state directory is refused |
 | `tests/panel-maintenance.spec.tsx` | The cleanup page: default selection, the confirmation, and the separate folder removal |
 | `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
+| `tests/charter-gitea.spec.ts` | The charter carrier: the README states the version/author/date, it wins over the Kanban mirror, publishing commits the stamped text, and a refused write falls back to the mirror |
+| `tests/s3.spec.ts` | The object-store card: SigV4 headers, listing/probe parsing, region auto-detection, and the storage-record fallback of empty fields |
 | `tests/charter-publish.spec.ts` | Publishing a charter: the version, author and date lines are stamped, and a project changes its charter at most once a week |
 | `tests/bdd-storage.spec.ts` | The storage-record lookup: the masked credential, the service fields, the cache, and the failures that are reported instead of thrown |
 | `tests/projects.spec.ts` | The project list the panel picks from: both lists, the cache, and the reason when the account cannot read them |

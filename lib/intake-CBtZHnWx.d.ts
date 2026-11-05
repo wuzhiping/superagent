@@ -54,6 +54,7 @@ declare const GiteaAccountSchema: z.ZodObject<{
   password: z.ZodDefault<z.ZodString>;
   token: z.ZodDefault<z.ZodString>;
   repository: z.ZodDefault<z.ZodString>;
+  charterPath: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 type GiteaAccount = z.infer<typeof GiteaAccountSchema>;
 /**
@@ -66,6 +67,7 @@ declare const GiteaConfigSchema: z.ZodObject<{
   password: z.ZodDefault<z.ZodString>;
   token: z.ZodDefault<z.ZodString>;
   repository: z.ZodDefault<z.ZodString>;
+  charterPath: z.ZodDefault<z.ZodString>;
   listen: z.ZodDefault<z.ZodEnum<{
     notifications: "notifications";
     repo: "repo";

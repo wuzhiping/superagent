@@ -236,3 +236,28 @@ export function storedKaneoAccount (baseUrl: string): { baseUrl: string, apiKey:
   if (!apiKey) return undefined
   return { baseUrl: fields?.baseUrl || baseUrl, apiKey }
 }
+
+/** The Gitea account this Host's storage record carries: its server, login (the record's e-mail) and password. */
+export function storedGiteaAccount (baseUrl: string): { baseUrl: string, user: string, password: string } | undefined {
+  const fields = storedConnections.peek('gitea')
+  const password = fields?.password ?? ''
+  if (!password) return undefined
+  return { baseUrl: fields?.baseUrl || baseUrl, user: fields?.email ?? '', password }
+}
+
+/** The ntfy account this Host's storage record carries: its server, user and password. */
+export function storedNtfyAccount (baseUrl: string): { baseUrl: string, user: string, password: string } | undefined {
+  const fields = storedConnections.peek('ntfy')
+  const password = fields?.password ?? ''
+  if (!password) return undefined
+  return { baseUrl: fields?.server || baseUrl, user: fields?.user ?? '', password }
+}
+
+/** The object store this Host's storage record carries: endpoint, keys and the bucket the record suggests. */
+export function storedS3Account (endpoint: string): { endpoint: string, accessKey: string, secretKey: string, bucket: string } | undefined {
+  const fields = storedConnections.peek('s3')
+  const accessKey = fields?.accessKey ?? ''
+  const secretKey = fields?.secretKey ?? ''
+  if (!accessKey || !secretKey) return undefined
+  return { endpoint: fields?.endpoint || endpoint, accessKey, secretKey, bucket: fields?.bucket ?? '' }
+}

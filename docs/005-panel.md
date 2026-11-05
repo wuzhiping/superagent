@@ -41,6 +41,17 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
   An upgrade that changes an overridden default marks it **Default updated** (默认内容已更新). The panel compares the old and new defaults above the team's text. If the old default was not recorded, it compares the team's text with the new default instead. Choose **Keep my text** or **Use the new default**. Overrides for removed parts are listed below the tab bar and dropped on the next save.
 - **Deployment:** startup problems with **Check again**, the state directory and machine limits. Saved limits apply without restart. The DeepSeek Harness Plugin Manager exposes the same page.
 
+### Sources: charter, tasks, messages, data assets
+
+The Sources page holds four cards, each with one job (2026-11-06):
+
+- **Gitea** — the **charter's home**: the repository named on the card, with `README.md` (path editable as `charterPath`) as the charter's entry point and body. Publishing the charter commits to that file; a refused write (no push right) falls back to the Kanban project description as the mirror.
+- **Kanban** — the task source: the board's columns and cards are the requests the posts work.
+- **ntfy** — the realtime message channel the agent is addressed on.
+- **MinIO / S3** — the supplemental carrier for a project's data assets (documents, plans, reports, exports). It produces no tasks: it is configured and reports whether its bucket is readable.
+
+Every card's credentials default to this Host's storage record (`/BDD/API/AI/dsh/storage/<service>`, read with the masked key) and may be overridden field by field; an empty field means "use the record", and a secret typed into a card stays in memory rather than the settings file.
+
 ### The PM seat and its rights (paused in the panel)
 
 The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The right the PM seat needs is real — only a workspace admin may change a project's columns — and the host still reports it through `GET capabilities`. The panel no longer acts on that answer, though: it asks nothing before a seat is taken and shows no rights banner, so both seats are open to every account (paused 2026-11-05; RD.md §4.1 keeps the design). The panel writes no board of its own — the board's columns are the server's — so nothing else was ever blocked.

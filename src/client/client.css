@@ -427,3 +427,4 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-maintenance-dir { max-width: 280px; color: var(--dsw-alias-label-secondary); }
 .dt-maintenance-reason { display: block; margin-top: 2px; font-size: 12px; line-height: 18px; font-weight: 400; color: var(--dsw-alias-label-caption); }
 
+.dt-pill-ref { margin-left: 6px; font-size: 11px; opacity: .72; }

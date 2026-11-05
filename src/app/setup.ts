@@ -6,12 +6,12 @@ import { agentVariables, applyEnvironment, verifyEnvironment, withoutDirectory, 
 import type { Settings, SettingsBlock } from '../policy.ts'
 import { SetupError, type SetupProblem } from '../setup.ts'
 import { KaneoClient, KaneoError } from '../sources/kaneo-api.ts'
-import { storedKaneoAccount } from '../sources/bdd-storage.ts'
+import { storedGiteaAccount, storedKaneoAccount, storedNtfyAccount } from '../sources/bdd-storage.ts'
 import { DEFAULT_BASE_URL, kaneoAccountOf, type KaneoAccount } from '../sources/kaneo-config.ts'
 import { GiteaClient, GiteaError } from '../sources/gitea-api.ts'
-import { giteaAccountOf, giteaHasAuth, repositoryOf, type GiteaAccount } from '../sources/gitea-config.ts'
+import { DEFAULT_GITEA_URL, giteaAccountOf, giteaHasAuth, repositoryOf, type GiteaAccount } from '../sources/gitea-config.ts'
 import { NtfyClient, NtfyError } from '../sources/ntfy-api.ts'
-import { ntfyAccountOf, type NtfyAccount } from '../sources/ntfy-config.ts'
+import { DEFAULT_NTFY_URL, ntfyAccountOf, type NtfyAccount } from '../sources/ntfy-config.ts'
 
 export interface SetupHost {
   readonly context: Context
@@ -33,6 +33,27 @@ function storedKaneo (config: Record<string, unknown> | undefined): KaneoAccount
   if (!stored) return undefined
   const parsed = kaneoAccountOf({ ...config, ...stored })
   return parsed ? { ...parsed, ...stored } : undefined
+}
+
+
+/**
+ * The Gitea account when the card names no credentials: the storage record's server, e-mail and password, with the
+ * repository the card names. The password stays in memory and never enters the settings file.
+ */
+function storedGitea (config: Record<string, unknown> | undefined): GiteaAccount | undefined {
+  const stored = storedGiteaAccount(typeof config?.baseUrl === 'string' && config.baseUrl.trim() ? config.baseUrl : DEFAULT_GITEA_URL)
+  if (!stored) return undefined
+  return giteaAccountOf({ ...config, baseUrl: stored.baseUrl, user: stored.user, password: stored.password })
+}
+
+/**
+ * The ntfy account when the card names no credentials: the storage record's server, user and password, with the topic the
+ * card names.
+ */
+function storedNtfy (config: Record<string, unknown> | undefined): NtfyAccount | undefined {
+  const stored = storedNtfyAccount(typeof config?.baseUrl === 'string' && config.baseUrl.trim() ? config.baseUrl : DEFAULT_NTFY_URL)
+  if (!stored) return undefined
+  return ntfyAccountOf({ ...config, baseUrl: stored.baseUrl, authMode: 'basic', authUser: stored.user, authPassword: stored.password })
 }
 
 /** Check that a saved Kanban account can read its project board; the failure names the card that fixes it. */
@@ -166,8 +187,10 @@ export class Setup {
     // The key may come from this Host's storage record instead of the card: a Host runs as a user and reads its own
     // service connection, so nothing has to be typed (BDD storage, masked-key lookup).
     const kaneo = kaneoAccountOf(kaneoConfig) ?? storedKaneo(kaneoConfig)
-    const gitea = giteaAccountOf(settings.sources.gitea?.enabled === false ? undefined : settings.sources.gitea?.config)
-    const ntfy = ntfyAccountOf(settings.sources.ntfy?.enabled === false ? undefined : settings.sources.ntfy?.config)
+    const giteaConfig = settings.sources.gitea?.enabled === false ? undefined : settings.sources.gitea?.config
+    const gitea = giteaAccountOf(giteaConfig) ?? storedGitea(giteaConfig)
+    const ntfyConfig = settings.sources.ntfy?.enabled === false ? undefined : settings.sources.ntfy?.config
+    const ntfy = ntfyAccountOf(ntfyConfig) ?? storedNtfy(ntfyConfig)
     const deployment = await resolveDeployment(machine, settings.sources.github?.config, probe, undefined, kaneo, gitea, ntfy)
     // Without an API key/token/topic no REST-backed Source is configured, so only the GitHub checks above can have succeeded.
     if (kaneo) await verifyKaneo(kaneo)

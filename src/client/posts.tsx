@@ -18,8 +18,9 @@ function CharterBadge({ project }: { project: ProjectView }) {
   if (!charter) return <span className="dt-pill dt-pill-muted">{t('postsCharterMissing')}</span>
   if (charter.stale) return <span className="dt-pill dt-pill-warn" title={charter.detail}>
     <Icon name="alert" size={12} />{t('postsCharterStale', { days: charter.ageDays < 0 ? '?' : charter.ageDays })}</span>
-  return <span className="dt-pill dt-pill-ok" title={charter.detail}>
-    <Icon name="decision" size={12} />{t('postsCharterCurrent', { version: charter.version })}</span>
+  return <span className="dt-pill dt-pill-ok" title={[charter.detail, charter.carrierRef].filter(Boolean).join(' · ')}>
+    <Icon name="decision" size={12} />{t('postsCharterCurrent', { version: charter.version })}
+    {charter.carrierRef && <span className="dt-pill-ref">{charter.carrierRef}</span>}</span>
 }
 
 /**

@@ -31,6 +31,14 @@
 
 ---
 
+## ⚡ 2026-11-06：载体分工（Gitea 宪章 / Kanban 任务 / ntfy 消息 / MinIO 资产）
+
+- **宪章的家搬到 Gitea**：Gitea 卡片上的仓库 + 「宪章文件」（默认 `README.md`）即宪章；`readGiteaCharter` 读 contents API，`publishCharter` 提交该文件（`charter vN: <发布者>`）。Kanban 项目描述只做镜像（无 Gitea 或无写权限时）。返回值 `carrier` / `carrierRef` 进 narrative 与面板徽标。见 TDD/012。
+- **MinIO/S3 成为第四张来源卡**（`dsh-superagent-s3` → `s3-watch`）：不产生任务，只配置 + 自检桶；凭据默认取存储记录，region 自动跟随（本机 `us-west-rack-2`）。线上 `s3: ready — ateam: 5 object(s) readable`。
+- **凭据默认走存储记录**：`storedGiteaAccount` / `storedNtfyAccount` / `storedS3Account`；卡片可逐字段覆盖，密钥只留宿主内存。
+- **已实测发布**：RSI 宪章 v11 → `shawoo/rsi_superagent/README.md`（`carrier=gitea`，FFFD=0），narrative 读回同一份。
+- **注意**：PowerShell `Invoke-WebRequest -Body <string>` 会破坏中文（曾把 README 写成 `?`；v10 已从 archive 历史恢复、重发为 v11）；联调脚本一律用 Node fetch。
+
 ## 0. 一句话摘要
 
 上游 `dsh-superagent` 是一个「给一个 GitHub 仓库打工」的主动式 agent bundle：Source 产生 Trigger → Engine 评估（Gate + 模型研判）→ 接单成 Ticket → 独立 Executor Session 干活 → 通过 Channel 回到原会话。本次改造**保留其领域模型、Engine、Executor、管理面板与权限体系**，新增一个 **Kanban Source Kind**：轮询 FDEP 看板指定列（默认 `待開工/ready`）的任务，把「任务进入该列」变成显式 Trigger，把「一条任务」当作一个 Thread，回复以 **Kanban 任务评论**写回，并可自动把任务列推进到 `進行中/in-progress`；同时把只支持 GitHub 的部署检查（`Deployment`/`Setup`）与 Windows 路径约束适配成「无 GitHub 也能启动」，最后以 DSH bundle 形式安装进 web profile。

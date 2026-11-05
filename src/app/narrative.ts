@@ -189,6 +189,10 @@ export interface CharterInfo {
   hasDraft: boolean
   /** Whether this text is the project's own copy (read from the kanban project) rather than a local mirror. */
   shared?: boolean
+  /** Where the charter was read from: the Gitea repository, the Kanban mirror, or the local archive when both are silent. */
+  carrier?: 'gitea' | 'kanban' | 'archive'
+  /** The carrier's reference: `owner/repo/README.md`, the project id, or empty for the archive. */
+  carrierRef?: string
   /** The published versions before the current one. */
   versions: { version: number; publishedAt: string; publishedBy: string }[]
   /** When the charter may be published again (ISO): a project's charter changes at most once a week. */

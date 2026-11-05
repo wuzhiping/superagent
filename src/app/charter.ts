@@ -1,17 +1,22 @@
 /**
- * The project's own truth: the board's columns (the value stream the team works in) and the charter come from the
- * project on the kanban server, not from a settings page. The charter is one document per project — the same one every
- * post reads, whichever Host it runs on — and publishing it is a PM act bounded to at most once a week (RD.md §4.1, §8).
+ * The project's charter: one document every post reads, whichever Host it runs on. Its home is the **Gitea repository
+ * named on the Gitea Source card** — the repository's README.md is the charter's entry point and body (2026-11-06
+ * user decision) — and the Kanban project's description is the mirror used when no Gitea repository is configured or
+ * when this Host may not write to it. Publishing is a PM act bounded to at most once a week (RD.md §4.1, §8).
  */
 import { DEFAULT_BASE_URL } from '../sources/kaneo-config.ts'
-import { storedKaneoAccount } from '../sources/bdd-storage.ts'
+import { storedGiteaAccount, storedKaneoAccount } from '../sources/bdd-storage.ts'
 import type { SourceRegistry } from '../sources/registry.ts'
 import { KaneoClient } from '../sources/kaneo-api.ts'
-import { charterOfText, flowOfCharter, hasCharterDraft, readArchive, rememberCharterVersion, type ArchiveProject, type CharterInfo }
+import { GiteaClient } from '../sources/gitea-api.ts'
+import { DEFAULT_GITEA_URL, repositoryOf } from '../sources/gitea-config.ts'
+import { charterOfText, flowOfCharter, hasCharterDraft, rememberCharterVersion, type ArchiveProject, type CharterInfo }
   from './narrative.ts'
 
 /** How often a project's charter may be published: at most once a week, so the cadence is a ceiling, not a quota. */
 export const CHARTER_INTERVAL_DAYS = 7
+/** Where the charter lives inside the Gitea repository; the card may name another path. */
+export const DEFAULT_CHARTER_PATH = 'README.md'
 
 /**
  * The Kanban account the host reads the project with: the API key the Source card holds, or the one this Host's storage
@@ -26,6 +31,53 @@ export function kaneoAccount (sources: SourceRegistry): { baseUrl: string; apiKe
     if (typeof stored?.apiKey === 'string' && stored.apiKey.trim()) return { baseUrl: server, apiKey: stored.apiKey.trim() }
   }
   return storedKaneoAccount(server)
+}
+
+/** The Gitea repository that holds the charter: its server, credentials, repository and the charter's path. */
+export interface GiteaCharterTarget {
+  baseUrl: string
+  user: string
+  password: string
+  token: string
+  repository: string
+  path: string
+}
+
+/**
+ * The Gitea repository the charter comes from: the repository named on the Gitea Source card, with the credentials the
+ * card holds or the ones this Host's storage record carries. Reading works anonymously on a public repository; writing
+ * needs an account with push rights, and without one the charter falls back to the Kanban project's description.
+ */
+export function giteaCharter (sources: SourceRegistry): GiteaCharterTarget | undefined {
+  for (const instance of sources.instances()) {
+    if (instance.kind !== 'gitea') continue
+    const config = instance.config as Record<string, unknown> | undefined
+    const repository = typeof config?.repository === 'string' ? config.repository.trim() : ''
+    if (!repository) continue
+    const server = typeof config?.baseUrl === 'string' && config.baseUrl.trim() ? config.baseUrl.trim() : DEFAULT_GITEA_URL
+    const stored = storedGiteaAccount(server)
+    return {
+      baseUrl: server,
+      user: (typeof config?.user === 'string' && config.user.trim()) || stored?.user || '',
+      password: (typeof config?.password === 'string' && config.password.trim()) || stored?.password || '',
+      token: typeof config?.token === 'string' ? config.token.trim() : '',
+      repository,
+      path: typeof config?.charterPath === 'string' && config.charterPath.trim() ? config.charterPath.trim() : DEFAULT_CHARTER_PATH,
+    }
+  }
+  return undefined
+}
+
+/** Everything the charter is read from or published to. */
+export interface CharterTarget {
+  kaneo?: { baseUrl: string, apiKey: string }
+  gitea?: GiteaCharterTarget
+}
+
+/** The target this Host's Sources describe. */
+export function charterTarget (sources: SourceRegistry): CharterTarget {
+  return { ...kaneoAccount(sources) ? { kaneo: kaneoAccount(sources) } : {},
+    ...giteaCharter(sources) ? { gitea: giteaCharter(sources) } : {} }
 }
 
 /** One column of the board: its slug, its name now, and how many cards sit in it. */
@@ -67,51 +119,154 @@ export async function readBoardColumns (account: { baseUrl: string; apiKey: stri
   }
 }
 
-/** The charter as the project itself holds it: one text, the same for every Host that reads the project. */
-export interface ProjectCharter { text: string, version: number, publishedAt: string }
+/** The charter as one carrier holds it: its text, the version it states, and where it was read. */
+export interface ProjectCharter {
+  text: string
+  version: number
+  publishedAt: string
+  /** Which carrier this copy came from. */
+  carrier: 'gitea' | 'kanban'
+  /** The carrier's own reference: `owner/repo/README.md`, or the project id. */
+  carrierRef: string
+  /** The Gitea blob sha, needed to replace the file; present for the Gitea carrier. */
+  sha?: string
+}
 
 const charterCache = new Map<string, { at: number; charter: ProjectCharter | undefined }>()
-/** How long a project's charter is read from the server before it is read again. */
+/** How long a charter is read from its carrier before it is read again. */
 const CHARTER_TTL_MS = 30_000
 
-/** Reads the project and returns the charter its description holds; undefined when it holds none. */
+/** Forgets the cached charter copies (tests, or after a carrier changed). */
+export function invalidateCharterCache (): void { charterCache.clear() }
+
+const charterOfFile = (text: string, publishedAt: string): Omit<ProjectCharter, 'carrier' | 'carrierRef' | 'sha'> | undefined => {
+  const info = charterOfText(text, publishedAt)
+  return info.version > 0 ? { text, version: info.version, publishedAt } : undefined
+}
+
+/**
+ * Reads the charter from the Gitea repository: the file the card names, `README.md` by default. A repository without a
+ * charter file answers undefined, so the Kanban mirror is used; a network failure answers the last read, if any.
+ */
+export async function readGiteaCharter (target: GiteaCharterTarget): Promise<ProjectCharter | undefined> {
+  const key = `gitea:${target.repository}:${target.path}`
+  const cached = charterCache.get(key)
+  if (cached && Date.now() - cached.at < CHARTER_TTL_MS) return cached.charter
+  const parsed = repositoryOf(target.repository)
+  if (!parsed) return undefined
+  const client = new GiteaClient(target)
+  // The path the card names wins; a repository whose README is spelled differently is still read, not ignored.
+  const candidates = [...new Set([target.path, 'README.md', 'readme.md'])]
+  for (const path of candidates) {
+    try {
+      const file = await client.fileContents(parsed.owner, parsed.name, path, undefined, AbortSignal.timeout(10_000))
+      const text = file.text.trim()
+      const publishedAt = /^\s*publishedAt\s*:\s*(\S+)/im.exec(text)?.[1] ?? ''
+      const base = charterOfFile(text, publishedAt)
+      if (!base) continue
+      const charter: ProjectCharter = { ...base, carrier: 'gitea', carrierRef: `${target.repository}/${path}`, sha: file.sha }
+      charterCache.set(key, { at: Date.now(), charter })
+      return charter
+    } catch (error) {
+      // A missing file is expected (the charter may not be published there yet); a refused read is not cached.
+      if (error instanceof Error && /-> 404/.test(error.message)) continue
+      return cached?.charter
+    }
+  }
+  charterCache.set(key, { at: Date.now(), charter: undefined })
+  return undefined
+}
+
+/** Reads the Kanban project and returns the charter its description holds; undefined when it holds none. */
 export async function readServerCharter (account: { baseUrl: string; apiKey: string } | undefined,
   projectId: string): Promise<ProjectCharter | undefined> {
   if (!account) return undefined
-  const cached = charterCache.get(projectId)
+  const key = `kanban:${projectId}`
+  const cached = charterCache.get(key)
   if (cached && Date.now() - cached.at < CHARTER_TTL_MS) return cached.charter
   try {
     const project = await new KaneoClient(account).project(projectId, { signal: AbortSignal.timeout(8_000) })
     const text = String(project.description ?? '').trim()
     // The document states its own publication instant; without it the weekly window could not be enforced.
     const publishedAt = /^\s*publishedAt\s*:\s*(\S+)/im.exec(text)?.[1] ?? ''
-    const info = text ? charterOfText(text, publishedAt) : undefined
-    const charter = info && info.version > 0 ? { text, version: info.version, publishedAt } : undefined
-    charterCache.set(projectId, { at: Date.now(), charter })
+    const base = text ? charterOfFile(text, publishedAt) : undefined
+    const charter = base ? { ...base, carrier: 'kanban' as const, carrierRef: projectId } : undefined
+    charterCache.set(key, { at: Date.now(), charter })
     return charter
   } catch {
     return cached?.charter
   }
 }
 
+/** The charter as the Sources describe its home: Gitea first, the Kanban mirror second. */
+export async function readPrimaryCharter (target: CharterTarget, projectId: string): Promise<ProjectCharter | undefined> {
+  if (target.gitea) {
+    const fromGitea = await readGiteaCharter(target.gitea)
+    if (fromGitea) return fromGitea
+  }
+  return target.kaneo ? readServerCharter(target.kaneo, projectId) : undefined
+}
+
 /**
- * Publishes one charter text for a project: the project's description becomes the charter, and its `version:` line is
- * stamped so every reader agrees on the number and the date. A project has exactly one charter, so this replaces the
- * previous text instead of adding another one.
+ * Publishes one charter text: the Gitea README when the repository can be written, the Kanban project's description
+ * otherwise. The version is stamped into the document, and the carrier that took it is reported back, so the panel can
+ * say where the charter now lives.
  */
-export async function publishCharter (account: { baseUrl: string; apiKey: string } | undefined, projectId: string,
-  text: string, publishedBy: string, previous: ProjectCharter | undefined, now: Date = new Date()): Promise<ProjectCharter> {
-  if (!account) throw new Error('No Kanban account is configured: a project charter is published to the project itself')
-  const client = new KaneoClient(account)
+export async function publishCharter (target: CharterTarget, projectId: string, text: string, publishedBy: string,
+  previous: ProjectCharter | undefined, now: Date = new Date()): Promise<ProjectCharter> {
   const version = (previous?.version ?? 0) + 1
   const stamped = stampCharter(text, version, publishedBy, now.toISOString())
+  const publishedAt = now.toISOString()
+  const target_repo = target.gitea
+  if (target_repo) {
+    const parsed = repositoryOf(target_repo.repository)
+    if (parsed) {
+      try {
+        const client = new GiteaClient(target_repo)
+        const readSha = async (): Promise<string | undefined> => {
+          try {
+            return (await client.fileContents(parsed.owner, parsed.name, target_repo.path, undefined, AbortSignal.timeout(10_000))).sha
+          } catch { return undefined }
+        }
+        // A replacement always names the blob it commits on top of; without one Gitea refuses the write as stale.
+        let sha = previous?.carrier === 'gitea' ? previous.sha : undefined
+        if (!sha) sha = await readSha()
+        const write = async (): Promise<string | undefined> => {
+          try {
+            return await client.putFile(parsed.owner, parsed.name, target_repo.path, {
+              content: stamped, message: `charter v${version}: ${publishedBy}`, ...sha ? { sha } : {},
+            }, AbortSignal.timeout(15_000))
+          } catch (error) {
+            // 409/422 means the blob moved under us: read it again and commit on top of that.
+            const status = (error as { status?: number }).status
+            if (status !== 409 && status !== 422) throw error
+            sha = await readSha()
+            return await client.putFile(parsed.owner, parsed.name, target_repo.path, {
+              content: stamped, message: `charter v${version}: ${publishedBy}`, ...sha ? { sha } : {},
+            }, AbortSignal.timeout(15_000))
+          }
+        }
+        const newSha = await write()
+        const charter: ProjectCharter = { text: stamped, version, publishedAt, carrier: 'gitea',
+          carrierRef: `${target_repo.repository}/${target_repo.path}`, ...newSha ? { sha: newSha } : {} }
+        charterCache.set(`gitea:${target_repo.repository}:${target_repo.path}`, { at: Date.now(), charter })
+        return charter      } catch (error) {
+        // Writing needs push rights: an anonymous or read-only account still publishes the mirror instead of failing.
+        if (!target.kaneo) throw error
+      }
+    }
+  }
+  if (!target.kaneo) {
+    throw new Error('No charter carrier is configured: set the Gitea repository (or a Kanban account for the mirror)')
+  }
+  const client = new KaneoClient(target.kaneo)
   // The project update replaces the whole project; the server validates every field, so the current one is read back
   // and only the description is changed.
   const current = await client.project(projectId)
   await client.updateProject(projectId, { name: current.name, slug: current.slug, icon: current.icon,
     isPublic: current.isPublic, description: stamped })
-  const charter = { text: stamped, version, publishedAt: now.toISOString() }
-  charterCache.set(projectId, { at: Date.now(), charter })
+  const charter: ProjectCharter = { text: stamped, version, publishedAt, carrier: 'kanban', carrierRef: projectId }
+  charterCache.set(`kanban:${projectId}`, { at: Date.now(), charter })
   return charter
 }
 
@@ -158,18 +313,17 @@ export const EMPTY_CHARTER: CharterInfo = { version: 0, publishedAt: '', publish
   hasDraft: false, versions: [], detail: 'No charter is published yet' }
 
 /**
- * The charter of a project: the document held by the project itself, which every post reads. The local archive keeps
- * the draft and the version history; when the project holds a charter it wins, because it is the shared copy.
+ * The charter of a project: the document its carrier holds, which every post reads. The local archive keeps the draft
+ * and the version history; a carrier wins over the archive copy, because it is the shared one.
  */
-export async function readCharter (project: ArchiveProject,
-  account?: { baseUrl: string, apiKey: string } | undefined): Promise<CharterInfo> {
-  const shared = account ? await readServerCharter(account, project.id) : undefined
+export async function readCharter (project: ArchiveProject, target: CharterTarget = {}): Promise<CharterInfo> {
+  const shared = await readPrimaryCharter(target, project.id)
   const text = shared?.text ?? project.charter.text
   const info = charterOfText(text, shared?.publishedAt ?? project.charter.publishedAt, project.charter.publishedBy)
   rememberCharterVersion(project.id, info.version)
   return {
     ...info,
-    ...(shared ? { shared: true } : {}),
+    ...(shared ? { shared: true, carrier: shared.carrier, carrierRef: shared.carrierRef } : { carrier: 'archive' as const }),
     hasDraft: hasCharterDraft(project.charter),
     versions: project.charter.history.map(item => ({
       version: item.version, publishedAt: item.publishedAt, publishedBy: item.publishedBy,

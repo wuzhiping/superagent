@@ -72,7 +72,7 @@ export class GiteaClient {
   }
 
   /** Sends one request and parses its JSON body; 429 and 5xx retry with backoff, others surface `GiteaError`. */
-  async request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST', path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  async request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     let lastError: unknown
     const auth = giteaAuthHeaders(this.account)
     const anonymous = Object.keys(auth).length === 0
@@ -167,4 +167,43 @@ export class GiteaClient {
   async createIssueComment(owner: string, name: string, index: number, body: string, signal?: AbortSignal): Promise<GiteaComment> {
     return this.request(CommentSchema, 'POST', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/issues/${index}/comments`, { body }, signal)
   }
+
+  /**
+   * One file of a repository through the contents API: its blob sha (needed to replace it) and its text. The repository
+   * may be public, so the read works anonymously; a private or missing path answers 404.
+   */
+  async fileContents(owner: string, name: string, path: string, options: { ref?: string } = {},
+    signal?: AbortSignal): Promise<{ sha: string, text: string }> {
+    const query = options.ref ? `?ref=${encodeURIComponent(options.ref)}` : ''
+    const file = await this.request(ContentFileSchema, 'GET',
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/contents/${encodePath(path)}${query}`, undefined, signal)
+    const text = file.content ? Buffer.from(file.content, file.encoding === 'base64' ? 'base64' : 'utf8').toString('utf8') : ''
+    return { sha: file.sha, text }
+  }
+
+  /**
+   * Creates or replaces one file with a commit: `sha` is the blob being replaced, omitted when the file is new. The
+   * commit message names what changed, so the repository's history is the document's history.
+   */
+  async putFile(owner: string, name: string, path: string,
+    input: { content: string, message: string, sha?: string, branch?: string }, signal?: AbortSignal): Promise<string | undefined> {
+    const result = await this.request(ContentWriteSchema, 'PUT', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/contents/${encodePath(path)}`, {
+      content: Buffer.from(input.content, 'utf8').toString('base64'),
+      message: input.message,
+      ...input.sha ? { sha: input.sha } : {},
+      ...input.branch ? { branch: input.branch } : {},
+    }, signal)
+    return result.content?.sha
+  }
 }
+
+/** One file of the contents API: the blob sha identifies the version a replacement commits on top of. */
+const ContentWriteSchema = z.looseObject({ content: z.looseObject({ sha: z.string().optional() }).optional() })
+
+const ContentFileSchema = z.looseObject({
+  sha: z.string().min(1), type: z.string().default('file'), encoding: z.string().default('base64'),
+  content: z.string().optional(),
+})
+
+/** A repository path kept as path segments, each encoded, so a nested README works as well as the root one. */
+const encodePath = (path: string): string => path.split('/').map(segment => encodeURIComponent(segment)).join('/')
