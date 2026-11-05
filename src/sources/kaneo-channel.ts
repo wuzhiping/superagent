@@ -1,4 +1,4 @@
-/** Kaneo outbound Channel: replies become task comments, with an HTML marker so a retried send does not comment twice. */
+/** Kanban outbound Channel: replies become task comments, with an HTML marker so a retried send does not comment twice. */
 import type { OutboundMessage } from '../core/index.ts'
 import type { SourceContext } from './host.ts'
 import { KaneoClient, KaneoError } from './kaneo-api.ts'
@@ -7,7 +7,7 @@ import { storedKaneoAccount } from './bdd-storage.ts'
 import { claimColumnOf, doneColumnOf, DEFAULT_BASE_URL, type KaneoConfig } from './kaneo-config.ts'
 import type { ChannelLink, ChannelLinks } from './kind.ts'
 
-/** Kaneo's comment length limit with headroom for the marker; longer replies are cut rather than refused. */
+/** Kanban's comment length limit with headroom for the marker; longer replies are cut rather than refused. */
 const COMMENT_CHARS = 9000
 /** A task that a reply can no longer reach: deleted or inaccessible. */
 const gone = (error: unknown): boolean => error instanceof Error && error instanceof KaneoError && (error.status === 403 || error.status === 404)
@@ -75,5 +75,5 @@ export async function sendKaneo(host: Pick<SourceContext, 'commands' | 'config'>
 
 /** The task page of a Channel address; the address carries the URL because link() receives no Source configuration. */
 export function kaneoLink(address: Record<string, string>, _links: ChannelLinks): ChannelLink {
-  return { url: address.url ?? '', label: { zh: 'Kaneo 任务', en: 'Kaneo task' } }
+  return { url: address.url ?? '', label: { zh: 'Kanban 任务', en: 'Kanban task' } }
 }

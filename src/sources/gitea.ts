@@ -1,6 +1,6 @@
 /**
  * Gitea Source kind: issues, pull requests and comments of a self-hosted Gitea repository (default https://git.feg.cn).
- * Addressed events are filed as cards in the KanEO board (the only direct source); the board schedules them from
+ * Addressed events are filed as cards in the Kanban board (the only direct source); the board schedules them from
  * there. It polls the agent's notifications (token) or repository-wide increments (works anonymously for public
  * repositories).
  */
@@ -111,8 +111,8 @@ export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
   title: { zh: 'Gitea 仓库', en: 'Gitea repository' },
   description: {
-    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。公开仓库只填服务器地址和仓库名即可匿名读取 Issue/PR/评论；私有仓库或 agent 通知模式才需要邮箱+密码（或 API token）。事件先在 KanEO 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
-    en: 'A self-hosted Gitea repository (default https://git.feg.cn). A public repository needs only the server address and the repository name and is read anonymously; a private repository or the agent notification mode needs the account e-mail and password (or an API token). Every event is filed as a card in the KanEO board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
+    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。公开仓库只填服务器地址和仓库名即可匿名读取 Issue/PR/评论；私有仓库或 agent 通知模式才需要邮箱+密码（或 API token）。事件先在 Kanban 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
+    en: 'A self-hosted Gitea repository (default https://git.feg.cn). A public repository needs only the server address and the repository name and is read anonymously; a private repository or the agent notification mode needs the account e-mail and password (or an API token). Every event is filed as a card in the Kanban board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
   },
   schema: GiteaConfigSchema,
   /** Settings-panel probe: read the entered repository with the entered account (or anonymously), without saving. */
@@ -233,7 +233,7 @@ export const giteaKind: SourceKind<GiteaConfig> = {
 
 /**
  * One polling round: baseline on first poll, then issue/comment/notification increments are filed as cards in the
- * KanEO board. KanEO is the only direct source, so the events do not become requests here (unless the KanEO Source
+ * Kanban board. Kanban is the only direct source, so the events do not become requests here (unless the Kanban Source
  * switched its inbox off); they become cards in the `to-do` pool, and the board schedules them from there.
  */
 export async function pollRound(ctx: SourceContext, config: GiteaConfig, client: GiteaClient, signal?: AbortSignal): Promise<number> {
@@ -249,10 +249,10 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
   let filed = 0
   const ingest = ingestEvents(ctx)
   const account = ingest ? inboxAccount(ctx) : undefined
-  // Without a KanEO account the events cannot be filed; the round fails instead of dropping them.
-  if (ingest && !account) throw new Error('The KanEO Source has no API key: Gitea events are filed as KanEO cards')
+  // Without a Kanban account the events cannot be filed; the round fails instead of dropping them.
+  if (ingest && !account) throw new Error('The Kanban Source has no API key: Gitea events are filed as Kanban cards')
   const kaneo = account ? new KaneoClient(account) : undefined
-  /** Files one event as a card, or (with the KanEO inbox switched off) hands it to the Engine as a request. */
+  /** Files one event as a card, or (with the Kanban inbox switched off) hands it to the Engine as a request. */
   const deliver = async (event: InboxEvent, id: string, trigger: () => Trigger): Promise<void> => {
     if (account && kaneo) {
       if (await fileEventOnce(ctx, account, event, id, { client: kaneo, signal })) filed += 1
@@ -311,7 +311,7 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
   } else throw new Error('The Gitea Source names no repository')
   ctx.state.set(cursorKey, now())
   const detail = ingest
-    ? `${filed} card(s) filed in KanEO from ${config.repository || 'notifications'}`
+    ? `${filed} card(s) filed in Kanban from ${config.repository || 'notifications'}`
     : `${received} new event(s) from ${config.repository || 'notifications'}`
   ctx.report('gitea', { state: 'ready', detail: `${detail}, reading ${reader}${problems.length ? ` (partial: ${problems.join('; ')})` : ''}`, at: now() })
   return config.pollSeconds
@@ -328,8 +328,8 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
       if (!config) ctx.report('gitea', health('paused', 'sourceOff'))
       else if (config.listen === 'notifications' && !giteaHasAuth(config)) ctx.report('gitea', { state: 'paused', detail: 'The notification mode needs an account and password (or an API token)' })
       else if (config.listen === 'repo' && !repositoryOf(config.repository)) ctx.report('gitea', { state: 'paused', detail: 'The Gitea Source names no repository' })
-      // The events are filed as KanEO cards, so without a KanEO account they cannot be filed at all.
-      else if (ingestEvents(ctx) && !inboxAccount(ctx)) ctx.report('gitea', { state: 'error', detail: 'Configure the KanEO Source first: Gitea events are filed as KanEO cards' })
+      // The events are filed as Kanban cards, so without a Kanban account they cannot be filed at all.
+      else if (ingestEvents(ctx) && !inboxAccount(ctx)) ctx.report('gitea', { state: 'error', detail: 'Configure the Kanban Source first: Gitea events are filed as Kanban cards' })
       else if (config.bootstrap === 'trigger' && !ctx.state.get(config.listen === 'notifications' ? KV.gitea.notifications : KV.gitea.repo)) {
         // Trigger mode starts the cursor in the distant past so the first poll reports what is already there.
         ctx.state.set(config.listen === 'notifications' ? KV.gitea.notifications : KV.gitea.repo, '1970-01-01T00:00:00.000Z')

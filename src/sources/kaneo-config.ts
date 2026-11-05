@@ -1,4 +1,4 @@
-/** Kaneo Source configuration: the account fields deployment setup reads and the full kind schema. No Node-only imports (deployment imports this). */
+/** Kanban Source configuration: the account fields deployment setup reads and the full kind schema. No Node-only imports (deployment imports this). */
 import { z } from 'zod'
 
 /** Default project id: the FDEP pipeline board on pl.feg.cn (slug FDE). */
@@ -8,7 +8,7 @@ export const DEFAULT_WATCH_COLUMNS = 'ready'
 export const DEFAULT_CLAIM_COLUMN = 'in-progress'
 
 /**
- * The account fields deployment setup resolves and restarts for. `apiKey` empty means the Kaneo Source is not configured;
+ * The account fields deployment setup resolves and restarts for. `apiKey` empty means the Kanban Source is not configured;
  * `projectId` defaults to the FDEP board so a first save only needs the key; `workspaceId` names the workspace the
  * labels of the inbox live in (empty: the first workspace the API key can read).
  */
@@ -21,14 +21,14 @@ export const KaneoAccountSchema = z.object({
 export type KaneoAccount = z.infer<typeof KaneoAccountSchema>
 
 /**
- * One Kaneo board as a Source. A task in `watchColumns` becomes a request; a reply goes back as a task comment and, when
+ * One Kanban board as a Source. A task in `watchColumns` becomes a request; a reply goes back as a task comment and, when
  * `claimColumn` is set, the task is moved there once the request is recorded. `bootstrap` decides what the first poll does
  * with tasks already in the watched columns: `skip` records them without a request, `trigger` treats them as requests.
  */
 export const KaneoConfigSchema = z.object({
-  baseUrl: z.string().trim().default(DEFAULT_BASE_URL).describe('Kaneo server, e.g. https://pl.feg.cn'),
-  apiKey: z.string().trim().default('').describe('Kaneo API key; kept out of prompts and Session text'),
-  projectId: z.string().trim().default(DEFAULT_PROJECT).describe('Kaneo project id whose board this Source watches'),
+  baseUrl: z.string().trim().default(DEFAULT_BASE_URL).describe('Kanban server, e.g. https://pl.feg.cn'),
+  apiKey: z.string().trim().default('').describe('Kanban API key; kept out of prompts and Session text'),
+  projectId: z.string().trim().default(DEFAULT_PROJECT).describe('Kanban project id whose board this Source watches'),
   workspaceId: z.string().trim().default('').describe('Optional workspace id; used only for display and links'),
   watchColumns: z.string().trim().default(DEFAULT_WATCH_COLUMNS).describe('Column slugs whose tasks become requests, comma separated'),
   ingestEvents: z.boolean().default(true).describe('Other Sources file their events as cards in this project instead of producing requests'),
@@ -53,7 +53,7 @@ export const claimColumnOf = (config: Pick<KaneoConfig, 'claimColumn'> | undefin
 /** The column a task moves to when the post delivers its result; empty means the task never moves. */
 export const doneColumnOf = (config: Pick<KaneoConfig, 'doneColumn'> | undefined): string => config?.doneColumn.trim() ?? ''
 
-/** The account fields of a stored Kaneo Source config, or undefined when no API key is configured. */
+/** The account fields of a stored Kanban Source config, or undefined when no API key is configured. */
 export function kaneoAccountOf(stored: Record<string, unknown> | undefined): KaneoAccount | undefined {
   if (!stored) return undefined
   const parsed = KaneoAccountSchema.safeParse(stored)
@@ -61,13 +61,13 @@ export function kaneoAccountOf(stored: Record<string, unknown> | undefined): Kan
   return account?.apiKey ? account : undefined
 }
 
-/** The API base URL of a configured Kaneo server (accepts a base without `/api`). */
+/** The API base URL of a configured Kanban server (accepts a base without `/api`). */
 export const apiBase = (baseUrl: string): string => {
   const trimmed = baseUrl.replace(/\/+$/, '')
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
 }
 
-/** The web page of a Kaneo task; the Site is a single-page app, so the board page is the stable fallback until a task route is confirmed. */
+/** The web page of a Kanban task; the Site is a single-page app, so the board page is the stable fallback until a task route is confirmed. */
 export const kaneoTaskUrl = (config: Pick<KaneoConfig, 'baseUrl' | 'projectId' | 'workspaceId'>, task: { id: string; number?: number | undefined }): string => {
   const base = config.baseUrl.replace(/\/+$/, '')
   const workspace = config.workspaceId ? `workspace/${encodeURIComponent(config.workspaceId)}/` : ''

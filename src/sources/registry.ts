@@ -96,7 +96,7 @@ export class SourceRegistry implements SourceScope {
     const kind = this.kinds.get(message.channel.source)
     if (!kind) return 'waiting'
     if (!kind.channel) return 'gone'
-    // The channel acts with the Source's own configuration, such as the KanEO claim column.
+    // The channel acts with the Source's own configuration, such as the Kanban claim column.
     const instance = this.resolve(kind, this.settings().sources[kind.kind])
     const config = <C extends Record<string, unknown>>(name: string): C | undefined =>
       name === kind.kind ? instance.config as C : undefined

@@ -19,7 +19,7 @@ const issue = (overrides: Record<string, unknown> = {}): Record<string, unknown>
 const comment = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({ id: 9, body: 'looks good', user: { login: 'bob' },
   created_at: '2026-11-02T01:00:00Z', updated_at: '2026-11-02T01:00:00Z', html_url: 'https://git.feg.cn/acme/widgets/issues/5#issuecomment-9',
   issue_url: 'https://git.feg.cn/api/v1/repos/acme/widgets/issues/5', ...overrides })
-/** The KanEO account of the deployed KanEO Source; the events are filed with it. */
+/** The Kanban account of the deployed Kanban Source; the events are filed with it. */
 const kaneoAccount = { baseUrl: 'https://pl.feg.cn', apiKey: 'k', projectId: 'project-1', workspaceId: 'ws-1' }
 /** The Kaneo REST calls one poll makes: the source label, the card, and the label attached to the card. */
 function kaneoRest() {
@@ -208,7 +208,7 @@ describe('gitea triggers', () => {
 })
 
 describe('gitea polling', () => {
-  it('records a baseline first, then files issues and comments as KanEO cards', async () => {
+  it('records a baseline first, then files issues and comments as Kanban cards', async () => {
     const cfg = config()
     const { ctx, state, triggers, reports } = context(cfg)
     const kaneo = kaneoRest()
@@ -224,7 +224,7 @@ describe('gitea polling', () => {
     expect(kaneo.calls).toHaveLength(0)
 
     await pollRound(ctx, cfg, client)
-    // KanEO is the only direct source: the events became cards, not Triggers.
+    // Kanban is the only direct source: the events became cards, not Triggers.
     expect(triggers).toHaveLength(0)
     const card = kaneo.calls.find(call => call.method === 'POST' && call.url.includes('/task/project-1'))
     expect(card).toBeDefined()
@@ -243,7 +243,7 @@ describe('gitea polling', () => {
     expect((label?.body as { workspaceId: string }).workspaceId).toBe('ws-1')
     const attach = kaneo.calls.find(call => call.method === 'PUT' && call.url.includes('/label/label-1/task'))
     expect((attach?.body as { taskId: string }).taskId).toBe('card-1')
-    expect(reports.at(-1)?.health.detail).toContain('card(s) filed in KanEO')
+    expect(reports.at(-1)?.health.detail).toContain('card(s) filed in Kanban')
   })
 
   it('files the same event only once', async () => {
@@ -262,17 +262,17 @@ describe('gitea polling', () => {
     expect(second).toBe(1)
   })
 
-  it('reports the missing KanEO account instead of dropping the events', async () => {
+  it('reports the missing Kanban account instead of dropping the events', async () => {
     const cfg = config()
     const { ctx, state, triggers } = context(cfg, { kaneo: undefined })
     state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
     const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', token: '' }, stubFetch(async url =>
       url.includes('/issues/comments') ? response([]) : response([issue()])))
-    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/KanEO Source has no API key/)
+    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/Kanban Source has no API key/)
     expect(triggers).toHaveLength(0)
   })
 
-  it('produces Triggers again when the KanEO inbox is switched off', async () => {
+  it('produces Triggers again when the Kanban inbox is switched off', async () => {
     const cfg = config()
     const { ctx, state, triggers } = context(cfg, { ingestEvents: false })
     state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')

@@ -18,7 +18,7 @@ export const ArchivePostSchema = z.object({
   postId: z.string().min(1),
   role: z.enum(['pm', 'worker']),
   name: z.string().min(1),
-  /** The KanEO user id that identifies this post on the board; it is the task's `assignee`. */
+  /** The Kanban user id that identifies this post on the board; it is the task's `assignee`. */
   kaneoUserId: z.string().default(''),
   giteaUser: z.string().default(''),
   ntfySender: z.string().default(''),
@@ -63,11 +63,11 @@ export const ArchiveCharterSchema = z.object({
 export type ArchiveCharter = z.infer<typeof ArchiveCharterSchema>
 
 /**
- * One project: a KanEO project, the charter that says how it works, and the posts that staff it.
+ * One project: a Kanban project, the charter that says how it works, and the posts that staff it.
  *
  * The board itself is the source of truth for everything the board can say: its columns are the value stream (read
  * from the server), and a card says which repositories or workfaces it touches (RD.md §6.4, §9). The archive only
- * holds what KanEO cannot: who the posts are, how they identify themselves, and the charter.
+ * holds what Kanban cannot: who the posts are, how they identify themselves, and the charter.
  */
 export const ArchiveProjectSchema = z.object({
   id: z.string().min(1),
@@ -125,7 +125,7 @@ export function writeArchive (stateDir: string, value: unknown, expectedRevision
   return { revision: archiveRevision(stateDir) }
 }
 
-/** The post a KanEO actor belongs to, matched by the KanEO user id it carries. */
+/** The post a Kanban actor belongs to, matched by the Kanban user id it carries. */
 export function postOfActor (archive: ProjectArchive, actorId: string | undefined): ArchivePost | undefined {
   if (!actorId) return undefined
   for (const project of archive.projects) {

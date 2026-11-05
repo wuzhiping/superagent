@@ -1,5 +1,5 @@
 /**
- * Minimal Kaneo REST client: fetch with the `x-api-key` header, JSON responses validated by zod, a timeout, and bounded
+ * Minimal Kanban REST client: fetch with the `x-api-key` header, JSON responses validated by zod, a timeout, and bounded
  * retries for rate limits and transient server errors. Node's global fetch is used, so no dependency is added.
  */
 import { z } from 'zod'
@@ -9,14 +9,14 @@ const TIMEOUT_MS = 30_000
 const RETRIES = 3
 export type KaneoFetch = (input: string, init?: RequestInit) => Promise<Response>
 
-/** A Kaneo HTTP failure; `status` is the response status when the server answered. 404/403 mean the target is gone for a reply. */
+/** A Kanban HTTP failure; `status` is the response status when the server answered. 404/403 mean the target is gone for a reply. */
 export class KaneoError extends Error {
   constructor(message: string, readonly status?: number) { super(message); this.name = 'KaneoError' }
 }
 
 interface RequestOptions { signal?: AbortSignal | undefined; retry?: boolean | undefined }
 
-/** The shape every Kaneo list/board answer uses: `data` for the payload and `pagination` for its bounds. */
+/** The shape every Kanban list/board answer uses: `data` for the payload and `pagination` for its bounds. */
 export const KaneoBoardSchema = z.looseObject({
   data: z.looseObject({
     columns: z.array(z.looseObject({ id: z.string().optional(), slug: z.string(), name: z.string().default(''), tasks: z.array(z.unknown()).default([]) })).default([]),
@@ -24,11 +24,11 @@ export const KaneoBoardSchema = z.looseObject({
   pagination: z.looseObject({ total: z.number().default(0), page: z.number().default(1), totalPages: z.number().default(1) }).default({ total: 0, page: 1, totalPages: 1 }),
 })
 
-/** A task as Kaneo answers a card creation: the id and number identify it, the column slug says where it landed. */
+/** A task as Kanban answers a card creation: the id and number identify it, the column slug says where it landed. */
 const CreatedTaskSchema = z.looseObject({ id: z.string().min(1), number: z.number().int().optional(), title: z.string().default(''), status: z.string().default('') })
-/** A label as Kaneo answers a label creation; the same name answers with the label that already exists. */
+/** A label as Kanban answers a label creation; the same name answers with the label that already exists. */
 const LabelSchema = z.looseObject({ id: z.string().min(1), name: z.string().default('') })
-/** A workspace as Kaneo answers the workspace list; labels live in a workspace. */
+/** A workspace as Kanban answers the workspace list; labels live in a workspace. */
 const WorkspaceSchema = z.looseObject({ id: z.string().min(1), name: z.string().default('') })
 /** The account behind the API key: its id identifies the post on the board, its role says what it may manage. */
 const KaneoUserSchema = z.looseObject({
@@ -53,7 +53,7 @@ const errorText = (text: string, status: number): string => {
     if (typeof value.error === 'string' && value.error) return `${value.error} (${status})`
   } catch { /* Not JSON; keep the status and body below. */ }
   const trimmed = text.trim()
-  return trimmed ? `${trimmed.slice(0, 300)} (${status})` : `Kaneo answered ${status}`
+  return trimmed ? `${trimmed.slice(0, 300)} (${status})` : `Kanban answered ${status}`
 }
 const retryAfter = (headers: Headers): number | undefined => {
   const value = headers.get('retry-after')
@@ -62,7 +62,7 @@ const retryAfter = (headers: Headers): number | undefined => {
   return Number.isFinite(seconds) ? seconds * 1000 : undefined
 }
 
-/** One Kaneo server; `request` is the only method that touches the network, so tests substitute `fetch` and the retry clock. */
+/** One Kanban server; `request` is the only method that touches the network, so tests substitute `fetch` and the retry clock. */
 export class KaneoClient {
   private readonly base: string
   constructor(private readonly config: { baseUrl: string; apiKey: string }, private readonly fetchImpl: KaneoFetch = (input, init) => fetch(input, init),
@@ -109,7 +109,7 @@ export class KaneoClient {
     throw lastError instanceof Error ? lastError : new KaneoError(String(lastError))
   }
 
-  /** Tasks of one board column, newest position first as Kaneo returns them. */
+  /** Tasks of one board column, newest position first as Kanban returns them. */
   async columnTasks(projectId: string, status: string, limit: number, options: RequestOptions = {}): Promise<unknown[]> {
     const board = await this.request(KaneoBoardSchema, 'GET',
       `/task/tasks/${encodeURIComponent(projectId)}?status=${encodeURIComponent(status)}&limit=${limit}`, undefined, options)
@@ -155,7 +155,7 @@ export class KaneoClient {
     return this.request(KaneoColumnSchema, 'POST', `/column/${encodeURIComponent(projectId)}`, body, options)
   }
 
-  /** The comments of one task, oldest first as Kaneo returns them. */
+  /** The comments of one task, oldest first as Kanban returns them. */
   async comments(taskId: string, options: RequestOptions = {}): Promise<unknown[]> {
     const value = await this.request(z.array(z.unknown()), 'GET', `/comment/${encodeURIComponent(taskId)}`, undefined, options)
     return value
@@ -173,7 +173,7 @@ export class KaneoClient {
 
   /**
    * Creates a card in a project. `status` is the slug of the column it lands in; no assignee is written, so the card
-   * waits in the pool until a person assigns it. Kaneo requires `priority`, so the caller always names one.
+   * waits in the pool until a person assigns it. Kanban requires `priority`, so the caller always names one.
    */
   async createTask(projectId: string, body: { title: string; description?: string; status?: string; priority?: string },
     options: RequestOptions = {}): Promise<z.infer<typeof CreatedTaskSchema>> {

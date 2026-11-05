@@ -1,6 +1,6 @@
 /**
- * KanEO 入库助手：其它来源（Gitea、ntfy）的事件先在 KanEO 看板里落成一张卡，再由 KanEO 统一调度。
- * KanEO 是唯一的直接来源：入库的卡停在 `to-do` 待辦池，不指派任何人；PM 指派并移进监听列之后，卡片才成为请求。
+ * Kanban 入库助手：其它来源（Gitea、ntfy）的事件先在 Kanban 看板里落成一张卡，再由 Kanban 统一调度。
+ * Kanban 是唯一的直接来源：入库的卡停在 `to-do` 待辦池，不指派任何人；PM 指派并移进监听列之后，卡片才成为请求。
  */
 import { KV } from '../kv.ts'
 import { storedKaneoAccount } from './bdd-storage.ts'
@@ -10,10 +10,10 @@ import type { SourceContext } from './host.ts'
 
 /** 待辦池：入库的卡先落在这里，还没排进价值流（RD.md §10.2）。 */
 export const INBOX_COLUMN = 'to-do'
-/** 每个来源一个入库标签；颜色自定，同名标签由 KanEO 复用。 */
+/** 每个来源一个入库标签；颜色自定，同名标签由 Kanban 复用。 */
 const LABEL_COLORS: Record<string, string> = { gitea: '#2563eb', ntfy: '#16a34a' }
 
-/** The KanEO account an event is filed into: the account of the deployed KanEO Source. */
+/** The Kanban account an event is filed into: the account of the deployed Kanban Source. */
 export interface InboxAccount { baseUrl: string; apiKey: string; projectId: string; workspaceId?: string | undefined }
 
 /** One event of another Source, as it is filed. */
@@ -47,7 +47,7 @@ export function inboxDescription(event: InboxEvent): string {
 }
 
 /**
- * The KanEO account of the deployment, or undefined when the KanEO Source is not configured. Without it an event
+ * The Kanban account of the deployment, or undefined when the Kanban Source is not configured. Without it an event
  * cannot be filed, so the Sources report the missing account instead of dropping the event.
  */
 export function inboxAccount(ctx: SourceContext): InboxAccount | undefined {
@@ -66,15 +66,15 @@ export function inboxAccount(ctx: SourceContext): InboxAccount | undefined {
 
 /**
  * Whether the other Sources file their events as cards (the default) or produce requests themselves. The switch lives
- * on the KanEO Source, because KanEO is the only direct source and owns the board the events are filed into.
+ * on the Kanban Source, because Kanban is the only direct source and owns the board the events are filed into.
  */
 export function ingestEvents(ctx: SourceContext): boolean {
   return ctx.config<KaneoConfig>('kaneo')?.ingestEvents !== false
 }
 
 /**
- * Files one event as a KanEO card: the source label, a card in the `to-do` pool without an assignee, and the label
- * attached to that card. The card is the inbox entry, not a request: only KanEO's own polling turns it into work.
+ * Files one event as a Kanban card: the source label, a card in the `to-do` pool without an assignee, and the label
+ * attached to that card. The card is the inbox entry, not a request: only Kanban's own polling turns it into work.
  */
 export async function fileEvent(account: InboxAccount, event: InboxEvent, options: { client?: KaneoClient; signal?: AbortSignal } = {}): Promise<InboxCard> {
   const client = options.client ?? new KaneoClient(account)
@@ -100,7 +100,7 @@ export async function fileEventOnce(ctx: SourceContext, account: InboxAccount, e
   return card
 }
 
-/** The source's label, created on first use; KanEO answers a known name with the label that already exists. */
+/** The source's label, created on first use; Kanban answers a known name with the label that already exists. */
 async function ensureLabel(client: KaneoClient, account: InboxAccount, source: string, signal?: AbortSignal): Promise<{ id: string; name: string }> {
   const workspaceId = account.workspaceId || await firstWorkspace(client, signal)
   const label = await client.createLabel(inboxLabel(source), LABEL_COLORS[source] ?? '#64748b', workspaceId, { signal })
@@ -111,6 +111,6 @@ async function ensureLabel(client: KaneoClient, account: InboxAccount, source: s
 async function firstWorkspace(client: KaneoClient, signal?: AbortSignal): Promise<string> {
   const workspaces = await client.workspaces({ signal })
   const id = workspaces[0]?.id
-  if (!id) throw new Error('Kaneo has no workspace for this API key')
+  if (!id) throw new Error('Kanban has no workspace for this API key')
   return id
 }

@@ -1,5 +1,5 @@
 /**
- * Kaneo Source kind: a Kaneo project board whose watched column is the stream of requests. A task in a watched column is
+ * Kanban Source kind: a Kanban project board whose watched column is the stream of requests. A task in a watched column is
  * one explicit request and one Thread (`kaneo:<taskId>`); replies go back as task comments, and the task moves to the
  * claim column when the post first writes to it. The plugin entry polls each watched column on an interval.
  */
@@ -24,10 +24,10 @@ const columns = (config: KaneoConfig): string => watchColumnsOf(config).join(', 
 /** The Source kind declaration: configuration form, policy part, Channel, Thread context, environment and health. */
 export const kaneoKind: SourceKind<KaneoConfig> = {
   kind: SOURCE,
-  title: { zh: 'Kaneo 看板', en: 'Kaneo board' },
+  title: { zh: 'Kanban 看板', en: 'Kanban board' },
   description: {
-    zh: 'Kaneo 项目看板的一个或多个列。任务进入监听列即成为一次明确的请求；抓取为工单，回复以任务评论写回，并可把任务移到认领列。',
-    en: 'One or more columns of a Kaneo project board. A task entering a watched column is an explicit request; it becomes a ticket, replies are posted as task comments, and the task may move to a claim column.',
+    zh: 'Kanban 项目看板的一个或多个列。任务进入监听列即成为一次明确的请求；抓取为工单，回复以任务评论写回，并可把任务移到认领列。',
+    en: 'One or more columns of a Kanban project board. A task entering a watched column is an explicit request; it becomes a ticket, replies are posted as task comments, and the task may move to a claim column.',
   },
   schema: KaneoConfigSchema,
   /** Settings-panel probe: read the entered project board with the entered API key, without saving. */
@@ -36,10 +36,10 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
     await new KaneoClient(config).board(config.projectId)
   },
   fields: [
-    { key: 'baseUrl', type: 'text', label: { zh: 'Kaneo 服务器', en: 'Kaneo server' },
+    { key: 'baseUrl', type: 'text', label: { zh: 'Kanban 服务器', en: 'Kanban server' },
       hint: { zh: '例如 https://pl.feg.cn。保存时检查接口与密钥，然后重启 dsh-superagent。', en: 'For example https://pl.feg.cn. Saving checks the API and key, then restarts dsh-superagent.' } },
-    { key: 'apiKey', type: 'password', label: { zh: 'Kaneo API key', en: 'Kaneo API key' },
-      hint: { zh: 'Kaneo 后台 → Settings → API keys 创建，留空到期日即永不过期。密钥只用于宿主进程，不进入提示词或 Session 文本；留空表示不修改。', en: 'Create one in Kaneo Settings → API keys with no expiry. The key is used by the host process only; it never enters prompts or Session text. Leave empty to keep it.' } },
+    { key: 'apiKey', type: 'password', label: { zh: 'Kanban API key', en: 'Kanban API key' },
+      hint: { zh: 'Kanban 后台 → Settings → API keys 创建，留空到期日即永不过期。密钥只用于宿主进程，不进入提示词或 Session 文本；留空表示不修改。', en: 'Create one in Kanban Settings → API keys with no expiry. The key is used by the host process only; it never enters prompts or Session text. Leave empty to keep it.' } },
     { key: 'projectId', type: 'text', label: { zh: '项目 id', en: 'Project id' },
       hint: { zh: '默认是 FDEP 项目（dgctny8ibgpn72ei2j8qj2hc）。', en: 'Defaults to the FDEP project (dgctny8ibgpn72ei2j8qj2hc).' } },
     { key: 'watchColumns', type: 'text', label: { zh: '监听的列（slug，逗号分隔）', en: 'Watched columns (slugs, comma separated)' },
@@ -78,10 +78,10 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
     schema: z.object({
       allowed: z.array(z.object({ id: z.string().trim().min(1).max(200), name: z.string().trim().max(100).optional() }).strict()).default([]),
     }).strict(),
-    fields: [{ key: 'allowed', type: 'rows', label: { zh: '能发起任务的 Kaneo 用户', en: 'Kaneo users that may originate work' },
+    fields: [{ key: 'allowed', type: 'rows', label: { zh: '能发起任务的 Kanban 用户', en: 'Kanban users that may originate work' },
       hint: { zh: '任务进入监听列时，由任务的负责人或创建者作为发起人；不在名单里的任务会被过滤，可在来源页看到。', en: 'A task is requested by its assignee or creator when it enters a watched column; a task whose actor is not listed is filtered and shown on the Sources page.' },
       columns: [{ key: 'id', type: 'text', label: { zh: '用户 id', en: 'User id' } }, { key: 'name', type: 'text', label: { zh: '名称（可选）', en: 'Name (optional)' }, optional: true }] }],
-    explicit: { zh: '名单里的用户在 Kaneo 看板上把任务放进监听列。', en: 'A user on the list puts a task into a watched Kaneo column.' },
+    explicit: { zh: '名单里的用户在 Kanban 看板上把任务放进监听列。', en: 'A user on the list puts a task into a watched Kanban column.' },
     rows(stored) {
       const config = KaneoConfigSchema.partial().parse(stored)
       const slugs = watchColumnsOf({ watchColumns: config.watchColumns ?? DEFAULT_WATCH_COLUMNS })
@@ -91,8 +91,8 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
   },
   environment: {
     variables: [
-      { key: 'DSH_SUPERAGENT_KANEO_PROJECT', description: { zh: '这个工单来自的 Kaneo 项目 id', en: 'Kaneo project id the ticket came from' } },
-      { key: 'DSH_SUPERAGENT_KANEO_TASK', description: { zh: '工单对应的 Kaneo 任务 id', en: 'Kaneo task id behind the ticket' } },
+      { key: 'DSH_SUPERAGENT_KANEO_PROJECT', description: { zh: '这个工单来自的 Kanban 项目 id', en: 'Kanban project id the ticket came from' } },
+      { key: 'DSH_SUPERAGENT_KANEO_TASK', description: { zh: '工单对应的 Kanban 任务 id', en: 'Kanban task id behind the ticket' } },
       { key: 'DSH_SUPERAGENT_KANEO_NUMBER', description: { zh: '任务的票号（没有时为空）', en: 'The task number (empty when it has none)' } },
       { key: 'DSH_SUPERAGENT_KANEO_STATUS', description: { zh: '任务当前所在列的 slug', en: 'Slug of the column the task is in' } },
       { key: 'DSH_SUPERAGENT_KANEO_URL', description: { zh: '任务在看板上的页面地址', en: 'The task page on the board' } },
@@ -162,7 +162,7 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
     }
   }
   if (!bootstrapped) ctx.state.set(KV.kaneo.bootstrap, true)
-  if (failures.length) throw new Error(`${failures.length} Kaneo reads failed: ${failures.slice(0, 3).join('; ')}`)
+  if (failures.length) throw new Error(`${failures.length} Kanban reads failed: ${failures.slice(0, 3).join('; ')}`)
   ctx.report('kaneo', { state: 'ready', detail: `${received} new tasks from ${columns(config)}; next poll ≥ ${config.pollSeconds}s`, at: started })
   return config.pollSeconds
 }

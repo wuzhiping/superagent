@@ -229,7 +229,7 @@ export class StoredConnections {
 /** The process-wide store the Sources and the panel share. */
 export const storedConnections = new StoredConnections()
 
-/** The Kaneo account this Host reads from the storage record: its key, and the server the Source names or the default. */
+/** The Kanban account this Host reads from the storage record: its key, and the server the Source names or the default. */
 export function storedKaneoAccount (baseUrl: string): { baseUrl: string, apiKey: string } | undefined {
   const fields = storedConnections.peek('kaneo')
   const apiKey = fields?.apiKey ?? ''

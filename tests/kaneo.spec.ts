@@ -146,7 +146,7 @@ describe('kaneo polling', () => {
       if (url.includes('status=blocked')) return response({ error: 'boom' }, 500)
       return board('ready', [])
     }), async () => {})
-    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/Kaneo reads failed/)
+    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/Kanban reads failed/)
     expect(recorded.reports).toHaveLength(0)
   })
 })

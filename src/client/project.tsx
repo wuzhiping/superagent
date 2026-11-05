@@ -2,7 +2,7 @@
  * Project and post settings: the archive every post of a deployment shares (RD.md §4, §12.8).
  *
  * It is deliberately small: the board itself says what the board is (its columns are the value stream, a card says
- * which workfaces it touches), so the archive only holds what KanEO cannot — who the posts are, how they identify
+ * which workfaces it touches), so the archive only holds what Kanban cannot — who the posts are, how they identify
  * themselves, which columns they take, and the charter the PM published. No secrets: passwords stay in the Source cards.
  */
 import { useEffect, useState } from 'react'
@@ -99,7 +99,7 @@ function PostEditor({ post, onChange, onRemove, readOnly }: {
           <option value="pm">{t('postsRolePm')}</option>
         </select>
       </label>
-      <Field label={t('projectPostKanban')} value={post.kaneoUserId} placeholder="KanEO 用户 id" readOnly={readOnly}
+      <Field label={t('projectPostKanban')} value={post.kaneoUserId} placeholder="Kanban 用户 id" readOnly={readOnly}
         onChange={value => onChange({ ...post, kaneoUserId: value })} />
       <Field label={t('postsWatchColumns')} value={post.watchColumns} placeholder="ready" readOnly={readOnly}
         onChange={value => onChange({ ...post, watchColumns: value })} />
@@ -128,7 +128,7 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat 
   const posts = scoped ? project.posts.filter(post => post.postId === seat) : project.posts
   return <div className="dt-archive-card">
     <div className="dt-grid">
-      <Field label={t('projectId')} value={project.id} placeholder="KanEO project id" readOnly={scoped}
+      <Field label={t('projectId')} value={project.id} placeholder="Kanban project id" readOnly={scoped}
         onChange={value => onChange({ ...project, id: value })} />
       <Field label={t('projectName')} value={project.name} placeholder="FDEP" readOnly={scoped}
         onChange={value => onChange({ ...project, name: value })} />

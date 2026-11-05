@@ -1,7 +1,7 @@
 /**
- * The KanEO account behind this Host and the management rights that come with it.
+ * The Kanban account behind this Host and the management rights that come with it.
  *
- * The PM seat manages the board's flow, and that right lives in KanEO: only a workspace admin may change a
+ * The PM seat manages the board's flow, and that right lives in Kanban: only a workspace admin may change a
  * project's columns, while a plain member may only work the cards (RD.md §4.1). The panel therefore asks the host
  * who this Host is before it lets someone sit as PM, and says so where the PM works when the right is missing.
  *
@@ -33,7 +33,7 @@ export function useCapabilities(): CapabilitiesState {
   return value
 }
 
-/** Holds the KanEO account of this Host and the rights it has; the panel reads them where the PM works. */
+/** Holds the Kanban account of this Host and the rights it has; the panel reads them where the PM works. */
 export function CapabilitiesProvider({ children }: { children: ReactNode }) {
   const { call } = usePanel()
   const { perspective } = usePerspective()
@@ -77,7 +77,7 @@ export function permissionLines(t: T, capabilities: Capabilities): string[] {
 }
 
 /**
- * The banner the PM perspective shows when this Host's KanEO account may not manage the board's flow: it names the
+ * The banner the PM perspective shows when this Host's Kanban account may not manage the board's flow: it names the
  * account and its role, says what is missing, and says what to do about it.
  */
 export function PermissionBanner() {

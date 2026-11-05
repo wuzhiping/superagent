@@ -16,7 +16,7 @@ const stubFetch = (handler: (url: string, init?: RequestInit) => Response | Prom
   const fn = vi.fn(handler)
   return ((input: string, init?: RequestInit) => fn(input, init)) as NtfyFetch
 }
-/** The KanEO account of the deployed KanEO Source; the messages are filed with it. */
+/** The Kanban account of the deployed Kanban Source; the messages are filed with it. */
 const kaneoAccount = { baseUrl: 'https://pl.feg.cn', apiKey: 'k', projectId: 'project-1', workspaceId: 'ws-1' }
 /** The Kaneo REST calls one poll makes: the source label, the card, and the label attached to the card. */
 function kaneoRest() {
@@ -90,7 +90,7 @@ describe('ntfy trigger', () => {
 })
 
 describe('ntfy polling', () => {
-  it('records a baseline first, then files newer messages as KanEO cards', async () => {
+  it('records a baseline first, then files newer messages as Kanban cards', async () => {
     const cfg = config()
     const { ctx, state, triggers, reports } = context(cfg)
     const kaneo = kaneoRest()
@@ -104,7 +104,7 @@ describe('ntfy polling', () => {
 
     state.set(KV.ntfy.since, Math.floor(Date.now() / 1000) - 60)
     await pollRound(ctx, cfg, client)
-    // KanEO is the only direct source: the message became a card, not a Trigger.
+    // Kanban is the only direct source: the message became a card, not a Trigger.
     expect(triggers).toHaveLength(0)
     const card = kaneo.calls.find(call => call.method === 'POST' && call.url.includes('/task/project-1'))
     expect(card).toBeDefined()
@@ -121,7 +121,7 @@ describe('ntfy polling', () => {
     expect((label?.body as { name: string }).name).toBe('from:ntfy')
     const attach = kaneo.calls.find(call => call.method === 'PUT' && call.url.includes('/label/label-1/task'))
     expect((attach?.body as { taskId: string }).taskId).toBe('card-1')
-    expect(reports.at(-1)?.health.detail).toContain('card(s) filed in KanEO')
+    expect(reports.at(-1)?.health.detail).toContain('card(s) filed in Kanban')
   })
 
   it('files the same message only once', async () => {
@@ -137,17 +137,17 @@ describe('ntfy polling', () => {
     expect(kaneo.calls.filter(call => call.method === 'POST' && call.url.includes('/task/'))).toHaveLength(1)
   })
 
-  it('reports the missing KanEO account instead of dropping the messages', async () => {
+  it('reports the missing Kanban account instead of dropping the messages', async () => {
     const cfg = config()
     const { ctx, state, triggers } = context(cfg, { kaneo: undefined })
     state.set(KV.ntfy.since, Math.floor(Date.now() / 1000) - 60)
     const client = new NtfyClient({ baseUrl: 'https://msn.feg.cn', topic: 'pub_test', sender: '#dsh-superagent', auth: { mode: 'none', user: '', password: '', token: '' } },
       stubFetch(async () => history([message('m1', Math.floor(Date.now() / 1000) - 30, '#alice', 'hi')])))
-    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/KanEO Source has no API key/)
+    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/Kanban Source has no API key/)
     expect(triggers).toHaveLength(0)
   })
 
-  it('produces Triggers again when the KanEO inbox is switched off', async () => {
+  it('produces Triggers again when the Kanban inbox is switched off', async () => {
     const cfg = config()
     const { ctx, state, triggers } = context(cfg, { ingestEvents: false })
     state.set(KV.ntfy.since, Math.floor(Date.now() / 1000) - 60)

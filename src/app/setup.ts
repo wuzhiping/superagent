@@ -25,7 +25,7 @@ const setupFields = (settings: Settings) =>
 export const setupChanged = (before: Settings, after: Settings): boolean => setupFields(before) !== setupFields(after)
 
 /**
- * The Kaneo account when the card names no key: the one this Host's storage record carries, with the server and
+ * The Kanban account when the card names no key: the one this Host's storage record carries, with the server and
  * project the card names. The key stays in memory — it is never written to the settings file.
  */
 function storedKaneo (config: Record<string, unknown> | undefined): KaneoAccount | undefined {
@@ -35,7 +35,7 @@ function storedKaneo (config: Record<string, unknown> | undefined): KaneoAccount
   return parsed ? { ...parsed, ...stored } : undefined
 }
 
-/** Check that a saved Kaneo account can read its project board; the failure names the card that fixes it. */
+/** Check that a saved Kanban account can read its project board; the failure names the card that fixes it. */
 async function verifyKaneo(account: KaneoAccount): Promise<void> {
   try {
     const client = new KaneoClient(account)

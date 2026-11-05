@@ -63,7 +63,7 @@ export const GithubAccountsSchema = z.object({
 })
 export const FeishuBotSchema = z.object({ cli: z.string().trim().default('') })
 /**
- * Source configuration keys that affect deployment setup and trigger a restart when changed. Kaneo, Gitea and ntfy have
+ * Source configuration keys that affect deployment setup and trigger a restart when changed. Kanban, Gitea and ntfy have
  * no CLI account, so their account fields are checked over their own REST APIs while GitHub and Feishu go through CLIs.
  */
 export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape),
@@ -71,12 +71,12 @@ export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { githu
   gitea: ['baseUrl', 'user', 'password', 'token', 'repository'], ntfy: ['baseUrl', 'topic', 'authMode', 'authUser', 'authPassword', 'authToken', 'sender'] }
 
 export interface Deployment extends Machine {
-  /** The GitHub repository, or empty when this deployment works from Kaneo, Gitea or ntfy only. */
+  /** The GitHub repository, or empty when this deployment works from Kanban, Gitea or ntfy only. */
   repository: string
   /** The agent GitHub account; its fields are empty when this deployment has no GitHub Source. */
   github: { cli: string; login: string; noreply: string }
   feishu?: FeishuBot
-  /** The Kaneo board this deployment works from, when the Kaneo Source is configured. */
+  /** The Kanban board this deployment works from, when the Kanban Source is configured. */
   kaneo?: KaneoAccount
   /** The Gitea repository this deployment works from, when the Gitea Source is configured. */
   gitea?: GiteaAccount
@@ -113,7 +113,7 @@ function parsed<T>(schema: z.ZodType<T>, text: string): T | undefined {
 }
 /**
  * Verify the agent's GitHub CLI identity and push access to the configured repository, or resolve a GitHub-less
- * deployment when the GitHub card is empty and a Kaneo, Gitea or ntfy account is configured. Existing checks keep their
+ * deployment when the GitHub card is empty and a Kanban, Gitea or ntfy account is configured. Existing checks keep their
  * errors when only one of the two GitHub fields is set.
  */
 export async function resolveDeployment(machine: Machine, github: unknown, probe: Probe, path = process.env.PATH ?? '',

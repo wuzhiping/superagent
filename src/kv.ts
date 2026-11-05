@@ -56,7 +56,7 @@ export const KV = {
     topics: family<Record<string, string>, [chat: string]>('feishu-history-threads:'),
     seen: family<string[], [thread: string]>('thread-seen:'), initialized: family<boolean, [thread: string]>('thread-initialized:') },
   /**
-   * Kaneo Source: tasks already recorded (so one task becomes one request, even across restarts), whether the first poll
+   * Kanban Source: tasks already recorded (so one task becomes one request, even across restarts), whether the first poll
    * has run (its bootstrap records the tasks already in the watched columns instead of requesting them), and the time of
    * the last successful read of each watched column.
    */
@@ -68,7 +68,7 @@ export const KV = {
   /** ntfy Source: the read position in Unix seconds and the topic it belongs to (P2 read-only). */
   ntfy: { since: record<number>('ntfy-since'), topic: record<string>('ntfy-topic') },
   /**
-   * KanEO 入库：其它来源的事件已经落成卡片的记录（来源 + 事件键），这样半个失败的轮询不会把同一事件建两次卡。
+   * Kanban 入库：其它来源的事件已经落成卡片的记录（来源 + 事件键），这样半个失败的轮询不会把同一事件建两次卡。
    */
   inbox: { filed: family<{ cardId: string; at: string }, [source: string, event: string]>('inbox-filed:') },
 }

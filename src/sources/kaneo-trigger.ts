@@ -1,4 +1,4 @@
-/** Normalizes Kaneo tasks into domain Triggers, Thread keys and Channel addresses; the task is the Thread. */
+/** Normalizes Kanban tasks into domain Triggers, Thread keys and Channel addresses; the task is the Thread. */
 import { z } from 'zod'
 import { key, type ChannelRef, type Trigger } from '../core/index.ts'
 import { kaneoTaskUrl, type KaneoConfig } from './kaneo-config.ts'
@@ -7,7 +7,7 @@ export const SOURCE = 'kaneo'
 /** Bound of the task text carried by a Trigger; the full description is read through the Thread context. */
 const TEXT_CHARS = 4000
 
-/** One task as Kaneo returns it in a board listing or by id; unknown fields are kept for forward compatibility. */
+/** One task as Kanban returns it in a board listing or by id; unknown fields are kept for forward compatibility. */
 export const KaneoTaskSchema = z.looseObject({
   id: z.string().min(1),
   title: z.string().default(''),
@@ -93,7 +93,7 @@ export function kaneoTrigger(task: KaneoTask, config: KaneoConfig, at: string): 
   }
 }
 
-/** The task id of a Kaneo Trigger, or undefined for another Source. */
+/** The task id of a Kanban Trigger, or undefined for another Source. */
 export function kaneoRef(trigger: Trigger): { taskId: string; url?: string } | undefined {
   if (trigger.source !== SOURCE) return undefined
   const meta = trigger.meta as { taskId?: unknown }

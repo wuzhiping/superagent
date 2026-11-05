@@ -1,5 +1,5 @@
 /**
- * ntfy Source kind: a topic is the Thread; every message is an event. The messages are filed as cards in the KanEO board
+ * ntfy Source kind: a topic is the Thread; every message is an event. The messages are filed as cards in the Kanban board
  * (the only direct source), which schedules them from there; the answer goes back to that card. `pub_` topics are public,
  * so their sender identity is low-trust; a private topic can be protected with an account and password (HTTP Basic) or a
  * bearer token, and only credential holders can read or publish.
@@ -48,8 +48,8 @@ export const ntfyKind: SourceKind<NtfyConfig> = {
   kind: SOURCE,
   title: { zh: 'ntfy 主题', en: 'ntfy topic' },
   description: {
-    zh: '订阅一个 ntfy 主题（默认 https://msn.feg.cn）。消息先在 KanEO 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。私有 topic 可用账号+密码（HTTP Basic）或访问令牌保护；公开的 pub_ 主题无需认证，其发送者身份只能靠 title 约定，属低信任。',
-    en: 'Subscribes to an ntfy topic (default https://msn.feg.cn). Every message is filed as a card in the KanEO board (to-do column) first, the board schedules it from there, and the result is written back to that card. A private topic can be protected with an account and password (HTTP Basic) or a bearer token; public pub_ topics need no authentication, so their sender identity comes from the title convention only and is low-trust.',
+    zh: '订阅一个 ntfy 主题（默认 https://msn.feg.cn）。消息先在 Kanban 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。私有 topic 可用账号+密码（HTTP Basic）或访问令牌保护；公开的 pub_ 主题无需认证，其发送者身份只能靠 title 约定，属低信任。',
+    en: 'Subscribes to an ntfy topic (default https://msn.feg.cn). Every message is filed as a card in the Kanban board (to-do column) first, the board schedules it from there, and the result is written back to that card. A private topic can be protected with an account and password (HTTP Basic) or a bearer token; public pub_ topics need no authentication, so their sender identity comes from the title convention only and is low-trust.',
   },
   schema: NtfyConfigSchema,
   /** Settings-panel probe: read the entered topic with the entered authentication, without saving. */
@@ -149,8 +149,8 @@ export const ntfyKind: SourceKind<NtfyConfig> = {
 }
 
 /**
- * One polling round: baseline on first read, then every newer message is filed as a card in the KanEO board. KanEO is
- * the only direct source, so a message does not become a request here (unless the KanEO Source switched its inbox off);
+ * One polling round: baseline on first read, then every newer message is filed as a card in the Kanban board. Kanban is
+ * the only direct source, so a message does not become a request here (unless the Kanban Source switched its inbox off);
  * it becomes a card in the `to-do` pool, and the board schedules it from there.
  */
 export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: NtfyClient, signal?: AbortSignal): Promise<number> {
@@ -170,8 +170,8 @@ export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: 
   let filed = 0
   const ingest = ingestEvents(ctx)
   const account = ingest ? inboxAccount(ctx) : undefined
-  // Without a KanEO account the messages cannot be filed; the round fails instead of dropping them.
-  if (ingest && !account) throw new Error('The KanEO Source has no API key: ntfy messages are filed as KanEO cards')
+  // Without a Kanban account the messages cannot be filed; the round fails instead of dropping them.
+  if (ingest && !account) throw new Error('The Kanban Source has no API key: ntfy messages are filed as Kanban cards')
   const kaneo = account ? new KaneoClient(account) : undefined
   for (const message of messages) {
     if (message.time <= cursor) continue
@@ -185,7 +185,7 @@ export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: 
   ctx.state.set(KV.ntfy.topic, config.topic)
   const latest = messages.at(-1)
   const detail = ingest
-    ? `${filed} card(s) filed in KanEO from ${config.topic}`
+    ? `${filed} card(s) filed in Kanban from ${config.topic}`
     : `${received} new message(s) in ${config.topic}`
   ctx.report('ntfy', { state: 'ready', detail: `${detail}${latest?.title ? `; latest: ${latest.title}` : ''}`, at: new Date().toISOString() })
   return config.pollSeconds
@@ -201,8 +201,8 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
     try {
       if (!config) ctx.report('ntfy', health('paused', 'sourceOff'))
       else if (!config.topic) ctx.report('ntfy', { state: 'paused', detail: 'The ntfy Source names no topic' })
-      // The messages are filed as KanEO cards, so without a KanEO account they cannot be filed at all.
-      else if (ingestEvents(ctx) && !inboxAccount(ctx)) ctx.report('ntfy', { state: 'error', detail: 'Configure the KanEO Source first: ntfy messages are filed as KanEO cards' })
+      // The messages are filed as Kanban cards, so without a Kanban account they cannot be filed at all.
+      else if (ingestEvents(ctx) && !inboxAccount(ctx)) ctx.report('ntfy', { state: 'error', detail: 'Configure the Kanban Source first: ntfy messages are filed as Kanban cards' })
       else { failures = 0; await pollRound(ctx, config, new NtfyClient(ntfyAccountOf(config) ?? { baseUrl: config.baseUrl, topic: config.topic,
         sender: config.sender, auth: { mode: 'none', user: '', password: '', token: '' } }), signal) }
     } catch (error) {
