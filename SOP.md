@@ -46,7 +46,7 @@ dsh-superagent status                              # 看三个来源是否 ready
 
 | 来源 | 作用 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| **Kanban** | **唯一直接来源**：任务、看板、价值流 | 服务器地址、**API key**、项目 id、监听的列（slug） | API key 在 Kanban 用户设置里生成；**只要这一把钥匙就能跑起来** |
+| **Kanban** | **唯一直接来源**：任务、看板、价值流 | 服务器地址、**API key**（可留空：本机存储记录里有）、**项目（从列表选）**、监听的列（slug） | API key 在 Kanban 用户设置里生成；**只要这一把钥匙就能跑起来** |
 | **Gitea** | 代码资产（可选） | 服务器地址、邮箱、密码、仓库 | 邮箱 + 密码走 HTTP Basic；先点「测试连接」再保存 |
 | **ntfy** | 消息通道（可选） | 服务器地址、topic（可多个实例＝多个 topic） | 公开 `pub_` topic 只当上下文，不构成授权 |
 
@@ -70,7 +70,8 @@ dsh-superagent status                              # 看三个来源是否 ready
 
 | 字段 | 含义 | 例子 |
 | --- | --- | --- |
-| 项目 id / 名称 / slug | Kanban 项目的 id、显示名、看板 slug | `dgctny8ibgpn72ei2j8qj2hc` / FDEP / FDE |
+| 项目 | **从列表里选**（面板读这台 Host 的 Kanban 账号能看到的项目：工作区 → 项目）；选中后 id / 名称 / slug 一起填好 | FDEP（FDE） |
+| 项目 id / 名称 / slug | 选择后自动填；名称与 slug 可再手改，看板仍以 id 为准 | `dgctny8ibgpn72ei2j8qj2hc` / FDEP / FDE |
 | 主题集 | 该项目订阅的 ntfy topic | `pub_fdep_pm` |
 | 岗位 id / 名称 / 角色 | 岗位标识与 PM/Worker | `w1-fdep` / SuperAgent Worker 1 (FDEP) / Worker |
 | **Kanban 用户 id** | 岗位在看板上的身份，**决定它领得到哪张卡** | `bsFdwgQX…` |
@@ -86,7 +87,7 @@ dsh-superagent status                              # 看三个来源是否 ready
 
 1. **贴一把 API key**：面板 → 设置 → 来源 → Kanban → 填服务器地址与 API key → 保存。
 2. **看板自己会说**：面板从 Kanban 读出工作区、项目与看板列（价值流），面板里显示的列就是看板真实的列。
-3. **登记岗位与宪章**：设置 → 项目与岗位 → 填项目 id、每个岗位的 Kanban 用户 id → 写宪章并点「发布」。
+3. **登记岗位与宪章**：设置 → 项目与岗位 → **从列表里选项目**（id 自动填）、每个岗位的 Kanban 用户 id → 写宪章并点「发布」。
 
 > 其余的（Gitea/ntfy）是**可选**：它们的内容先入库成看板上的卡片，再由岗位统一接手，所以不配也不影响 Kanban 链路。
 
@@ -323,7 +324,7 @@ dsh-superagent status                              # 看三个来源是否 ready
 **PM 岗位**
 
 - [ ] 三个来源 `status` 都是 ready
-- [ ] 项目与岗位已登记：项目 id、监听列、岗位的 Kanban 用户 id、topic 集
+- [ ] 项目与岗位已登记：项目（从列表选）、监听列、岗位的 Kanban 用户 id、topic 集
 - [ ] 每个岗位的 **Kanban 用户 id 已填写**（否则它领不到卡）
 - [ ] 宪章 v1 已发布**到项目上**（项目的 description 里能看到 `version: 1`）
 - [ ] 至少派过一张卡并看到它被领走、在编队页出现在飞职责里

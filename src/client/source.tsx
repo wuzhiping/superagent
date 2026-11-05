@@ -37,11 +37,26 @@ function SourceCard({ source }: { source: SourceView }) {
   // Saving a modified setup-sensitive field restarts dsh-superagent, interrupting running Assignments.
   const restarts = draft.dirty && source.restarts.some(changed)
   const description = localized(t, source.description)
+  // A card that asks for a project or a workspace reads the list from the host instead of asking for a typed id.
+  const wantsPicks = source.fields.some(spec => spec.type === 'pick')
+  const { data: picked } = usePoll(async () => wantsPicks ? call('GET projects') : undefined, [source.id, wantsPicks])
+  const picks = picked && source.fields.some(spec => spec.type === 'pick') ? {
+    projects: picked.projects.map(project => ({ value: project.id,
+      label: `${project.name}（${project.slug}）· ${picked.workspaces.find(workspace => workspace.id === project.workspaceId)?.name ?? project.workspaceId}` })),
+    workspaces: picked.workspaces.map(workspace => ({ value: workspace.id, label: workspace.name })),
+    ...(picked.problem ? { problem: picked.problem } : {}),
+  } : undefined
   // Hide derived facts for unsaved field edits until the new value is saved.
   const field = (spec: FieldSpec) => <SourceField key={spec.key} field={spec} value={value.config[spec.key]} saved={saved.config[spec.key]}
-    labels={source.labels}
+    labels={source.labels} picks={picks}
     refreshLabels={refreshLabels} fact={spec.type === 'fact' || !changed(spec.key) ? source.facts[spec.key] : undefined}
-    onChange={next => draft.edit({ ...value, config: { ...value.config, [spec.key]: next } })} />
+    onChange={next => {
+      // Picking a project also settles the workspace it lives in, so the two fields cannot disagree.
+      const project = spec.type === 'pick' && spec.from === 'projects'
+        ? picked?.projects.find(item => item.id === next) : undefined
+      draft.edit({ ...value, config: { ...value.config, [spec.key]: next,
+        ...(project?.workspaceId ? { workspaceId: project.workspaceId } : {}) } })
+    }} />
   const advanced = source.fields.filter(spec => spec.advanced)
   return <form id={`dt-source-${source.id}`} className="dt-card" onSubmit={event => { void draft.submit(event) }}>
     <Fields disabled={draft.busy}>

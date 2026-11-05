@@ -6,7 +6,7 @@
  * themselves, which columns they take, and the charter the PM published. No secrets: passwords stay in the Source cards.
  */
 import { useEffect, useState } from 'react'
-import type { ProjectArchive } from './api.ts'
+import { usePoll, type ProjectArchive, type ProjectChoices } from './api.ts'
 import { Button, Icon, Input } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
 import { useAction, usePanel } from './provider.tsx'
@@ -119,17 +119,32 @@ function PostEditor({ post, onChange, onRemove, readOnly }: {
   </div>
 }
 
-function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat }: {
+function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat, choices }: {
   project: Project; onChange: (project: Project) => void; onRemove: () => void; onPublished?: () => void
-  scoped?: boolean; seat?: string
+  scoped?: boolean; seat?: string; choices?: ProjectChoices
 }) {
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
   const posts = scoped ? project.posts.filter(post => post.postId === seat) : project.posts
+  // The project is picked from what the Kanban account can see; the choice also fills the name and the slug.
+  const pick = (id: string) => {
+    const chosen = choices?.projects.find(item => item.id === id)
+    onChange({ ...project, id, ...(chosen ? { name: project.name || chosen.name, slug: project.slug || chosen.slug } : {}) })
+  }
   return <div className="dt-archive-card">
     <div className="dt-grid">
-      <Field label={t('projectId')} value={project.id} placeholder="Kanban project id" readOnly={scoped}
-        onChange={value => onChange({ ...project, id: value })} />
+      <label className="dt-archive-field">
+        <span className="dt-field-label">{t('projectId')}</span>
+        <select className="dt-select" value={project.id} disabled={scoped} onChange={event => pick(event.target.value)}>
+          <option value="">{t('projectPick')}</option>
+          {project.id && !choices?.projects.some(item => item.id === project.id) &&
+            <option value={project.id}>{project.id}</option>}
+          {(choices?.projects ?? []).map(item => <option key={item.id} value={item.id}>
+            {item.name}（{item.slug}）· {choices?.workspaces.find(workspace => workspace.id === item.workspaceId)?.name ?? item.workspaceId}
+          </option>)}
+        </select>
+        {choices?.problem && <span className="dt-hint">{t('pickUnavailable', { error: choices.problem })}</span>}
+      </label>
       <Field label={t('projectName')} value={project.name} placeholder="FDEP" readOnly={scoped}
         onChange={value => onChange({ ...project, name: value })} />
       <Field label={t('projectSlug')} value={project.slug} placeholder="FDE" readOnly={scoped}
@@ -164,6 +179,8 @@ export function ProjectSettings() {
   const [revision, setRevision] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string>()
+  // The project is chosen from the list this Host's Kanban account can see, not typed from memory.
+  const { data: choices } = usePoll(() => call('GET projects'), [])
 
   useEffect(() => {
     let active = true
@@ -197,7 +214,7 @@ export function ProjectSettings() {
   return <div className="dt-project-settings">
     <Hint>{scoped ? t('projectHintPost') : t('projectHint')}</Hint>
     {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId}
-      onChange={next => update(index, next)} onPublished={() => { void save.run() }}
+      onChange={next => update(index, next)} onPublished={() => { void save.run() }} choices={choices}
       onRemove={() => setArchive(current => ({ ...current, projects: current.projects.filter((_item, at) => at !== index) }))} />)}
     {!scoped && <div className="dt-row-buttons">
       <Button variant="outline" icon={<Icon name="plus" size={14} />}

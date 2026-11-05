@@ -40,6 +40,10 @@ const KaneoProjectSchema = z.looseObject({
   icon: z.string().default(''), isPublic: z.boolean().default(false),
   columns: z.array(z.looseObject({ slug: z.string().optional(), name: z.string().optional() })).default([]),
 })
+/** One project as the list answers it: what a picker needs to show a name and store an id. */
+const KaneoProjectRefSchema = z.looseObject({
+  id: z.string().min(1), name: z.string().default(''), slug: z.string().default(''), workspaceId: z.string().default(''),
+})
 /** One board column as the workflow endpoints answer it: the cuid identifies it, the slug is what tasks are stored by. */
 const KaneoColumnSchema = z.looseObject({
   id: z.string().min(1), name: z.string().default(''), slug: z.string().default(''), isFinal: z.boolean().default(false),
@@ -132,6 +136,15 @@ export class KaneoClient {
    */
   async project(id: string, options: RequestOptions = {}): Promise<z.infer<typeof KaneoProjectSchema>> {
     return this.request(KaneoProjectSchema, 'GET', `/project/${encodeURIComponent(id)}`, undefined, options)
+  }
+
+  /**
+   * The projects of one workspace. The panel lists them so a person picks the project instead of typing its id; the
+   * list needs the workspace id because the server scopes projects to a workspace.
+   */
+  async projects(workspaceId: string, options: RequestOptions = {}): Promise<z.infer<typeof KaneoProjectRefSchema>[]> {
+    return this.request(z.array(KaneoProjectRefSchema), 'GET',
+      `/project?workspaceId=${encodeURIComponent(workspaceId)}`, undefined, options)
   }
 
   /**

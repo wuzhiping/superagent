@@ -129,6 +129,8 @@ export interface PanelServer {
   archiveRevision?: number
   /** The version a published charter takes next; the route bumps it so a test can watch the version move. */
   charterVersion: number
+  /** What the project pickers offer: the workspaces and projects this account can see. */
+  choices: ApiResponse<'GET projects'>
   /** The KanEO account of this Host and the rights it has; the panel asks before it lets someone sit as PM. */
   capabilities: Capabilities
   /** The cleanup page's audit: ended duties and the workspace each one left behind. */
@@ -310,6 +312,13 @@ function initial(): PanelServer {
     search: { items: [], threads: [] },
     capabilities: adminCapabilities(),
     charterVersion: 3,
+    choices: {
+      workspaces: [{ id: 'workspace-1', name: 'ATEAM' }],
+      projects: [
+        { id: 'dgctny8ibgpn72ei2j8qj2hc', name: 'FDEP', slug: 'FDE', workspaceId: 'workspace-1' },
+        { id: 'at8xrho45bisco2umjzgl1xp', name: 'Superagent', slug: 'RSI', workspaceId: 'workspace-1' },
+      ],
+    },
     maintenance: maintenanceView(),
     history: { current: 3, policyVersion: 'abcdef1234567890', items: [
       { revision: 4, savedAt: '2026-09-23T00:00:00Z', source: 'panel', policyVersion: '9876543210fedcba', policyChanged: true, notified: [],
@@ -340,6 +349,8 @@ const SourceSave = z.object({ enabled: z.boolean(), config: z.unknown() })
 const ROUTES: { [K in keyof Api]: Route<K> } = {
   'GET state': { answer: stateView },
   'GET capabilities': { answer: (): ApiResponse<'GET capabilities'> => server.capabilities },
+  // The pickers read the projects and workspaces of the account; the fixture answers with one workspace and two projects.
+  'GET projects': { answer: (): ApiResponse<'GET projects'> => server.choices },
   // Publishing a charter writes the project and mirrors it into the archive; the fixture answers with the new version.
   'POST narrative/charter': { body: true, answer: (request): ApiResponse<'POST narrative/charter'> => {
     const body = request.body as { projectId: string, text: string, publishedBy: string, force?: boolean }

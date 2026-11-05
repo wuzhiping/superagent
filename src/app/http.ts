@@ -24,6 +24,7 @@ import type { Store } from './store.ts'
 import { writeArchive } from './narrative.ts'
 import { charterOfText } from './narrative.ts'
 import { kaneoAccount, publishCharter, publishWindow, readServerCharter } from './charter.ts'
+import { readProjectChoices } from './projects.ts'
 import { readCapabilities } from './capabilities.ts'
 import { storedKaneoAccount } from '../sources/bdd-storage.ts'
 import { DEFAULT_BASE_URL } from '../sources/kaneo-config.ts'
@@ -186,6 +187,9 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
       const account = deployed?.apiKey ? deployed : storedKaneoAccount(deployed?.baseUrl ?? DEFAULT_BASE_URL)
       return readCapabilities(account)
     },
+    // The projects this Host may work on: the panel lists them so a person picks one instead of typing its id. This
+    // must answer while setup is still pending, because filling the project id in is part of fixing setup.
+    'GET projects': ({ query }) => readProjectChoices(kaneoAccount(runtime.sources), { force: query.refresh === 'true' }),
     'GET overview': () => overview(views(runtime), runtime.health, policyVersion(store.settings()),
       executorLoad(store, runtime.executor.activeCount()), runtime.setupProblem ?? runtime.feishuProblem),
     // The narrative view: projects, posts, the charter each PM published, the duties in flight and the exceptions.

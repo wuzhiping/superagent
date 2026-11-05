@@ -69,6 +69,23 @@ GET /orchestrator/api/maintenance
 
 27 个已结束职责留下了 27 个工作区——正是用户说的「膨胀」；现在集中可清 ✅。
 
+## 4.5 项目从列表里选（2026-11-05 用户校正）✅
+
+「设置中，项目的 id 使用 API 获取列表，人工选择相关项目数据」✅：
+
+- 新增 GET projects（宿主路由）：GET /workspace → 每个工作区 GET /project?workspaceId=…，60 秒缓存；无账号时给出原因而不是空列表 ✅
+- 面板两处都不再手打 id：**来源卡 → Kanban 项目**（	ype: pick，选中项目自动填 workspaceId）、**项目与岗位 → 项目**（选中填 id/名称/slug）✅
+- 真实结果（本机部署）：
+
+`	ext
+GET /orchestrator/api/projects
+  workspaces: ATEAM, FEIT
+  projects: FDEP/FDE/dgctny8ibgpn72ei2j8qj2hc | pipeline/PIP/wwo9d2mmqddjq8otbj8jh2hs
+            | Superagent/RSI/at8xrho45bisco2umjzgl1xp
+`
+
+测试：projects（列表/缓存/失败原因）、panel-projects（两处选择器，含「列表读不到时保留当前项目」）✅
+
 ## 5. 凭据：从存储记录读（Masked Key）
 
 `src/sources/bdd-storage.ts`：

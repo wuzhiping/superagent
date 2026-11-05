@@ -121,6 +121,8 @@ export type SetupView = StateView['setup']
 export type SettingsView = ApiResponse<'GET settings'>
 export type Settings = { [B in keyof SettingsView['blocks']]: SettingsView['blocks'][B]['value'] }
 export type SourceView = SettingsView['sources'][number]
+/** The projects and workspaces of this Host's Kanban account: what the settings pickers offer instead of typed ids. */
+export type ProjectChoices = ApiResponse<'GET projects'>
 export type SourceStatusRow = ApiResponse<'GET sources'>[number]
 export type TicketRow = ApiResponse<'GET tickets'>['items'][number]
 export type TicketPageView = ApiResponse<'GET tickets/:id'>

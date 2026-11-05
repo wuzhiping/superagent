@@ -13,6 +13,10 @@ import { Hint, LoadState } from './widgets.tsx'
 
 /** Parse a numeric input string, returning `null` when empty so the server rejects blank required numbers instead of coercing to 0. */
 export const numberOf = (text: string): number | null => text.trim() ? Number(text) : null
+/** One option a `pick` field offers: the id stored in the config and the label a person reads. */
+export interface PickOffer { value: string; label: string }
+/** The records a `pick` field chooses from, plus the reason they could not be read. */
+export interface PickOffers { projects: PickOffer[], workspaces: PickOffer[], problem?: string }
 interface SettingsData { settings: SettingsView; reload: () => Promise<void> }
 const SettingsContext = createContext<SettingsData | undefined>(undefined)
 export function useSettings(): SettingsData {
@@ -237,15 +241,28 @@ function RowsField({ field, value, saved, onChange, labels, refreshLabels }: {
     </li>)}</ul>}
   </div>
 }
-export function SourceField({ field, value, saved, fact, onChange, labels, refreshLabels }: {
+export function SourceField({ field, value, saved, fact, onChange, labels, refreshLabels, picks }: {
   field: FieldSpec; value: unknown; saved: unknown; fact: Localized | string | undefined; onChange: (next: unknown) => void
   labels: Record<string, string>
   refreshLabels?: () => Promise<string[]>
+  /** What a `pick` field offers: the connected service's own records, read from the host. */
+  picks?: PickOffers
 }) {
   const { t, navigate } = usePanel()
   const label = localized(t, field.label), hint = localized(t, field.hint)
   switch (field.type) {
     case 'switch': return <SwitchRow label={label} hint={hint} checked={value === true} onChange={onChange} />
+    case 'pick': {
+      const offers = field.from === 'projects' ? picks?.projects ?? [] : picks?.workspaces ?? []
+      const current = String(value ?? '')
+      return <Field label={label} hint={hint} note={picks?.problem ? t('pickUnavailable', { error: picks.problem }) : undefined}>
+        <select className="dt-select" value={current} onChange={event => onChange(event.target.value)}>
+          {offers.length === 0 && <option value="">{t('pickLoading')}</option>}
+          {current && !offers.some(offer => offer.value === current) && <option value={current}>{current}</option>}
+          {offers.map(offer => <option key={offer.value} value={offer.value}>{offer.label}</option>)}
+        </select>
+      </Field>
+    }
     case 'select': return <Field label={label} hint={hint}>
       <SegmentedControl className="dt-segmented dt-field-segmented" label={label} value={String(value ?? field.options[0]!.value)}
         options={field.options.map(option => ({ value: option.value, label: localized(t, option.label) }))} onChange={onChange} />

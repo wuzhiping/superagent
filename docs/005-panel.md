@@ -45,6 +45,10 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
 
 The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The PM seat manages the board's flow, and that right lives in Kanban — only a workspace admin may change a project's columns. Before the reader takes the PM seat, the panel asks the host which account this Host uses; an account that may not manage the board is told so, and may still read the project. In the PM seat the posts page and the settings page carry a banner naming the account, its role, the missing right and the way out: another API key, or an admin who grants the right. The panel writes no board of its own — the board's columns are the server's — so nothing else is blocked. A post's seat is untouched: a post only needs an account to work its cards.
 
+### Choosing a project
+
+A project id is an identifier nobody remembers, so the panel never asks for one: `GET projects` lists the workspaces and projects the Host's Kanban account can see (one request per workspace, cached for a minute), and both places that need a project offer that list — the Kanban Source card and the project archive. Picking a project fills in its id, name and slug, and the workspace it lives in; a stored project stays selectable even when the list cannot be read, and the reason it is empty is shown rather than swallowed.
+
 ## Search
 
 The header search finds Triggers by text, id, Feishu message id or a stored link, such as a GitHub comment URL. A Feishu link missing from the original message becomes searchable only after the host reads it during the current process lifetime.

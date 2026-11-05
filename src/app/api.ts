@@ -13,6 +13,7 @@ import type { NarrativeView } from './views/narrative.ts'
 import type { ProjectArchive } from './narrative.ts'
 import type { CharterInfo } from './narrative.ts'
 import type { Capabilities } from './capabilities.ts'
+import type { ProjectChoices } from './projects.ts'
 
 export const TICKET_FILTERS = ['open', 'person', 'working', 'idle', 'ended'] as const
 export const THREAD_FILTERS = ['subscribed', 'evaluating', 'recent', 'all'] as const
@@ -25,6 +26,8 @@ type Delivery = 'injected' | 'pending'
 export interface Api {
   'GET state': { response: StateView }
   'GET capabilities': { response: Capabilities }
+  /** The workspaces and projects this Host's Kanban account can see, so a person picks a project instead of typing its id. */
+  'GET projects': { response: ProjectChoices }
   'GET overview': { response: OverviewView }
   'GET narrative': { response: NarrativeView }
   'GET project-archive': { response: { archive: ProjectArchive; revision: number } }
