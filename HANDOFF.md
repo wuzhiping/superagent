@@ -34,6 +34,14 @@
 ## ⚡ 2026-11-06：载体分工（Gitea 宪章 / Kanban 任务 / ntfy 消息 / MinIO 资产）
 
 
+
+### Team 视角与开工闸门（2026-11-06 深夜，TDD/015）
+
+- **「PM 视角」改名「Team 视角」**（内部标识仍是 `pm`，旧存储的选择继续有效）。
+- **切到 Team（PM）岗位前验证权限**：恢复 2026-11-05 暂停的门禁——`GET capabilities` 的 `canManageFlow` 为 false 时先弹窗说明并允许「仍然切换」，Team 视角内常驻权限横幅（`src/client/capabilities.tsx` 等从 git 取回）。
+- **岗位视角的「我的岗位设置」**：设置页的项目组在岗位视角显示为「我的岗位设置」，只改自己的岗位身份；项目、topic、宪章只读。
+- **没有宪章不可开工**：`charterAllows()`（档案 + 宪章目标）在评估接受与主会话 `orchestrator_route` 的接受前检查；没有宪章 → 带 `noCharter` 理由的 ignore，不建工单；团队页显示红色提示。
+- 测试：`tests/charter-gate.spec.ts` 6 条；恢复 `panel-perspective`/`panel-posts` 门禁与横幅用例；相关 61 条通过；typecheck 干净。线上实测：Team/岗位视角标签、我的岗位设置页、admin 切 Team 不弹窗（aria-pressed 正确）、无权限横幅。
 ### 载体修正（2026-11-06 深夜，TDD/014）
 
 - **宪章仓库与事件仓库分开**：Gitea 卡片新增 `charterRepository`（宪章的家，默认 `README.md`）；`repository` 只作事件来源。`giteaCharter()` 只读宪章仓库、空则退回 Kanban 镜像（不再借用事件仓库）。本部署：事件仓 `shawoo/PDP`，宪章仓 `shawoo/rsi_superagent`（README = 宪章 v12）。

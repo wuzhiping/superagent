@@ -58,11 +58,22 @@ export interface AssessorHost {
   paused(): boolean
   /** Thread context reader for `trigger`'s Source, or `undefined` when the Source has none. */
   threadContext(trigger: Trigger): TriggerContext | undefined
+  /** Whether the project of `trigger` has a published charter; no charter means no work may start (RD.md §4.1). */
+  charterAllows?(trigger: Trigger): Promise<boolean>
   /** Delivers a candidate card to the main Session once per request ID, resolving after the Session receives it. */
   deliver(requestId: string, text: string): Promise<void>
   candidateCard(candidate: Candidate): Promise<Record<string, unknown>>
 }
 
+/**
+ * 没有宪章不可开工: an accept for a project without a published charter becomes an ignore that carries the reason.
+ * A trigger outside any archived project, or a host with no gate, is left as it is.
+ */
+export async function gateOutcome (outcome: AssessmentOutcome, trigger: Trigger | undefined,
+  allows?: (trigger: Trigger) => Promise<boolean>): Promise<AssessmentOutcome> {
+  if (outcome.kind !== 'accept' || !trigger || !allows) return outcome
+  return await allows(trigger) ? outcome : { kind: 'ignore', reason: { code: 'noCharter' } }
+}
 /** Schema for bounded context or repository read requests during an active evaluation (`orchestrator_eval_read`). */
 export const EvalReadSchema = z.object({
   trigger_id: z.string().min(1).describe('Original candidate ID returned by orchestrator_eval; every reference is scoped to this trigger.'),
@@ -274,6 +285,9 @@ export class MasterAssessor implements Assessor {
     signal?.throwIfAborted()
     let outcome: AssessmentOutcome = assessmentOutcome(result, this.host.settings(), candidate.strength)
     if (outcome.kind === 'accept' && outcome.acknowledgement) outcome = { ...outcome, acknowledgement: checkedImText(outcome.acknowledgement) }
+    // 没有宪章不可开工: an accept needs a published charter for its project, or the trigger is ignored with the reason.
+    const trigger = candidate.triggers.find(item => item.id === triggerId) ?? candidate.triggers[0]
+    outcome = await gateOutcome(outcome, trigger, this.host.charterAllows)
     const decision = this.host.engine.decide(triggerId, { ...outcome, evalId: candidate.evalId })
     return { state: decision.kind, ...(decision.ticketId ? { ticket_id: decision.ticketId } : {}), reason: reasonText(decision.reason) }
   }

@@ -1,5 +1,5 @@
-import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-Bq2gEbT1.js";
-import { n as SourceKind, r as SourceContext } from "./kind-C-bR82Yw.js";
+import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-CUdFgH1b.js";
+import { n as SourceKind, r as SourceContext } from "./kind-CtMU1RzE.js";
 import { t as KaneoClient } from "./kaneo-api-Bl0L7FaC.js";
 import { Context } from "@deepseek-ai/cordis";
 //#region src/sources/kaneo.d.ts

@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { z } from 'zod'
-import { UserError, followupOwners, key, reasonText, type Decision, type DecisionKind, type EngineForMainSession, type EngineForPeople }
+import { UserError, followupOwners, key, reasonText, type Decision, type DecisionKind, type EngineForMainSession, type EngineForPeople, type Trigger }
   from '../../core/index.ts'
 import { IM_WORDS, NOTE_WORDS, wordCount } from '../../infra/text.ts'
 import { AssessmentSchema, EvalReadSchema, WorktreeNameSchema, type MasterAssessor } from '../assessment.ts'
@@ -26,6 +26,8 @@ export interface MainToolsHost {
   readonly settings: Pick<Settings, 'view' | 'block' | 'save' | 'pause' | 'sync'>
   readonly assessor: Pick<MasterAssessor, 'context' | 'read' | 'decide'>
   readonly resources: ResourceHost
+  /** Whether the project of `trigger` has a published charter; no charter means no work may start (RD.md §4.1). */
+  charterAllows?(trigger: Trigger): Promise<boolean>
   /** Schedules a pass to carry out work queued by an Engine command (such as an Eval or ticket resume). */
   requestPass(): void
   sendReplies(): Promise<void>
@@ -85,7 +87,7 @@ type Routed = { decision?: DecisionKind; reason: string; ticketId?: string | und
  * Carry out one routing decision as its Engine command, in a transaction of its own. `decided` holds the Triggers that this
  * call's earlier items decided, with their batches.
  */
-function route(host: MainToolsHost, item: RouteItem, decided: ReadonlyMap<string, string>): Routed | { refused: string } {
+async function route(host: MainToolsHost, item: RouteItem, decided: ReadonlyMap<string, string>): Promise<Routed | { refused: string }> {
   const note = item.note ? { note: item.note } : {}
   // A Trigger an earlier item decided went with that item's Decision, also as a member of its batch.
   // A stop of it for another ticket is the Engine's to judge.
@@ -93,6 +95,12 @@ function route(host: MainToolsHost, item: RouteItem, decided: ReadonlyMap<string
   if (earlier && item.kind === 'ignore') return { refused: `Decided in this call with ${earlier}, whose Decision took its batch` }
   switch (item.kind) {
     case 'accept': {
+      // 没有宪章不可开工: an explicit accept is refused when the trigger's project has no published charter.
+      const trigger = host.store.triggers.get(item.trigger_id)
+      if (trigger && host.charterAllows && !await host.charterAllows(trigger)) {
+        const refused = host.engine.decide(item.trigger_id, { kind: 'ignore', reason: { code: 'noCharter' } })
+        return { refused: `Ticket was not created: ${reasonText(refused.reason)}` }
+      }
       const before = host.store.triggers.disposition(item.trigger_id)?.decisionId
       const decision = host.engine.decide(item.trigger_id, { kind: 'accept', title: item.title!, scope: item.title!, reason: { code: 'explicitRouted' },
         acknowledgement: item.acknowledgement!, name: item.worktree_name!, ...note })
@@ -129,23 +137,24 @@ function routeTool(host: MainToolsHost): Tool {
     schema: z.object({ decisions: z.array(RouteItemSchema).min(1).max(20) }).strict(),
     execute: async ({ decisions }) => {
       const decided = new Map<string, string>()
-      const results = decisions.map(item => {
+      const results = []
+      for (const item of decisions) {
         const head = { trigger_id: item.trigger_id, kind: item.kind }
         const problem = invalid(item)
-        if (problem) return { ...head, refused: problem }
+        if (problem) { results.push({ ...head, refused: problem }); continue }
         try {
-          const result = route(host, item, decided)
-          if ('refused' in result) return { ...head, ...result }
+          const result = await route(host, item, decided)
+          if ('refused' in result) { results.push({ ...head, ...result }); continue }
           for (const id of result.triggerIds ?? []) if (!decided.has(id)) decided.set(id, item.trigger_id)
           const ticket = result.ticketId ? host.store.tickets.get(result.ticketId) : undefined
-          return { ...head, ...(result.decision ? { decision: result.decision } : {}), reason: result.reason,
-            ...(ticket ? { ticket: ticketCard(ticket) } : {}) }
+          results.push({ ...head, ...(result.decision ? { decision: result.decision } : {}), reason: result.reason,
+            ...(ticket ? { ticket: ticketCard(ticket) } : {}) })
         } catch (error) {
-          if (error instanceof UserError) return { ...head, refused: error.message }
+          if (error instanceof UserError) { results.push({ ...head, refused: error.message }); continue }
           host.context.logger.warn('dsh-superagent could not route trigger %s: %s', item.trigger_id, String(error))
-          return { ...head, refused: `Not recorded: ${error instanceof Error ? error.message : String(error)}; retry this item` }
+          results.push({ ...head, refused: `Not recorded: ${error instanceof Error ? error.message : String(error)}; retry this item` })
         }
-      })
+      }
       host.requestPass()
       return { results }
     },

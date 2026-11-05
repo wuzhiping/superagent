@@ -121,7 +121,7 @@ MinIO  store deliverables/*: 2
 | **worker 自己去搬卡** | 第一轮它把「完成后把卡片推进到交付列」当自己的活，下载 kaneo MCP CLI、派子代理翻 MinIO 找 dsh CLI 文档，70 多步还没停 | 提示词明确「看板由宿主写」，卡描述也改成「报告 ready，别动看板」；第二轮约 70 秒完成 ✅ |
 | **看板自动化抢在轮询前** | FDEP 的自动化把进入 `ready` 的卡约 20 秒就搬去 `in-progress`，而来源 60 秒轮询一次 → 漏掉 | 验证脚本先收窄 `pollSeconds=15` 再建卡，跑完还原 ✅（真实使用建议：PM 指派后保持在 `ready` 至少一个轮询周期，或把 `in-progress` 也纳入监听列）|
 
-## 4.7 暂停面板里的权限门禁（2026-11-05 下午）⏸
+## 4.7 暂停面板里的权限门禁（2026-11-05 下午）⏸ —— **2026-11-06 已恢复**
 
 用户要求：**暂停 PM 视角、岗位视角的权限控制和验证**。做法是把**面板那一半**停掉，服务端能力保留：
 
@@ -132,6 +132,8 @@ MinIO  store deliverables/*: 2
 | 客户端 `src/client/capabilities.tsx`（Provider、`permissionLines`、`PermissionBanner`） | RD §4.1 的设计说明（重启用时照此恢复）|
 
 **行为变化**：PM 视角与岗位视角对**任何账号**都直接可进——不询问、不显示横幅；其余一切不变（视角仍是只读视图，真正改看板流程仍要 workspace admin 的账号，Kanban 自己会拒绝 member）。
+
+**2026-11-06 恢复**：用户要求「如果切换到 PM 岗位需要验证权限是否匹配」，门禁按原设计恢复（切到 Team 视角前查 `canManageFlow`、不匹配先弹确认、Team 视角内常驻横幅）；同一轮还加了「没有宪章不可开工」的主机侧闸门与岗位视角的「我的岗位设置」。见 TDD/015。
 
 **怎么恢复**：`git revert <本提交>`（改法脚本 `scripts/patch-pause-permissions.mjs` 记录了每一处改动），再把 `dt-permission` 样式与 `permission*` 文案加回来即可；服务端接口一直在，不用动。
 

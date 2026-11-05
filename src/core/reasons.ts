@@ -21,6 +21,7 @@ export const REASONS = {
   stopNotExplicit: 'A stop needs an explicit request from a sender on the list',
   directionUnsettled: 'Implementation intent or target direction is not established, or a product/design decision is still required',
   noRuleMatched: 'No enabled admission rule matched',
+  noCharter: 'The project has no published charter: publish one before work starts',
   ignoredFromCard: 'Ignored from its card, without a rule assessment',
   observed: 'Observe mode: would accept ({text})',
 } as const

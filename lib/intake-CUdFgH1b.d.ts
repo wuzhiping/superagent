@@ -200,6 +200,7 @@ declare const REASONS: {
   readonly stopNotExplicit: "A stop needs an explicit request from a sender on the list";
   readonly directionUnsettled: "Implementation intent or target direction is not established, or a product/design decision is still required";
   readonly noRuleMatched: "No enabled admission rule matched";
+  readonly noCharter: "The project has no published charter: publish one before work starts";
   readonly ignoredFromCard: "Ignored from its card, without a rule assessment";
   readonly observed: "Observe mode: would accept ({text})";
 };

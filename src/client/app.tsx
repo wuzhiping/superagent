@@ -1,6 +1,8 @@
 /** Root panel shell: header with global search and glossary, top-level navigation tabs, and active route view. */
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import type { Capabilities } from '../app/capabilities.ts'
 import type { SearchView } from './api.ts'
+import { CapabilitiesProvider, permissionLines, useCapabilities } from './capabilities.tsx'
 import { Button, Dot, Icon, Input, Modal, SegmentedTabs } from './controls.tsx'
 import type { DeploymentForm } from './deployment.tsx'
 import { EvalStatus } from './eval.tsx'
@@ -105,20 +107,36 @@ function SearchResults({ result, query, onClose }: { result: SearchView; query: 
   </div>
 }
 
-/** The perspective switch: the same deployment read from the PM's seat or from a post's seat. */
+/** The perspective switch: the same deployment read from the Team's seat (the PM seat) or from a post's seat. */
 function PerspectiveSwitch() {
   const { t, navigate } = usePanel()
   const { perspective, setPerspective } = usePerspective()
-  // Both seats are open to every account: the host still answers `GET capabilities`, but nothing asks before a seat is
-  // taken (the gate is paused; see TDD/011 §4.7 for how it looked and how to bring it back).
-  const choose = (value: Perspective) => {
-    if (value === perspective) return
+  const { check } = useCapabilities()
+  // The Team seat manages the board's flow, so the host is asked whether this Host's account may before the reader takes
+  // that seat; a reader without the right is told why and may still read the project (RD.md §4.1).
+  const [asking, setAsking] = useState<Capabilities>()
+  const enter = (value: Perspective) => {
     setPerspective(value)
     navigate(HOME_BY_PERSPECTIVE[value], true)
   }
+  const choose = async (value: Perspective) => {
+    if (value === perspective) return
+    if (value === 'pm') {
+      const capabilities = await check()
+      if (capabilities && !capabilities.canManageFlow) { setAsking(capabilities); return }
+    }
+    enter(value)
+  }
   return <div className="dt-perspective" role="group" aria-label={t('perspectiveLabel')}>
     {(['pm', 'post'] as const).map(value => <button key={value} type="button" className="dt-perspective-option"
-      aria-pressed={perspective === value} onClick={() => choose(value)}>{t(`perspective.${value}`)}</button>)}
+      aria-pressed={perspective === value} onClick={() => { void choose(value) }}>{t(`perspective.${value}`)}</button>)}
+    <Modal open={!!asking} onClose={() => setAsking(undefined)} title={t('permissionSwitchTitle')} closeLabel={t('close')}
+      description={t('permissionSwitchConfirm')} footer={<>
+        <Button variant="ghost" onClick={() => setAsking(undefined)}>{t('cancel')}</Button>
+        <Button variant="primary" onClick={() => { setAsking(undefined); enter('pm') }}>{t('permissionSwitchAnyway')}</Button>
+      </>}>
+      {asking && permissionLines(t, asking).map(line => <p key={line} className="dt-hint">{line}</p>)}
+    </Modal>
   </div>
 }
 
@@ -217,7 +235,9 @@ export function App({ t, openSession, deploymentForm }: AppProps) {
     ? settingsRoute(lastSettingsGroup(current)) : { page: tab, id: undefined } })), [move])
   return <PerspectiveProvider>
     <PanelProvider t={t} openSession={openSession} navigate={navigate} back={back} backLabel={routeLabel(t, location.stack.at(-1) ?? HOME)}>
-            <Pages route={location.route} openTab={openTab} deploymentForm={deploymentForm} />
-    </PanelProvider>
+        <CapabilitiesProvider>
+          <Pages route={location.route} openTab={openTab} deploymentForm={deploymentForm} />
+        </CapabilitiesProvider>
+      </PanelProvider>
   </PerspectiveProvider>
 }

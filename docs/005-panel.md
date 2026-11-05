@@ -52,9 +52,9 @@ The Sources page holds four cards, each with one job (2026-11-06):
 
 Every card's credentials default to this Host's storage record (`/BDD/API/AI/dsh/storage/<service>`, read with the masked key) and may be overridden field by field; an empty field means "use the record", and a secret typed into a card stays in memory rather than the settings file.
 
-### The PM seat and its rights (paused in the panel)
+### The Team seat (the PM seat) and its rights
 
-The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The right the PM seat needs is real — only a workspace admin may change a project's columns — and the host still reports it through `GET capabilities`. The panel no longer acts on that answer, though: it asks nothing before a seat is taken and shows no rights banner, so both seats are open to every account (paused 2026-11-05; RD.md §4.1 keeps the design). The panel writes no board of its own — the board's columns are the server's — so nothing else was ever blocked.
+The header switches the perspective: the same deployment read from the Team seat (the PM seat, labelled **Team 视角**) or from a post's seat. The right the PM seat needs is real — only a workspace admin may change a project's columns — and the host still reports it through `GET capabilities`. The panel no longer acts on that answer, though: it asks nothing before a seat is taken and shows no rights banner, so both seats are open to every account (paused 2026-11-05; RD.md §4.1 keeps the design). The panel writes no board of its own — the board's columns are the server's — so nothing else was ever blocked.
 
 ### Choosing a project
 

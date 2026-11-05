@@ -453,6 +453,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/panel-panel.spec.tsx` | The panel itself: routes, search, glossary and the settings groups |
 | `tests/narrative.spec.ts` | The archive: projects, posts, the topic default, the charter text and the version history |
 | `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
+| `tests/charter-gate.spec.ts` | 没有宪章不可开工: the charter gate per archived project, and `gateOutcome` turning an accept into an ignore with the reason |
 | `tests/resources-charter.spec.ts` | The `charter` resource: its version, carrier and text, its paging, its refusal without a charter or a ticket, and its place in the worker resource list |
 | `tests/charter-gitea.spec.ts` | The charter carrier: the README states the version/author/date, it wins over the Kanban mirror, publishing commits the stamped text, and a refused write falls back to the mirror |
 | `tests/s3.spec.ts` | The object-store card: SigV4 headers, listing/probe parsing, region auto-detection, and the storage-record fallback of empty fields |

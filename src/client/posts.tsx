@@ -6,6 +6,7 @@
  * card, its own duties and its own exceptions. The data comes from the same host endpoint either way.
  */
 import { usePoll, type ExceptionRow, type NarrativeView, type PostView, type ProjectView } from './api.ts'
+import { PermissionBanner } from './capabilities.tsx'
 import { Button, Icon } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
 import { usePanel } from './provider.tsx'
@@ -154,6 +155,9 @@ export function PostsPage() {
   }
 
   return <div className="dt-posts">
+    <PermissionBanner />
+    {data.projects.some(project => !project.charter?.version) &&
+      <p className="dt-banner dt-danger" role="status"><span className="dt-banner-label">{t('noCharterTitle')}</span>{t('noCharterBody')}</p>}
     {data.projects.map(project => <Section key={project.id} title={project.name} icon="inbox"
       badge={<CharterBadge project={project} />}
       hint={t('postsProjectHint', { slug: project.slug || project.id })}>

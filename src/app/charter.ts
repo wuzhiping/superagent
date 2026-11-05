@@ -10,8 +10,9 @@ import type { SourceRegistry } from '../sources/registry.ts'
 import { KaneoClient } from '../sources/kaneo-api.ts'
 import { GiteaClient } from '../sources/gitea-api.ts'
 import { DEFAULT_GITEA_URL, repositoryOf } from '../sources/gitea-config.ts'
-import { charterOfText, flowOfCharter, hasCharterDraft, rememberCharterVersion, type ArchiveProject, type CharterInfo }
+import { charterOfText, flowOfCharter, hasCharterDraft, rememberCharterVersion, type ArchiveProject, type CharterInfo, type ProjectArchive }
   from './narrative.ts'
+import type { Trigger } from '../core/index.ts'
 
 /** How often a project's charter may be published: at most once a week, so the cadence is a ceiling, not a quota. */
 export const CHARTER_INTERVAL_DAYS = 7
@@ -330,6 +331,18 @@ export async function readCharter (project: ArchiveProject, target: CharterTarge
       version: item.version, publishedAt: item.publishedAt, publishedBy: item.publishedBy,
     })),
   }
+}
+
+/**
+ * Whether work may start on a trigger's project: a project this Host keeps in the archive needs a published charter
+ * (version > 0); a trigger that names no project, or names one the archive does not know, has no charter to obey.
+ */
+export async function charterAllows (archive: ProjectArchive, target: CharterTarget, trigger: Trigger): Promise<boolean> {
+  const projectId = typeof trigger.meta?.projectId === 'string' ? trigger.meta.projectId : undefined
+  const project = projectId ? archive.projects.find(item => item.id === projectId) : undefined
+  if (!project) return true
+  const charter = await readCharter(project, target)
+  return charter.version > 0
 }
 
 /** The flow the charter declares: the columns it names and what each one means now. */

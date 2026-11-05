@@ -1,5 +1,6 @@
 /** Settings tab shell routing between stage settings (Sources, Eval, Execution), Prompts, and Deployment. */
 import type { StateView } from './api.ts'
+import { PermissionBanner } from './capabilities.tsx'
 import { DeploymentPage, type DeploymentForm } from './deployment.tsx'
 import { EvalSettings } from './eval.tsx'
 import { ExecutionSettings } from './execution.tsx'
@@ -18,6 +19,9 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
   const { t, navigate } = usePanel()
   const { perspective } = usePerspective()
   const groups = SETTINGS_GROUPS_BY_PERSPECTIVE[perspective]
+  // In the post perspective the project group is the post's own settings, not the project's.
+  const groupLabel = (value: SettingsGroup): string => perspective === 'post' && value === 'project'
+    ? t('settingsMyPost') : t(`settingsGroup.${value}`)
   const content = (() => {
     switch (group) {
       case 'project': return <ProjectSettings />
@@ -33,10 +37,11 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
       {groups.map(value => <button key={value} type="button" className="dt-settings-link" data-stage={STAGE_GROUPS.includes(value)
         || undefined}
         aria-current={value === group ? 'page' : undefined} onClick={() => navigate(settingsRoute(value),
-          true)}>{t(`settingsGroup.${value}`)}</button>)}
+          true)}>{groupLabel(value)}</button>)}
     </nav>
     <div className="dt-settings-body">
-      <h2 className="dt-settings-title">{t(`settingsGroup.${group}`)}</h2>
+      <h2 className="dt-settings-title">{groupLabel(group)}</h2>
+      <PermissionBanner />
       {content}
     </div>
   </div>
