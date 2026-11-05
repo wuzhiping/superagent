@@ -7,10 +7,10 @@
 ## 0. 人物与背景
 
 - **小吴**：FEG 团队的开发负责人。团队用三类工具协作：
-  - **Kaneo**（`https://pl.feg.cn`）的 **FDEP 看板** 管任务（列：待開工/to-do、ready、進行中/in-progress、審查/review…）；
+  - **Kanban**（`https://pl.feg.cn`）的 **FDEP 看板** 管任务（列：待開工/to-do、ready、進行中/in-progress、審查/review…）；
   - **Gitea**（`https://git.feg.cn`）管代码、Issue 与 Pull Request；
   - **ntfy**（`https://msn.feg.cn`）的主题（topic）做即时消息与提醒。
-- **超级智能体**：一个"虚拟同事"。它没有自己的账号密码库，而是**借用**团队给的机器人身份（Kaneo API key、Gitea 邮箱+密码、ntfy 主题）在三个来源上"听"和"说"。
+- **超级智能体**：一个"虚拟同事"。它没有自己的账号密码库，而是**借用**团队给的机器人身份（Kanban API key、Gitea 邮箱+密码、ntfy 主题）在三个来源上"听"和"说"。
 - 小吴的诉求：**把"人把任务推进到 ready"变成"智能体自动接单、执行、回写结果"**，同时任何写入都必须有明确的授权边界。
 
 超级智能体不是聊天窗口，而是一条流水线：
@@ -25,7 +25,7 @@
 
 ---
 
-## 1. 场景一：Kaneo 看板任务（主故事）
+## 1. 场景一：Kanban 看板任务（主故事）
 
 **09:10**，小吴在 FDEP 看板新建一张卡：
 
@@ -37,7 +37,7 @@
 
 ### 1.1 Source → Trigger
 
-- Kaneo Source 每 60 秒轮询 `ready` 列（`GET /task/tasks/{projectId}?status=ready`）。
+- Kanban Source 每 60 秒轮询 `ready` 列（`GET /task/tasks/{projectId}?status=ready`）。
 - 发现新卡 → 归一化为一条 **Trigger**：
   - 来源 `kaneo`，线程 `kaneo:<taskId>`（一条任务 = 一个 Thread）；
   - 操作者 = 卡片创建者/负责人（`actor`），`human: true`；
@@ -48,7 +48,7 @@
 ### 1.2 Eval：Gate（策略闸门）
 
 - **Gate** 先看"这是不是明确请求"：
-  - 小吴在 Kaneo 的允许名单（policy `sources.kaneo.allowed`）里，且任务进入了监听列 → **explicit（明确请求）**；
+  - 小吴在 Kanban 的允许名单（policy `sources.kaneo.allowed`）里，且任务进入了监听列 → **explicit（明确请求）**；
   - 若任务只是被改描述、且没有明确请求语义 → 可能落为 **inferred（候选）**，等研判；
   - 名单外的人 → 默认 **ignore**（可配置为 inferred）。
 - 明确请求直接送主 Session 做研判；候选则按 `eval.mode`（observe 只记录 `would_accept`，auto 才自动接单）。
@@ -63,7 +63,7 @@
 - 创建 **Ticket（工单）**：
   - 标题、来源、Thread、Channel 地址、授权摘要；
   - 状态从 `open` 开始；同一 Thread 的重复消息会合并/挂到已有工单，而不是重复开工。
-- 与此同时，Kaneo Source 可按配置把任务推进到 `進行中/in-progress`（claim），让小吴在板上一眼看到"已被接走"。
+- 与此同时，Kanban Source 可按配置把任务推进到 `進行中/in-progress`（claim），让小吴在板上一眼看到"已被接走"。
 
 ### 1.4 Assignment → Executor
 
@@ -72,23 +72,23 @@
   - 任务文本与上下文（可回读 Thread 的评论/描述）；
   - 工作目录（`stateDir/work/<ticket>`，可用 prepare 命令自行 clone/worktree）；
   - 受限的工具与命令（blocked commands 不开放）；
-  - 环境变量（来源相关的 `DSH_SUPERAGENT_*`，例如 Kaneo 任务 id、Gitea 仓库/Issue、ntfy topic）。
+  - 环境变量（来源相关的 `DSH_SUPERAGENT_*`，例如 Kanban 任务 id、Gitea 仓库/Issue、ntfy topic）。
 - 小吴看到的不是过程日志，而是**结果**：worker 完成后回报 `ready`（或 `blocked` / `failed` / `dropped`）。
 
 ### 1.5 Channel → Outbox（回写给来源）
 
 - 结果要回到来源。回复先进入 **Outbox**（持久化队列），由 Channel 适配器发送：
-  - Kaneo：`POST /comment/{taskId}`，把结果作为**任务评论**；
+  - Kanban：`POST /comment/{taskId}`，把结果作为**任务评论**；
   - Gitea：`POST /repos/{owner}/{repo}/issues/{index}/comments`；
   - ntfy：`POST /<topic>`（纯文本 body + `Title` 头）。
 - 每条回复带**幂等标记**（`<!-- dsh-superagent:<id> -->`），发送前先查最近消息/评论是否已有该标记——**重试不会刷屏**。
 - 发送成功记 **回执（receipt）**；失败按退避重试；来源已关闭/被删则标记 `gone`，不阻塞其他工单。
 
-**09:16**，小吴在 Kaneo 卡片下看到评论：
+**09:16**，小吴在 Kanban 卡片下看到评论：
 
 > 已完成：已收窄 `/login` 容器宽度并给表格加横向滚动容器；改动仅样式，`pnpm test` 通过。
 
-工单状态变为 **ended / completed**，Thread 自动退订，Kaneo 列按配置推进。小吴在板上把卡拖到 `審查`。
+工单状态变为 **ended / completed**，Thread 自动退订，Kanban 列按配置推进。小吴在板上把卡拖到 `審查`。
 
 ---
 
@@ -153,7 +153,7 @@ ntfy Source 每 30 秒读一次主题历史：
 
 | 阶段 | 输入 | 系统动作 | 产出 | 可见性 / 失败恢复 |
 | --- | --- | --- | --- | --- |
-| **部署与检查** | 设置里的来源账号、stateDir、executor | 校验账号（Kaneo/Gitea/ntfy 在线探测，GitHub/Feishu 走 CLI）、写执行环境 | Deployment（已解析的账号与仓库） | 设置面板显示问题与修复入口；来源 health `paused/ready/error` |
+| **部署与检查** | 设置里的来源账号、stateDir、executor | 校验账号（Kanban/Gitea/ntfy 在线探测，GitHub/Feishu 走 CLI）、写执行环境 | Deployment（已解析的账号与仓库） | 设置面板显示问题与修复入口；来源 health `paused/ready/error` |
 | **轮询 / 接收** | 来源的增量 | 读游标、拉取新事件、首次记 baseline；每个流独立容错 | Triggers（含 Thread、actor、addressed） | health 与统计；失败计数达阈值报 error，游标不丢 |
 | **Gate（策略）** | Trigger + Policy | 名单 + addressed + admission 矩阵 → explicit/inferred/ignore；bot 至多 inferred | 准入结论与原因 | 决策记录可查；ignore 不打扰 |
 | **Eval（研判）** | explicit 或 inferred 候选 + 上下文 | 主 Session 研判（范围、可行性、风险）；`setDecision` 接单/放弃 | Decision + Ticket | 决策原因、耗时、规则命中都可追溯 |
@@ -168,7 +168,7 @@ ntfy Source 每 30 秒读一次主题历史：
 ### 5.1 一张图：一次请求的旅程
 
 ```
-Kaneo/Gitea/ntfy 事件
+Kanban/Gitea/ntfy 事件
         │
         ▼
    Source 轮询 ──baseline/游标──► Trigger（thread, actor, addressed）
@@ -190,7 +190,7 @@ Kaneo/Gitea/ntfy 事件
    Executor 执行 → 结果
         │
         ▼
-   Channel 回复（Kaneo 评论 / Gitea 评论 / ntfy 发布）──► Outbox 幂等发送
+   Channel 回复（Kanban 评论 / Gitea 评论 / ntfy 发布）──► Outbox 幂等发送
         │
         ▼
    回执 + Ticket ended + Thread 退订 + （可选）看板列推进
@@ -214,7 +214,7 @@ Kaneo/Gitea/ntfy 事件
 
 1. 安装 bundle 到 DSH profile，设置 `stateDir`。
 2. 三个来源卡片分别填：
-   - **Kaneo**：服务器 + API key + 项目 id（保存前自动探测，或点「测试连接」）；
+   - **Kanban**：服务器 + API key + 项目 id（保存前自动探测，或点「测试连接」）；
    - **Gitea**：服务器 + **邮箱 + 密码**（或 API token）+ `owner/name` 仓库；点「测试连接」→ 通过再保存；
    - **ntfy**：服务器 + topic + 认证方式：公开 `pub_` topic 选 **none**；**私有 topic 用「账号 + 密码」（basic）或访问令牌（bearer）保护**，只有持凭据者能读写；点「测试连接」→ 通过再保存。
 3. Policy：把允许发起任务的人/登录名/发送者加入各自 `allowed`。ntfy 若用私有 topic + 账号密码，账号密码只限制「谁能发布」，仍需 allowed 名单确认「谁授权」；若用公开 `pub_` topic，则按低信任姿态处理（ignore / inferred / 人工确认）。

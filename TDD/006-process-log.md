@@ -11,21 +11,21 @@
 | 12:50 | 定位 DSH home/profile | `DSH_HOME=D:\Refine\Books\ntop\AI\dsh`；活动 profile=`profiles\web`（3080，含 kaneo-web 等本地 bundle） |
 | 12:52 | 读 `docs/001`、`002`、`006`、`007` 关键源码（runtime/setup/deployment/source kind/registry/settings/engine） | 建立领域模型与改造面：新增 Source kind + 放松「必须有 GitHub」的部署耦合 |
 | 12:56 | 用 `kaneo-mcp` skill 查询 | whoami=吴志平；workspace=ATEAM；projects=FDEP(`dgctny…`)/pipeline(`wwo9d…`)；FDEP 8 列、285 任务 |
-| 13:00 | 验证 Kaneo REST 形状 | `GET /task/tasks/{projectId}?status=ready&limit=N` 返回 `{data:{columns:[{slug,tasks[]}]},pagination}`；评论/状态/创建任务端点确认 |
+| 13:00 | 验证 Kanban REST 形状 | `GET /task/tasks/{projectId}?status=ready&limit=N` 返回 `{data:{columns:[{slug,tasks[]}]},pagination}`；评论/状态/创建任务端点确认 |
 
 ## 阶段 B：文档骨架
 
 | 时间 | 操作 | 结果 |
 | --- | --- | --- |
 | 13:05 | 写 `HANDOFF.md` | 记录解读/学习/改造/移植、假设、风险、验收 |
-| 13:08 | 写 `TDD/README.md`、`TDD/001`、`TDD/002`、`TDD/003` | TDD 索引 + bundle 解剖 + 需求/决策 + Kaneo Source 设计 |
+| 13:08 | 写 `TDD/README.md`、`TDD/001`、`TDD/002`、`TDD/003` | TDD 索引 + bundle 解剖 + 需求/决策 + Kanban Source 设计 |
 
 ## 阶段 C：实现
 
 | 时间 | 操作 | 结果 |
 | --- | --- | --- |
-| 13:10 | 新增 `src/sources/kaneo-config.ts` / `kaneo-api.ts` / `kaneo-trigger.ts` / `kaneo-channel.ts` / `kaneo-read.ts` / `kaneo.ts` | Kaneo Source kind、REST 客户端、Trigger/Channel/ThreadContext、轮询 |
-| 13:12 | 修改 `src/kv.ts`、`src/deployment.ts`、`src/app/setup.ts`、`src/infra/environment.ts`、`src/policy.ts` | kaneo KV；空 GitHub 容忍；Kaneo 账号检查；Windows 路径；blockCommands 守卫 |
+| 13:10 | 新增 `src/sources/kaneo-config.ts` / `kaneo-api.ts` / `kaneo-trigger.ts` / `kaneo-channel.ts` / `kaneo-read.ts` / `kaneo.ts` | Kanban Source kind、REST 客户端、Trigger/Channel/ThreadContext、轮询 |
+| 13:12 | 修改 `src/kv.ts`、`src/deployment.ts`、`src/app/setup.ts`、`src/infra/environment.ts`、`src/policy.ts` | kaneo KV；空 GitHub 容忍；Kanban 账号检查；Windows 路径；blockCommands 守卫 |
 | 13:14 | 修改 `tsdown.config.ts`、`package.json`、`cordis.patch.yml` | 新增 `kaneo-watch` 入口/导出；插入 kaneo 行、GitHub/Feishu 默认 disabled |
 | 13:15 | 修改 `src/client/locales.ts`、`src/setup.ts` | 新增 setup 问题码与中英文案、`health.kaneo`、`problemSetupFix.kaneo` |
 | 13:16 | 新增 `tests/kaneo.spec.ts`（11 项） | 翻译/轮询/claim/channel/context/API 重试 |
@@ -85,7 +85,7 @@
 | 13:54:5x | `PUT /task/status/{id}` → `ready` | 成功 |
 | 13:55:4x | 轮询观察 | `stats.received=1`；任务自动 → `in-progress`；Decision `accept`（explicitRouted）；Ticket `69732805…` 创建 |
 | 13:55:07 | Worker report | `ready`：已在执行目录创建 `smoke.txt`（内容 `kaneo-e2e-ok`） |
-| 13:55:09 | Kaneo 评论 | ack + result 两条评论，含幂等 marker；Ticket `ended/completed` |
+| 13:55:09 | Kanban 评论 | ack + result 两条评论，含幂等 marker；Ticket `ended/completed` |
 | 13:56 | 证据落盘 | `TDD/artifacts/*.json`；`smoke.txt` 实测存在 |
 | 13:57 | 删除测试卡 #470 | 404 确认 |
 | 13:58 | 移除诊断代码、删除临时文件、最终 build | 通过 |

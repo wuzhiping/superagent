@@ -65,10 +65,10 @@ Test Files  1 passed (1)
 ## 5. 未覆盖 / 二期建议
 
 1. **任务完成后列推进**：未实现（可观测 ticket `ended` 后把任务移到 `qa`）。
-2. **任务链接**：`kaneoTaskUrl` 的 SPA 路由未验证（候选 `?task=`）；若不对，改为 Kaneo 实际路由并补单测。
+2. **任务链接**：`kaneoTaskUrl` 的 SPA 路由未验证（候选 `?task=`）；若不对，改为 Kanban 实际路由并补单测。
 3. **评论作者身份**：当前是 API key 所属用户；建议专用 agent 账号 + 专用 key。
 4. **多项目/多列**：schema 已支持 `watchColumns` 多列与 `projectId` 配置，但未做多实例联调。
-5. **Kaneo webhook**：当前为轮询；Kaneo 若有变更 webhook，可替代轮询降低延迟/请求数。
+5. **Kanban webhook**：当前为轮询；Kanban 若有变更 webhook，可替代轮询降低延迟/请求数。
 6. **Windows 全量测试**：若长期在 Windows 开发，建议给上游测试加 `process.platform` 分支与 `cross-spawn`。
 
 ## 6. 快速复验命令
@@ -82,6 +82,6 @@ $h=@{ 'x-orchestrator-request'='1' }
 (Invoke-WebRequest "http://127.0.0.1:3080/orchestrator/api/state" -Headers $h -UseBasicParsing).Content
 (Invoke-WebRequest "http://127.0.0.1:3080/orchestrator/api/sources" -Headers $h -UseBasicParsing).Content
 
-# Kaneo 侧确认任务被认领/评论（用 skill 脚本）
+# Kanban 侧确认任务被认领/评论（用 skill 脚本）
 node .dsh\skills\kaneo-mcp\scripts\kaneo_mcp.mjs tasks dgctny8ibgpn72ei2j8qj2hc --column in-progress --all
 ```

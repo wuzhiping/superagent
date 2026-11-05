@@ -20,13 +20,13 @@ node scripts/user-stories.mjs --only US-09        # 只跑一条
 
 | 措施 | 目的 |
 | --- | --- |
-| KanEO Source 的 `requiredLabels` 临时设为 `story-test` | 看板上还有团队的真任务（`ready` 列有十余张 W43–W56 的真卡）；只让带测试标签的卡成为请求 |
-| Gitea / ntfy Source 临时停用 | 这一轮只验证 KanEO 链路，避免真实仓库与真实 IM 被触发 |
+| Kanban Source 的 `requiredLabels` 临时设为 `story-test` | 看板上还有团队的真任务（`ready` 列有十余张 W43–W56 的真卡）；只让带测试标签的卡成为请求 |
+| Gitea / ntfy Source 临时停用 | 这一轮只验证 Kanban 链路，避免真实仓库与真实 IM 被触发 |
 | `eval.mode` 临时切到 `auto` | 叙事要求"PM 派工 → 岗位接单 → 执行 → 回写"；`observe` 模式下只记录判断不建工单 |
 | 轮询间隔临时改为 15 秒 | 看板自己的自动化 20 秒内就把卡搬走（见 B-8），慢轮询会漏掉请求 |
 | 测试数据只写 FDEP；不清理 | pipeline 看板由 `assertWritableProject` 守卫，脚本永远不写 |
 
-**关键事实**：KanEO API key 从**部署自己的状态库**读取（`scripts/lib/store-read.mjs`，只读、不打印），脚本与被测系统用同一把钥匙。
+**关键事实**：Kanban API key 从**部署自己的状态库**读取（`scripts/lib/store-read.mjs`，只读、不打印），脚本与被测系统用同一把钥匙。
 脚本与部署**共用同一个 API key**，因此会互相撞限流（100 次/分钟）——脚本的退避是实测过的（见 US-07）。
 
 ---
@@ -36,7 +36,7 @@ node scripts/user-stories.mjs --only US-09        # 只跑一条
 | 编号 | 角色 | 故事 | 断言要点 |
 | --- | --- | --- | --- |
 | US-01 | PM | 编队页给出项目、岗位与宪章的现状 | 项目/岗位在册、宪章可读且未过期、异常队列存在 |
-| US-02 | PM | 派工：建卡 → 指派岗位账号 → 放进监听列 | 卡存在、assignee 是岗位的 KanEO 身份、状态在 `ready`、标签齐全 |
+| US-02 | PM | 派工：建卡 → 指派岗位账号 → 放进监听列 | 卡存在、assignee 是岗位的 Kanban 身份、状态在 `ready`、标签齐全 |
 | US-03 | 岗位 | 接单：工单落到正确的岗位上 | 有工单、`postId` 是该岗位、`projectId` 正确、`deliverableType` 正确、**钉住宪章版本**、看板卡片已被认领 |
 | US-04 | 岗位 | 交付：状态回写与工作日志回到看板 | 工单结束、看板有工作日志评论、卡片离开 `ready` |
 | US-05 | PM | 宪章：面板的版本与它声明的流程一致 | 面板版本 == 发布版本、宪章声明的流程覆盖看板全部列、历史版本数一致 |
@@ -66,11 +66,13 @@ node scripts/user-stories.mjs --only US-09        # 只跑一条
 | run 12 | 8 ✅ / 1 ❌ | 设置瘦身 + 宪章改本地文档后，US-05 的断言改了（宪章不再有载体卡） |
 | run 13 | 8 ✅ / 1 ❌ | US-05 ✅；US-04 仍被限流挤掉（脚本改为只读一次看板） |
 | run 14 | 8 ✅ / 1 ❌ | US-04 改成等**卡片进交付列**（工单结束比工作日志落到卡片早几分钟 ✅） |
-| **run 16** | **9 ✅ / 0 ❌** | **全绿** ✅：KanEO 为唯一来源（其它来源先入库）+ 设置瘦身 + 宪章本地文档，全部生效 ✅ |
+| **run 16** | **9 ✅ / 0 ❌** | **全绿** ✅：Kanban 为唯一来源（其它来源先入库）+ 设置瘦身 + 宪章本地文档，全部生效 ✅ |
 | run 17 | 8 ✅ / 1 ❌ | 复跑：US-04 的预算不够（岗位那一轮慢了）——把等待放宽到 3 倍超时 ✅ |
 | **run 18** | **9 ✅ / 0 ❌** | **连续第二轮全绿** ✅：可重复 ✅ |
 | **run 19** | **11 ✅ / 0 ❌** | **加了两条新故事** ✅：US-10 入库链路（B-19 ✅ ✅）✅、US-11 权限自检（B-20 ✅ ✅）✅ —— 11 条全绿 ✅ ✅ |
 | **run 20** | **11 ✅ / 0 ❌** | **加上面板的权限横幅与 PM preset 之后仍然全绿** ✅ ✅（run 20 ✅ ✅）；顺手修好恢复设置时的重启竞态 ✅ ✅（还原失败会让部署一直停在收窄状态 ✅ ✅ ✅）✅ ✅ |
+| run 21 | 10 ✅ / 1 ❌ | 宪章改为项目级共享之后：US-10 偶发失败（ntfy 来源重启后被提前发布 ✅）→ 脚本改为等来源报出新 topic 再发消息 ✅；恢复设置的重试调长 ✅ |
+| **run 22** | **11 ✅ / 0 ❌** | **宪章项目化 + 清理页 + Masked Key + Gitea 免账号之后全绿** ✅，且设置完整还原（无报错）✅ |
 
 > 报告文件：`TDD/artifacts/user-stories-us-2026*.json`（每轮一份）。
 
@@ -143,9 +145,9 @@ node scripts/user-stories.mjs --only US-09        # 只跑一条
 
 ### B-7 · 自动化不能按标题找到工单（研判会改写标题）⚠️ 已绕过，记录在案
 
-KanEO 卡叫"[story …] 岗位职责冒烟…"，工单标题被研判改成"Kaneo 用户故事冒烟：…"。
+Kanban 卡叫"[story …] 岗位职责冒烟…"，工单标题被研判改成"Kanban 用户故事冒烟：…"。
 稳定的对应关系是 **Thread**：`kaneo:<taskId>` → 该 Thread 的工单列表。故事脚本已改用这条映射。
-面板目前没有直接暴露"按 KanEO 任务找工单"的入口，列为待办（§6）。
+面板目前没有直接暴露"按 Kanban 任务找工单"的入口，列为待办（§6）。
 
 ### B-8 · 看板自己的自动化 20 秒内把 `ready` 的卡搬到 `in-progress` ✅ 已修（产品 + 流程）
 
@@ -161,11 +163,11 @@ KanEO 卡叫"[story …] 岗位职责冒烟…"，工单标题被研判改成"Ka
 
 ### B-9 · 岗位无法推进卡片状态 → 职责永远等不到卡关闭 ✅ 已修（产品）
 
-- **现象**：工单不结束。原因是这条职责**跟着 KanEO 的 Thread 走**，Thread 要等卡片走到关闭列才闭；
-  而**没有任何人**动那张卡——岗位（host）没有 KanEO 写权限，Agent 也没有 KanEO 工具 → 死锁。
-- **修复**：KanEO Source 新增 **`doneColumn`（交付列）**：岗位**交付结果**（回写工作日志的那条回复）落地时，
+- **现象**：工单不结束。原因是这条职责**跟着 Kanban 的 Thread 走**，Thread 要等卡片走到关闭列才闭；
+  而**没有任何人**动那张卡——岗位（host）没有 Kanban 写权限，Agent 也没有 Kanban 工具 → 死锁。
+- **修复**：Kanban Source 新增 **`doneColumn`（交付列）**：岗位**交付结果**（回写工作日志的那条回复）落地时，
   通道把卡移到交付列（`done` 或 `in-review`，由 PM 按当期流程定）→ Thread 关闭 → 工单结束 ✅。
-  面板「来源 → KanEO」的卡片上多了一个"交付列"字段。
+  面板「来源 → Kanban」的卡片上多了一个"交付列"字段。
   测试：`tests/kaneo.spec.ts` 覆盖"交付时移列""没配交付列就不动"。
 
 ### B-10 · 重启会吞掉工作日志 ⚠️ 已定位，未修（记录在案）
@@ -184,7 +186,7 @@ run 4 里岗位在 11:38:11 报完 `ready`，**同一秒**部署被重启（测�
 
 ### B-12 · 设置太多、而且很多是看板已经说过的事 ✅ 已修（产品）
 
-用户校正：**"设置应该考虑更加通用的场景""设置应该减少""PM 如果被授权，会直接在 KanEO 中设置"**。
+用户校正：**"设置应该考虑更加通用的场景""设置应该减少""PM 如果被授权，会直接在 Kanban 中设置"**。
 于是把档案瘦身到**三件事**——项目、岗位、宪章 ✅：
 
 | 原来要设的 | 现在 |
@@ -226,27 +228,27 @@ GET /orchestrator/api/narrative
 
 ### B-15 · 限流是真实约束：脚本与部署共用一把 API key ✅ 已修（脚本）
 
-KanEO 的 key 限 100 次/分钟 ✅，部署的轮询与测试脚本**共用同一把** ✅ → 脚本的轮询会把自己挤掉 ✅（run 9–13 的 US-04 反复栽在这里 ✅）。
+Kanban 的 key 限 100 次/分钟 ✅，部署的轮询与测试脚本**共用同一把** ✅ → 脚本的轮询会把自己挤掉 ✅（run 9–13 的 US-04 反复栽在这里 ✅）。
 **修法**：故事脚本**优先用本地接口**（面板的工单、Thread ✅）等待，只有在最后读一次看板 ✅；必要时退避 ✅（US-07 验证 ✅）。
 
-### B-16 · KanEO 应当是唯一的直接来源 ✅ 已修（产品）
+### B-16 · Kanban 应当是唯一的直接来源 ✅ 已修（产品）
 
 用户校正：**"直接来源只有kaneo，其他来源也需要先入库到kaneo统一调度处理"**。
 
-- 新增 `src/sources/kaneo-inbox.ts` ✅：Gitea / ntfy 的事件**先在 KanEO 建卡** ✅——
+- 新增 `src/sources/kaneo-inbox.ts` ✅：Gitea / ntfy 的事件**先在 Kanban 建卡** ✅——
   标题取事件标题 ✅、描述带正文与 `Source URL:` ✅、打 `from:gitea` / `from:ntfy` 标签 ✅、落在 **`to-do`（待辦池）** ✅、**不指派任何人** ✅（PM 决定谁接 ✅）；
-- Gitea / ntfy 不再自己造 Trigger ✅；健康信息报"已入库 N 张卡" ✅；**没配 KanEO 账号时如实报错**（不丢事件 ✅）；
+- Gitea / ntfy 不再自己造 Trigger ✅；健康信息报"已入库 N 张卡" ✅；**没配 Kanban 账号时如实报错**（不丢事件 ✅）；
 - 开关 `ingestEvents`（默认开 ✅）可回到"事件直接成为请求"的旧行为 ✅；
 - 同一事件只入库一次 ✅（`KV.inbox.filed` ✅）。
 
 实测（live 健康信息）：
 
 ```
-health gitea: ready - 0 card(s) filed in KanEO from shawoo/PDP
-health ntfy:  ready - 0 card(s) filed in KanEO from pub_dgctny8ibgpn72ei2j8qj2hc
+health gitea: ready - 0 card(s) filed in Kanban from shawoo/PDP
+health ntfy:  ready - 0 card(s) filed in Kanban from pub_dgctny8ibgpn72ei2j8qj2hc
 ```
 
-> 入库的卡与 KanEO 原生的卡**走完全一样的调度** ✅：PM 指派 → 移进监听列 → 岗位领 → 回写那张卡 ✅。
+> 入库的卡与 Kanban 原生的卡**走完全一样的调度** ✅：PM 指派 → 移进监听列 → 岗位领 → 回写那张卡 ✅。
 
 ### B-17 · 内置提示词只面向编程 ✅ 已修（产品）
 
@@ -284,11 +286,11 @@ labels=[from:ntfy]  comments=2  dutyId=6877e8e4a9a1817ce71d4ab9402f28b9  deliver
 
 ### B-20 · PM 角色没有权限自检 ✅ 已修（产品）
 
-用户校正：**"当需要设置或者切换到PM角色的时候，需要检查是否有足够的管理权限，比如对Kaneo project flow，也就是status的修改权限"** ✅ ✅。
+用户校正：**"当需要设置或者切换到PM角色的时候，需要检查是否有足够的管理权限，比如对Kanban project flow，也就是status的修改权限"** ✅ ✅。
 
-- 新增 `GET /orchestrator/api/capabilities` ✅ ✅：读 KanEO 的 `GET /user/me` ✅ ✅ → 账号身份与角色 ✅ ✅ → `canManageFlow` ✅ ✅
+- 新增 `GET /orchestrator/api/capabilities` ✅ ✅：读 Kanban 的 `GET /user/me` ✅ ✅ → 账号身份与角色 ✅ ✅ → `canManageFlow` ✅ ✅
   （改看板流程需要 **workspace admin** ✅ ✅；member 不行 ✅ ✅ ✅）；宪章是本地文档 ✅ ✅，发布它不需要权限 ✅ ✅ ✅；
-- 多 Host 同项目的世界观 ✅ ✅ 落到 RD §4.1 ✅ ✅ 与 SOP §2.6 ✅ ✅：**多台 Host 连同一个 KanEO 项目，各演一个岗位** ✅ ✅，
+- 多 Host 同项目的世界观 ✅ ✅ 落到 RD §4.1 ✅ ✅ 与 SOP §2.6 ✅ ✅：**多台 Host 连同一个 Kanban 项目，各演一个岗位** ✅ ✅，
   各自配自己的资源/工具/技能 ✅ ✅；**PM 那台用 admin key ✅ ✅，其余用 member key ✅ ✅ ✅ ✅；
 - 面板上做出来 ✅ ✅：PM 视角的**编队页与设置页常驻横幅** ✅ ✅（账号、角色、缺哪条权、下一步 ✅ ✅ ✅）✅ ✅；
   **切到 PM 视角前先查权限** ✅ ✅，缺权时弹确认框 ✅ ✅（可取消 ✅ ✅，也可仍然切换 ✅ ✅ —— PM 视角还有只读内容 ✅ ✅ ✅）；
@@ -303,7 +305,7 @@ labels=[from:ntfy]  comments=2  dutyId=6877e8e4a9a1817ce71d4ab9402f28b9  deliver
 
 ```
 GET /orchestrator/api/tickets?state=open
-  … | Kaneo 用户故事冒烟：… | postId=pm-fdep
+  … | Kanban 用户故事冒烟：… | postId=pm-fdep
 
 GET /orchestrator/api/tickets/<id>
   postId=pm-fdep  projectId=dgctny8ibgpn72ei2j8qj2hc  deliverableType=doc  charterVersion=1
@@ -314,10 +316,10 @@ GET /orchestrator/api/narrative
   post pm-fdep duties=1/3     ← 编队页的 WIP 真的从工单算出来了
 ```
 
-KanEO 侧（故事卡 `wnp3yzgrtg66to4f7mylk8ev`）：
+Kanban 侧（故事卡 `wnp3yzgrtg66to4f7mylk8ev`）：
 
 ```
-assignee = bsFdwgQX…（= 档案里 pm-fdep 的 KanEO 身份）
+assignee = bsFdwgQX…（= 档案里 pm-fdep 的 Kanban 身份）
 comments:
   ① 收到：在该任务评论里回写一份简短的工作日志…            ← 确认（带 ticketId → 认领 → in-progress）
   ② 工作日志：已按冒烟卡写出岗位冒烟方案并回写…结论：职责边界清晰，冒烟卡验收通过。   ← 交付（→ 移动到 done）
@@ -343,8 +345,8 @@ project dgctny8ibgpn72ei2j8qj2hc
 | --- | --- |
 | B-10 重启吞掉工作日志 | 已定位到 `src/executor/dsh.ts` 的 `resume()`（它只管运行中与排队中的职责），建议补发"已报 ready 但结果没送出"的结果；用户故事里没有复现步骤 |
 | US-04 的时间余量 | 岗位那一轮的快慢取决于模型（7–20 分钟 ✅），故事脚本已把等待放宽到 3 倍超时 ✅；再慢就要调卡片文案 ✅ |
-| 面板缺"按 KanEO 任务找工单"的入口 | 自动化只能用 `kaneo:<taskId>` 的 Thread 映射（B-7） |
-| 两个岗位真实并发 | 档案里只有 PM 岗位绑定了 KanEO 身份；Worker 账号尚未在 KanEO 建号 |
+| 面板缺"按 Kanban 任务找工单"的入口 | 自动化只能用 `kaneo:<taskId>` 的 Thread 映射（B-7） |
+| 两个岗位真实并发 | 档案里只有 PM 岗位绑定了 Kanban 身份；Worker 账号尚未在 Kanban 建号 |
 | 产出回写 MinIO | 执行会话能写桶，但"文档类产出自动上传 + 岗位取回链接回写"还没跑通 |
 | 宪章历史 | 版本与历史已在档案里 ✅，但**没有**"每个版本被哪些工单钉住"的反查视图 ❓ |
 | 非编程项目类型 | 产出类型已开放（`kind:` 标签 ✅）、提示词已中性化 ✅，但还没有"客诉/物流"这种项目跑一遍真实故事 |

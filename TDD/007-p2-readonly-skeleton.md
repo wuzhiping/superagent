@@ -1,13 +1,13 @@
 # 007 — 三来源改造：实现、测试与部署记录
 
-> 状态（2026-11-03，最终）：**已实现、已测试、已安装并运行在 dsh web profile；Kaneo 与 ntfy 端到端实测通过；Gitea 只读路径实测通过，写回路径待 agent token。**
+> 状态（2026-11-03，最终）：**已实现、已测试、已安装并运行在 dsh web profile；Kanban 与 ntfy 端到端实测通过；Gitea 只读路径实测通过，写回路径待 agent token。**
 > 本文件原为「P2 只读骨架」记录，现更新为完整交付记录；方案见 [`../REPORT.md`](../REPORT.md)，过程流水见 [`006-process-log.md`](006-process-log.md)。
 
 ## 1. 交付范围
 
 | 来源 | 实现 | 实测 |
 | --- | --- | --- |
-| **Kaneo**（`https://pl.feg.cn`，项目 FDEP） | Trigger/Channel/Thread 上下文/策略/部署校验（此前已写） | ✅ 端到端：任务 → 工单 → worker 执行 → 任务评论回写，工单 `completed` |
+| **Kanban**（`https://pl.feg.cn`，项目 FDEP） | Trigger/Channel/Thread 上下文/策略/部署校验（此前已写） | ✅ 端到端：任务 → 工单 → worker 执行 → 任务评论回写，工单 `completed` |
 | **Gitea**（`https://git.feg.cn`） | Trigger/Channel/Thread 上下文/策略/环境变量/部署校验；`repo` 增量与 `notifications` 两种模式 | ✅ 只读实测：版本/仓库/issues/comments/pulls 匿名读取；轮询 health `ready`。⏳ 写回与通知模式需 agent token |
 | **ntfy**（`https://msn.feg.cn`） | Trigger/Channel 发布/Thread 上下文/策略/环境变量/部署校验 | ✅ 端到端：`pub_<projectId>` 消息 → 工单 → worker 执行 → 主题回复（标题 `#dsh-superagent`）已校验 |
 
@@ -58,7 +58,7 @@ pnpm build                                      # gitea-watch / ntfy-watch / kan
   - `source:kaneo`：`https://pl.feg.cn` + API key + 项目 FDEP；
   - `source:gitea`：`https://git.feg.cn`、`shawoo/PDP`、`listen=repo`、公开只读（无 token）；
   - `source:ntfy`：`https://msn.feg.cn`、`pub_dgctny8ibgpn72ei2j8qj2hc`、无认证（测试用公开 topic；生产建议私有 topic + 账号密码）、`sender=#dsh-superagent`、poll 30s；
-  - `policy`：保留 Kaneo 5 人名单，新增 Gitea `shawoo`、ntfy `wu.zhiping` 的 allowed。
+  - `policy`：保留 Kanban 5 人名单，新增 Gitea `shawoo`、ntfy `wu.zhiping` 的 allowed。
 - 校验：`/orchestrator/api/state` → `runtime/kaneo/gitea/ntfy` 均 `ready`；GUI HTTP 200。
 - 回滚材料：安装前备份 `profiles/web/.dsh-superagent-backup3-20261103-144840`。
 
@@ -66,7 +66,7 @@ pnpm build                                      # gitea-watch / ntfy-watch / kan
 
 | 链路 | 结果 |
 | --- | --- |
-| Kaneo | 测试卡 #471 → Trigger → Decision `accept(explicitRouted)` → Ticket `bfff5a79…` → worker 新建 `kaneo-3src.txt` → 注释「收到 / 已完成」→ Ticket `ended(completed)`；测试卡已删除 |
+| Kanban | 测试卡 #471 → Trigger → Decision `accept(explicitRouted)` → Ticket `bfff5a79…` → worker 新建 `kaneo-3src.txt` → 注释「收到 / 已完成」→ Ticket `ended(completed)`；测试卡已删除 |
 | ntfy | 消息 `E6HlTEeq9Udu`（`#wu.zhiping`，含 `@dsh-superagent`）→ Trigger → accept → Ticket `9f2766ac…` → 主题回复 2 条（标题 `#dsh-superagent`，含 marker）→ Ticket ended(dropped，因指令只要求回复)；测试消息与回复已 DELETE |
 | Gitea | 轮询 health `ready`、`0 new event(s)`（公开仓库无新事件）；写回未做（缺 token） |
 
@@ -84,14 +84,14 @@ pnpm build                                      # gitea-watch / ntfy-watch / kan
 
 ### 8.2 密码不再明文显示
 
-- `FieldSpec` 新增 `password` 类型；Gitea `password`/`token`、Kaneo `apiKey`、ntfy `authPassword`/`authToken` 均改为该类型。
+- `FieldSpec` 新增 `password` 类型；Gitea `password`/`token`、Kanban `apiKey`、ntfy `authPassword`/`authToken` 均改为该类型。
 - 设置视图对 `password` 字段一律返回空串（**不再把已存密钥下发到浏览器**），UI 渲染为 `type=password` 掩码输入；保存时若该字段为空，服务端合并回已存值（不会清空）。已实测：空密码保存后 DB 中 11 位密码仍在，配置 revision 正常。
 
 ### 8.3 测试连接按钮（保存前必须通过）
 
-- 每个可测试的 Source（Gitea / Kaneo / ntfy）的设置卡片新增「**测试连接**」按钮：用**当前表单里的值**调用 `POST /orchestrator/api/sources/:id/test`（密码留空时由服务端与已存密钥合并），返回 `{ok:true}` 或 `{ok:false,error}`。
+- 每个可测试的 Source（Gitea / Kanban / ntfy）的设置卡片新增「**测试连接**」按钮：用**当前表单里的值**调用 `POST /orchestrator/api/sources/:id/test`（密码留空时由服务端与已存密钥合并），返回 `{ok:true}` 或 `{ok:false,error}`。
 - 客户端在测试通过前**禁用保存**（SaveBar `saveDisabled`），任何编辑都会让上次测试结果失效；保存时服务端仍会再做一次账号校验（`checkAccounts`），双重兜底。
-- 实测：正确 Gitea 配置 → `{"ok":true}`；错误密码 → `{"ok":false,"error":"invalid username, password or token (401)"}`；Kaneo / ntfy 均 `ok:true`。
+- 实测：正确 Gitea 配置 → `{"ok":true}`；错误密码 → `{"ok":false,"error":"invalid username, password or token (401)"}`；Kanban / ntfy 均 `ok:true`。
 
 ### 8.4 轮询健壮性
 

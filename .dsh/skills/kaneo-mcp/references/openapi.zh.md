@@ -1,4 +1,4 @@
-# Kaneo 官方 OpenAPI 規格索引（中文導讀）
+# Kanban 官方 OpenAPI 規格索引（中文導讀）
 
 - **原始檔**：`references/openapi.json`（692 KB，OpenAPI **3.1.0**，**170 paths / 221 operations / 132 schemas**）
 - **來源**：<https://kaneo.app/docs/openapi.json>，下載於 **2026-10-16**

@@ -67,7 +67,7 @@ npx -y git+https://git.feg.cn/shawoo/superagent install --profile web --state-di
 
 1. **重启 / 刷新**：重启正在运行的 `dsh web`（或重启对应 profile 进程）；浏览器端刷新页面。
 2. 打开「**超级智能体**」面板 → **设置 → 来源**，逐个配置并「测试连接」：
-   - **Kaneo**：服务器 + API key + 项目 id；
+   - **Kanban**：服务器 + API key + 项目 id；
    - **Gitea**：服务器 + 邮箱 + 密码（或 token）+ `owner/name` 仓库（测试通过才可保存）；
    - **ntfy**：服务器 + topic + 认证方式（公开 `pub_` 选 none；私有 topic 选账号 + 密码）。
 3. 在 **Policy** 里配置各来源的 allowed 名单（谁能发起任务）；ntfy 公开 topic 按低信任处理。
@@ -130,7 +130,7 @@ git push origin main
 | 现象 | 处理 |
 | --- | --- |
 | 菜单/UI 有，但面板接口报错（旧版本 raw add） | ≤ v0.1.0 缺少必填 `stateDir`：升级到 v0.1.1（默认 stateDir），或手动补 `- id: dsh-superagent` + `config.stateDir` 行。 |
-| 面板显示「部署检查未通过」 | 全新安装还没配置来源，属正常；到 设置 → 来源 配置 Kaneo/Gitea/ntfy 并点「测试连接」。 |
+| 面板显示「部署检查未通过」 | 全新安装还没配置来源，属正常；到 设置 → 来源 配置 Kanban/Gitea/ntfy 并点「测试连接」。 |
 | `未找到 dsh` | 用 `--dsh <path>` 指向 DSH 的 `lib/bin.js`，或确认便携目录布局。 |
 | `未找到 git` / clone 失败 | 安装 git；确认能 `git ls-remote https://git.feg.cn/shawoo/superagent.git`。 |
 | 401 / Authentication failed（仓库私有化后） | 配置 git 凭据或在 Gitea 给目标设备发 token。 |

@@ -1,21 +1,21 @@
 ---
 name: kaneo-mcp
-description: 透過 Kaneo（https://pl.feg.cn，MCP 38 個工具 + 底層 REST）查詢與操作工作區、專案、任務、評論、標籤、關聯、時間紀錄與通知，並設定專案工作流：看板欄位（新增／改名／排序／刪除）、自動化規則與自訂欄位。當使用者提到 Kaneo、pl.feg.cn、專案管理、任務看板、pipeline、工作流、欄位、自動化、待辦、指派、工時時使用。
+description: 透過 Kanban（https://pl.feg.cn，MCP 38 個工具 + 底層 REST）查詢與操作工作區、專案、任務、評論、標籤、關聯、時間紀錄與通知，並設定專案工作流：看板欄位（新增／改名／排序／刪除）、自動化規則與自訂欄位。當使用者提到 Kanban、pl.feg.cn、專案管理、任務看板、pipeline、工作流、欄位、自動化、待辦、指派、工時時使用。
 ---
 
 # kaneo-mcp
 
-以 `scripts/kaneo_mcp.mjs` 呼叫 Kaneo：MCP 端點 `https://pl.feg.cn/api/mcp`（38 個工具），
+以 `scripts/kaneo_mcp.mjs` 呼叫 Kanban：MCP 端點 `https://pl.feg.cn/api/mcp`（38 個工具），
 以及 MCP 沒暴露的底層 REST API `https://pl.feg.cn/api`（工作流設定）。
 相對路徑以本 skill 的基礎目錄為準。
 
 > 38 個工具的中文逐項說明見 `references/tools.zh.md`；工作流 REST 端點見 `references/workflow-rest.zh.md`；
-> **Kaneo 官方 OpenAPI 規格**（170 paths / 221 ops）見 `references/openapi.json`，中文導讀見 `references/openapi.zh.md`。
+> **Kanban 官方 OpenAPI 規格**（170 paths / 221 ops）見 `references/openapi.json`，中文導讀見 `references/openapi.zh.md`。
 
-## 使用前：放入你自己的 Kaneo API key
+## 使用前：放入你自己的 Kanban API key
 
 本 skill **不含任何憑證**：分享包裡沒有 `.key`，也沒有 `.cache/`（token 快取）。憑證一律自備
-（Kaneo 後台 → Settings → API keys 建立，到期日留空即永不過期）：
+（Kanban 後台 → Settings → API keys 建立，到期日留空即永不過期）：
 
 ```powershell
 node .dsh\skills\kaneo-mcp\scripts\kaneo_mcp.mjs key <你的-kaneo-api-key>
@@ -43,8 +43,8 @@ node … kaneo_mcp.mjs key
 
 | 路徑 | 認證方式 | 狀態 |
 | --- | --- | --- |
-| `/api/mcp`（MCP 38 個工具） | `Authorization: Bearer <Kaneo API key>` | ✅ 2026-10-16 重新部署後支援 |
-| `/api/*`（REST，工作流設定） | `x-api-key: <Kaneo API key>` | ✅ |
+| `/api/mcp`（MCP 38 個工具） | `Authorization: Bearer <Kanban API key>` | ✅ 2026-10-16 重新部署後支援 |
+| `/api/*`（REST，工作流設定） | `x-api-key: <Kanban API key>` | ✅ |
 
 **不需要瀏覽器、不需要 OAuth、token 不會過期。** 腳本自動處理兩條路，優先用 API key。
 
@@ -106,8 +106,8 @@ node $S rest PATCH /task/bulk --args-file bulk.json   # {"taskIds":["..."],"oper
 node .dsh\skills\kaneo-mcp\scripts\kaneo_mcp.mjs login
 ```
 
-1. 在 `127.0.0.1` 隨機埠起回呼伺服器，自動開瀏覽器到 Kaneo 授權頁
-2. 你在頁面上按「核准」（未登入會先要你登入 Kaneo）
+1. 在 `127.0.0.1` 隨機埠起回呼伺服器，自動開瀏覽器到 Kanban 授權頁
+2. 你在頁面上按「核准」（未登入會先要你登入 Kanban）
 3. 瀏覽器導回本機回呼，程式自己接住 `code` → 換 30 天 token → 存進 `.cache/token.json`
 
 實測：監聽 `127.0.0.1:11993` → 核准 → 回呼 → token 到期 2026-11-15。此後 30 天內每次呼叫都會自動續期。
@@ -203,7 +203,7 @@ node $S tasks $pj --all --limit 50                 # 全專案（自動翻頁、
 
 ## 工作流設定（走 REST，MCP 做不到）
 
-Kaneo 的「Workflow」設定頁有三塊：**Columns**、**Custom fields**、**Automations**。
+Kanban 的「Workflow」設定頁有三塊：**Columns**、**Custom fields**、**Automations**。
 MCP 只提供 `list_project_columns`（唯讀），其餘要走底層 REST —— 腳本已內建並用 `.key` 直接認證
 （同一支 key 在 `/api/mcp` 會被拒，在 `/api/*` 可用，這是兩條不同的認證路徑）。
 
@@ -238,7 +238,7 @@ node $S columns reorder <projectId> --args-file order.json      # {"columns":[{"
 
 | 現象 | 處理 |
 | --- | --- |
-| `401 invalid_token`（MCP 呼叫） | 先確認 API key 是否還有效（Kaneo 後台 API keys）；腳本依序試 API key → 已存 OAuth session → 重新登入，全被拒才會要你 `login` |
+| `401 invalid_token`（MCP 呼叫） | 先確認 API key 是否還有效（Kanban 後台 API keys）；腳本依序試 API key → 已存 OAuth session → 重新登入，全被拒才會要你 `login` |
 | `consent failed (… 401 {"error":"unauthorized"})` | 只在走 OAuth 備援時出現；session 已失效 → 再 `login` 一次 |
 | `whoami` 回 `null` | 正常：API key 沒有 better-auth session，改用 `node … whoami`（CLI 會轉用 REST）或看 `list_workspaces` |
 | `未取得授權碼（timeout）` | 瀏覽器那一步沒完成；state 已保留，可續用 `login --complete "<URL>"` |

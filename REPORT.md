@@ -1,4 +1,4 @@
-# 报告 — 三来源改造方案：Kaneo（任务）+ Gitea（代码/PR）+ ntfy（IM）
+# 报告 — 三来源改造方案：Kanban（任务）+ Gitea（代码/PR）+ ntfy（IM）
 
 > 状态：**调研/方案阶段（P0→P1）**。实施暂停，web profile 安装已回滚（见 §0）。
 > 本报告只讲原理、流程与分阶段计划，不含实施指令；每阶段设门禁，评审通过再进入下一阶段。
@@ -7,7 +7,7 @@
 | 项 | 值 |
 | --- | --- |
 | 报告日期 | 2026-11-03（第二版：范围扩展为三来源） |
-| 任务来源 | **Kaneo** `https://pl.feg.cn`，workspace **ATEAM**，项目 **FDEP**（`dgctny8ibgpn72ei2j8qj2hc`） |
+| 任务来源 | **Kanban** `https://pl.feg.cn`，workspace **ATEAM**，项目 **FDEP**（`dgctny8ibgpn72ei2j8qj2hc`） |
 | 代码来源 | **Gitea** `https://git.feg.cn`（实测 **v1.27.3**），API 基址 `/api/v1`，Swagger `/swagger.v1.json` |
 | IM 来源 | **ntfy** `https://msn.feg.cn`（实测 `/v1/health` healthy），订阅/发布 topic |
 | 目标 profile | `D:\Refine\Books\ntop\AI\dsh\profiles\web`（当前 GUI 3080；**暂不安装**） |
@@ -20,13 +20,13 @@
 | 项 | 状态 |
 | --- | --- |
 | web profile | ✅ 已回滚：依赖移除、bundle 列表还原、profile patch 还原；`/orchestrator/api/state` 404；GUI 正常 |
-| 仓库代码 | 上一轮探索性实现（Kaneo 部分 + GitHub 适配）**已暂停、未提交、未部署**；Gitea/ntfy 尚未实现 |
+| 仓库代码 | 上一轮探索性实现（Kanban 部分 + GitHub 适配）**已暂停、未提交、未部署**；Gitea/ntfy 尚未实现 |
 | 惰性残留 | 状态目录 `D:/Refine/Books/ntop/AI/dsh/state/superagent` + DSH workspace 注册表 2 个条目（`...\state\superagent`、`...\work\kaneo-smoke-test-…`）；建议在 GUI 里删这两个 workspace 条目后再删目录 |
 | 备份 | `D:\Refine\Books\ntop\AI\dsh\profiles\web\.dsh-superagent-backup-20261103-133726` |
 
 > 本轮新增的调研（Gitea / ntfy）只做了**只读探测**，没有发布消息、没有改任何配置。
 
-**最终状态（2026-11-03，按「完成改造和测试、完成部署」）**：Gitea / ntfy 已从只读骨架升级为**完整 Source**（Trigger、Channel 回复、Thread 上下文、策略、环境变量、部署账号校验），与 Kaneo 一起以 bundle 形式**安装并运行在 dsh web profile**；三个来源 health 均 `ready`。**端到端实测通过**：Kaneo 任务→工单→worker→评论回写（completed）；ntfy 消息→工单→worker→主题回复（已校验）。Gitea 的匿名/公开仓库只读轮询与读取已实测，写回/通知模式需 agent 账号 token（当前未提供，相关路径由单测覆盖）。中文界面产品名统一为「超级智能体」（技术标识 `dsh-superagent` 不变）。单测 34 项、typecheck、build 通过。详见 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
+**最终状态（2026-11-03，按「完成改造和测试、完成部署」）**：Gitea / ntfy 已从只读骨架升级为**完整 Source**（Trigger、Channel 回复、Thread 上下文、策略、环境变量、部署账号校验），与 Kanban 一起以 bundle 形式**安装并运行在 dsh web profile**；三个来源 health 均 `ready`。**端到端实测通过**：Kanban 任务→工单→worker→评论回写（completed）；ntfy 消息→工单→worker→主题回复（已校验）。Gitea 的匿名/公开仓库只读轮询与读取已实测，写回/通知模式需 agent 账号 token（当前未提供，相关路径由单测覆盖）。中文界面产品名统一为「超级智能体」（技术标识 `dsh-superagent` 不变）。单测 34 项、typecheck、build 通过。详见 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
 
 ---
 
@@ -35,21 +35,21 @@
 ### 1.1 目标形态
 
 ```
-[任务来源] Kaneo FDEP 看板 ──任务进入监听列──┐
+[任务来源] Kanban FDEP 看板 ──任务进入监听列──┐
 [IM 来源]  ntfy topic        ──消息──────────┼──> Trigger → Eval → Ticket → Executor
 [代码来源] Gitea 仓库        ──Issue/PR/评论──┘         │
                                                         ├─> 代码改动推送到 Gitea（分支/PR）
-                                                        └─> 回复写回：Kaneo 评论 / Gitea 评论 / ntfy 消息
+                                                        └─> 回复写回：Kanban 评论 / Gitea 评论 / ntfy 消息
 ```
 
 与上游 `dsh-superagent` 的差别：
 
 | 维度 | 上游 | 本方案 |
 | --- | --- | --- |
-| 任务/请求来源 | GitHub Issue/PR/CI + Feishu | **Kaneo 看板列** + **ntfy topic** + **Gitea Issue/PR/评论** |
+| 任务/请求来源 | GitHub Issue/PR/CI + Feishu | **Kanban 看板列** + **ntfy topic** + **Gitea Issue/PR/评论** |
 | 代码托管与 PR | github.com + `gh` CLI | **自架 Gitea（REST API，无 CLI 依赖）** |
-| 消息回写 | GitHub 评论 / Feishu 回复 | Kaneo 评论 / Gitea 评论 / ntfy 消息 |
-| 账号体系 | GitHub 账号 + Feishu bot | Kaneo API key + Gitea token（agent 账号）+ ntfy topic/auth |
+| 消息回写 | GitHub 评论 / Feishu 回复 | Kanban 评论 / Gitea 评论 / ntfy 消息 |
+| 账号体系 | GitHub 账号 + Feishu bot | Kanban API key + Gitea token（agent 账号）+ ntfy topic/auth |
 | 运行环境 | 假定 POSIX | Windows 本机（需适配） |
 
 ### 1.2 范围（建议）
@@ -58,7 +58,7 @@
 | --- | --- |
 | 三个 Source kind：`kaneo` / `gitea` / `ntfy` | 重写 Engine/Executor/面板 |
 | 无 GitHub 的三来源部署（账号校验、Git 凭据） | GitHub Source 的 Windows 支持（保持关闭） |
-| 任务→工单→执行→回写的闭环 | Kaneo 全字段双向同步（工时/子任务等） |
+| 任务→工单→执行→回写的闭环 | Kanban 全字段双向同步（工时/子任务等） |
 | Gitea 上的分支/PR/评论/状态回写 | Gitea Actions/CI 深度集成（先读 commit status） |
 | ntfy 订阅→Trigger、回复→发布 | 多人群聊语义（ntfy 无原生会话/线程） |
 | 分阶段评审与验证 | 立即安装到活动 web profile（P1 前不做） |
@@ -67,7 +67,7 @@
 
 1. 构建/类型检查通过；三个 Source 各有单测（翻译、去重、幂等、错误处理）。
 2. 无 GitHub 时插件能 setup 成功并 ready；三个来源各自 health 正常。
-3. 任务进入 Kaneo 监听列 → Ticket → Gitea 分支/PR（或至少评论）→ 三处回写闭环。
+3. 任务进入 Kanban 监听列 → Ticket → Gitea 分支/PR（或至少评论）→ 三处回写闭环。
 4. 安全可控：ntfy 公开 topic 低信任、私有 topic 可账号密码保护；Gitea token 不进 prompt；可 pause、可回滚。
 
 ---
@@ -104,9 +104,9 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
 3. `SETUP_FIELDS` 只认 github/feishu；`Commands` 的 `gh()/api()` 绑定 GitHub CLI。
 4. `src/app/sessions.ts` 主 Session 工具 allow 列表硬编码 `bash`（Windows 上导致 `tools.restrict` 失败，fiber 无法重启）。
 
-→ 三来源方案需要把「部署门禁」重写为 **Kaneo/Gitea/ntfy 三个账号检查**，并把「worker 的 git 凭据」改为 **Gitea token 的跨平台配置**（不再写 POSIX shim）。
+→ 三来源方案需要把「部署门禁」重写为 **Kanban/Gitea/ntfy 三个账号检查**，并把「worker 的 git 凭据」改为 **Gitea token 的跨平台配置**（不再写 POSIX shim）。
 
-### 2.4 Kaneo（任务来源）原理
+### 2.4 Kanban（任务来源）原理
 
 对象：`Workspace → Project → Column → Task → Comment/Activity`；状态=列 slug；任务有内部 id 与票号（`FDE-470`）。
 
@@ -171,14 +171,14 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
 
 ### 2.7 三来源到领域模型的映射（建议）
 
-| 领域 | Kaneo | Gitea | ntfy |
+| 领域 | Kanban | Gitea | ntfy |
 | --- | --- | --- | --- |
 | Source kind | `kaneo` | `gitea` | `ntfy` |
 | Trigger | 任务进入监听列 | 通知/ Issue/PR/评论/状态变化 | topic 里的新消息 |
 | Thread | 一条任务 | 一个 Issue/PR（`repo#index`） | 一个 topic（消息无法分组） |
 | Channel | 任务评论 | Issue/PR 评论 | topic 发布（`title=#agent`） |
 | ThreadContext | 任务描述+评论 | Issue/PR 正文+评论+改动 | 最近 N 条 topic 消息 |
-| Policy allowed | Kaneo 用户 id | Gitea username / bot | ntfy 发送者约定（私有 topic 可账号密码保护；公开 topic 低信任） |
+| Policy allowed | Kanban 用户 id | Gitea username / bot | ntfy 发送者约定（私有 topic 可账号密码保护；公开 topic 低信任） |
 | 触发强度 | 列位=explicit（可配） | @agent=explicit；observe 流=inferred | 私有 topic + 账号密码可 explicit；公开 topic 建议 inferred/人工确认 |
 | 环境变量 | 任务 id/url/project | repo/account/base_url（token 不进 prompt） | topic/url（token 不进 prompt） |
 
@@ -200,7 +200,7 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
 ## 3. 流程篇（目标工作流）
 
 ```
-① 任务进入 Kaneo「待開工」
+① 任务进入 Kanban「待開工」
       └─(轮询)→ kaneo Source 生成 explicit Trigger → Gate → Ticket → Executor
 
 ② Executor 在工单目录工作
@@ -213,7 +213,7 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
       └─(轮询/通知)→ gitea Source 把后续消息扇出给 Ticket（上下文）或生成新 Trigger
 
 ④ 回写
-      ├─ Kaneo：任务评论（ack/result/attention）+ 认领列推进
+      ├─ Kanban：任务评论（ack/result/attention）+ 认领列推进
       ├─ Gitea：Issue/PR 评论
       └─ ntfy：发布结果消息（title=#agent）
 
@@ -226,8 +226,8 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
 | 关注点 | 机制 |
 | --- | --- |
 | 重复轮询不重复建单 | Trigger id 用「不可变键 + 观测时间/序号」；Source KV 记录游标/已见；Engine 幂等 |
-| 重复评论 | 评论正文内嵌 marker（Kaneo/ GitHub 已验证可行；Gitea 需实测 HTML 注释是否保留）+ 发送前查重 |
-| 首次抓爆存量 | `bootstrap=skip`（Kaneo）；Gitea `since=启动时间`；ntfy `since=启动时间` |
+| 重复评论 | 评论正文内嵌 marker（Kanban/ GitHub 已验证可行；Gitea 需实测 HTML 注释是否保留）+ 发送前查重 |
+| 首次抓爆存量 | `bootstrap=skip`（Kanban）；Gitea `since=启动时间`；ntfy `since=启动时间` |
 | 轮询失败 | 连续失败计数→health error；单次失败下轮重试；429/5xx 退避 |
 | 大内容 | Trigger 摘要 + ThreadContext 按需读全文；限制 prompt 体积 |
 | 凭据 | token 只在宿主配置/本地 git 配置；不写 prompt、不进环境变量提示文本 |
@@ -239,7 +239,7 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
 
 ### P0 — 理解与学习（已完成）
 
-- 产出：本报告 + [TDD/001-bundle-anatomy.md](TDD/001-bundle-anatomy.md) + 实测数据（Kaneo/Gitea/ntfy）。
+- 产出：本报告 + [TDD/001-bundle-anatomy.md](TDD/001-bundle-anatomy.md) + 实测数据（Kanban/Gitea/ntfy）。
 - 门禁：你确认「原理与问题定义无误」。
 
 ### P1 — 方案评审（本次交付）
@@ -250,9 +250,9 @@ Source ──Trigger──> Thread ──batch──> Eval(Gate + 研判) ──
 
 目标（原）：三个 Source 都能注册、轮询、报 health。实际执行超出原计划：三个来源均实现完整 Trigger/Channel/ThreadContext/策略/部署校验，并完成安装与端到端验证（见下方「最终状态」及 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)）。
 
-### P3 — 任务闭环（Kaneo → Ticket → 评论）
+### P3 — 任务闭环（Kanban → Ticket → 评论）
 
-目标：任务进入监听列 → Ticket → Executor → Kaneo 评论 + 认领列。范围同上一轮已验证的 Kaneo 闭环。
+目标：任务进入监听列 → Ticket → Executor → Kanban 评论 + 认领列。范围同上一轮已验证的 Kanban 闭环。
 
 - 门禁：单测 + 隔离环境端到端；测试卡可删。
 
@@ -296,12 +296,12 @@ P0 理解 ✅ ──> P1 评审 ──> P2 只读骨架 ──> P3 任务闭环 
 | 改 | `src/kv.ts` | 三来源游标/去重键 |
 | 改 | `src/policy.ts` | `executor.directory` 跨平台；三来源 policy 扩展由各 kind 提供 |
 | 改 | `src/executor/dsh.ts` / `src/app/tools/executor.ts` | Gitea PR 绑定/创建、CI 状态；环境变量 |
-| 改 | `src/app/links.ts` / `resources.ts` / `cards.ts` | Gitea/Kaneo/ntfy 资源链接与上下文 |
+| 改 | `src/app/links.ts` / `resources.ts` / `cards.ts` | Gitea/Kanban/ntfy 资源链接与上下文 |
 | 改 | `prompts/*`（P4/P5） | delivery 段改为 Gitea PR / ntfy 消息 |
 | 改 | `package.json` / `tsdown.config.ts` / `cordis.patch.yml` | 三个 Source 入口/行；默认禁用 GitHub/Feishu |
 | 改 | `src/client/locales.ts`、`src/setup.ts` | 文案与错误码 |
 | 改 | `docs/007-architecture.md`、测试表 | 文档一致性 |
-| 运维 | Gitea agent 账号 + token；ntfy 私有 topic/账号密码或 ACL；Kaneo API key | 需创建/确认 |
+| 运维 | Gitea agent 账号 + token；ntfy 私有 topic/账号密码或 ACL；Kanban API key | 需创建/确认 |
 
 ---
 
@@ -311,7 +311,7 @@ P0 理解 ✅ ──> P1 评审 ──> P2 只读骨架 ──> P3 任务闭环 
 | --- | --- | --- |
 | 单测 | 三来源：任务/消息/事件→Trigger、去重/游标、Channel 幂等、404/401/429、ThreadContext | 本机（fake fetch） |
 | 集成（无模型） | Source 注册、Gate/scope、setup 门禁、Gitea/ntfy 只读 | 本机独立进程 |
-| E2E-任务 | Kaneo 测试卡 → Ticket → Executor → 任务评论 | 隔离 profile |
+| E2E-任务 | Kanban 测试卡 → Ticket → Executor → 任务评论 | 隔离 profile |
 | E2E-代码 | 测试仓库 → 分支/PR → 评论/状态回传 | 隔离 profile + 测试仓库 |
 | E2E-IM | 私有 topic（账号+密码）→ Trigger → 回复发布；公开 topic 仅测试 | 隔离 profile + 私有 topic |
 | 回归 | bundle-patch/locales/policy/registry 等 | 本机 |
@@ -345,12 +345,12 @@ P0 理解 ✅ ──> P1 评审 ──> P2 只读骨架 ──> P3 任务闭环 
 
 ### A. 三来源通用 / 安装
 1. **安装目标与时机**：先隔离 profile 验证（推荐），还是直接目标 web profile？
-2. 三来源是否**必须同时上线**，还是按 P3（Kaneo）→ P4（Gitea）→ P5（ntfy）分步？
+2. 三来源是否**必须同时上线**，还是按 P3（Kanban）→ P4（Gitea）→ P5（ntfy）分步？
 
-### B. Kaneo（任务）
+### B. Kanban（任务）
 3. 监听列：`待開工`（默认）？是否加 label 收窄（如 `sprint-2026-W56`、`ai:`）？
 4. 触发语义：进入列=explicit（默认）？完成后列推进目标（`qa`/`in-review`）？
-5. 允许发起任务的 Kaneo 用户范围（当前计划 owner+4 members）。
+5. 允许发起任务的 Kanban 用户范围（当前计划 owner+4 members）。
 
 ### C. Gitea（代码）
 6. 目标仓库：哪个 `owner/name`？（`shawoo/fdep` 实测为空；是否另有仓库）
@@ -373,13 +373,13 @@ P0 理解 ✅ ──> P1 评审 ──> P2 只读骨架 ──> P3 任务闭环 
 
 | 内容 | 状态 | 可复用性 |
 | --- | --- | --- |
-| Kaneo Source（`src/sources/kaneo*.ts`）+ 单测 11 项 | 已写、暂停、未提交 | **高**：P2/P3 主要复用 |
+| Kanban Source（`src/sources/kaneo*.ts`）+ 单测 11 项 | 已写、暂停、未提交 | **高**：P2/P3 主要复用 |
 | 无 GitHub 部署适配（deployment/setup/policy/sessions/kv…） | 已写、暂停 | 中：需扩展为三来源账号模型 |
 | **Gitea 只读骨架**（config/api/kind + 单测） | ✅ P2 第一增量：已写、已测、已构建；**未部署** | 高：P4 接 Trigger/Channel/PR |
 | **ntfy 只读骨架**（config/api/kind + 单测） | ✅ P2 第一增量：已写、已测、已构建；**未部署** | 高：P5 接 Trigger/Channel |
 | 端到端证据（`TDD/artifacts/`） | 已保存（回滚前） | 参考 |
 
-> 上一轮曾把 Kaneo 版安装进 web profile 并跑通闭环，但已按用户要求回滚；本报告不复用「已部署」结论。P2 只读骨架的细节与实测见 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
+> 上一轮曾把 Kanban 版安装进 web profile 并跑通闭环，但已按用户要求回滚；本报告不复用「已部署」结论。P2 只读骨架的细节与实测见 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
 
 ---
 

@@ -1,8 +1,8 @@
 # 008 — 用真实数据验证协作叙事（RD.md v0.3）
 
 > **日期**：2026-11-04
-> **对象**：[`../RD.md`](../RD.md) v0.3 的目标模型（岗位 / 岗位职责两级、Kaneo 唯一任务源、动态 RepoSet、多 topic、产出路由、宪章）
-> **环境**：测试环境。KanEO `https://pl.feg.cn`、Gitea `https://git.feg.cn`、ntfy `https://msn.feg.cn`、MinIO（内网）
+> **对象**：[`../RD.md`](../RD.md) v0.3 的目标模型（岗位 / 岗位职责两级、Kanban 唯一任务源、动态 RepoSet、多 topic、产出路由、宪章）
+> **环境**：测试环境。Kanban `https://pl.feg.cn`、Gitea `https://git.feg.cn`、ntfy `https://msn.feg.cn`、MinIO（内网）
 > **工具**：[`../scripts/kaneo-probe.mjs`](../scripts/kaneo-probe.mjs)（只读探针 + 自恢复写套件）、[`../scripts/kaneo-claim-race.mjs`](../scripts/kaneo-claim-race.mjs)（并发抢单）、[`../scripts/kaneo-story-probe.mjs`](../scripts/kaneo-story-probe.mjs)（故事构件）、[`../scripts/kaneo-roles-report.mjs`](../scripts/kaneo-roles-report.mjs)（角色实践统计）、[`../scripts/post-accounts.mjs`](../scripts/post-accounts.mjs)（岗位账号接线）
 > **证据**：[`artifacts/`](artifacts/)
 > **原则**：API key 只从文件读取，不进参数、不进输出、不入库；写操作只作用于**测试卡**；竞速测试后立即还原。
@@ -16,21 +16,21 @@
 
 | # | 叙事主张（RD.md） | 实测结论 | 证据 |
 | --- | --- | --- | --- |
-| 1 | KanEO 是唯一任务来源，字段足以支撑岗位模型 | ✅ 成立 | 任务含 `assigneeId / assigneeName / labels / status / priority / dueDate`；`?assigneeId=` 服务端过滤可用 |
-| 2 | 岗位身份 = KanEO 用户 id（= `assigneeId`） | ✅ 成立 | `GET /user/me` → id；`PUT /task/assignee` 后任务 `assigneeId` 即该值 |
+| 1 | Kanban 是唯一任务来源，字段足以支撑岗位模型 | ✅ 成立 | 任务含 `assigneeId / assigneeName / labels / status / priority / dueDate`；`?assigneeId=` 服务端过滤可用 |
+| 2 | 岗位身份 = Kanban 用户 id（= `assigneeId`） | ✅ 成立 | `GET /user/me` → id；`PUT /task/assignee` 后任务 `assigneeId` 即该值 |
 | 3 | slug 是稳定键，列改名无害 | ✅ **实证成立** | 同一 slug 的列名在观测窗口内多次变化（`to-do`：待開發→待辦池→待開發；pipeline `to-do`：待處理→候選池），slug 始终不变 |
 | 4 | 「列增删才需重解析」「跨端点只用 slug」 | ✅ 成立 | `/column` 返回 uuid，`/task/tasks` 的 `columns[].id` 直接等于 slug，两套 id 不可混用 |
-| 5 | KanEO **无 CAS** → 派工即认领 + 回读/租约兜底 | ✅ 成立，兜底协议**并发实测通过** | 4 次并发抢单全部"恰好 1 个胜者"（§7.1） |
+| 5 | Kanban **无 CAS** → 派工即认领 + 回读/租约兜底 | ✅ 成立，兜底协议**并发实测通过** | 4 次并发抢单全部"恰好 1 个胜者"（§7.1） |
 | 6 | 写入纪律：只走单字段路由，禁 `PUT /task/{id}` | ✅ 成立 | `PUT /task/{id}` 文档明写「Replace every field」，必填 title/priority/status/projectId/position |
-| 7 | PM 可用 KanEO 原生能力管流程 | ✅ 成立 | `/column`、`/label`、`/label/{id}/task`、`/custom-field/*`、`/workflow-rule/{projectId}` 全部可用 |
+| 7 | PM 可用 Kanban 原生能力管流程 | ✅ 成立 | `/column`、`/label`、`/label/{id}/task`、`/custom-field/*`、`/workflow-rule/{projectId}` 全部可用 |
 | 8 | 宪章：PM 颁布版本，Worker 读取并钉版本 | ✅ **链路成立** | 宪章载体任务 + `version:` 解析 + `charter` 标签，实测通过（§7.2） |
 | 9 | 多 topic（ntfy） | ✅ 成立 | 两 topic 独立发布/回读；`poll=1` 一次消费一条、`since=all` 可回溯 → 印证「每 topic 独立游标」 |
 | 10 | 动态 RepoSet（一个项目多个仓库） | ✅ 前提成立 | 该账号可见 **12 个仓库**（shawoo/PDP、fdep、harness、superagent…），多为 public |
 | 11 | 产出路由（代码→Gitea，非代码→MinIO） | ⚠️ **部分受阻** | `dsh-minio-s3` 的 `ConnectionProvider` 在插件内实例化、**未暴露为共享服务** → **host（岗位）不能直接读写 MinIO**，只有 executor session（岗位职责）可用 `minio_*` 工具；键规范实测可行（§7.3） |
-| 12 | 宪章存 MinIO 并由 host 拉取 | ❌ **不成立（已改道）** | 同上；权威存储改 **KanEO**（host 原生可读写） |
+| 12 | 宪章存 MinIO 并由 host 拉取 | ❌ **不成立（已改道）** | 同上；权威存储改 **Kanban**（host 原生可读写） |
 | 13 | 监听列全局配置即可 | ❌ **不成立** | pipeline 项目**没有 `ready` 列** → 监听列必须按项目配置 |
 | 14 | 岗位归属 = assignee | ⚠️ **需补强** | assignee **单值**：FDEP 17/17 有 assignee，pipeline **0/8**（用 `agent:*` 角色标签合流）→ 归属要分「主责 + 协同角色」两层（§4、RD.md §12.9） |
-| 15 | 岗位机器人账号可由工具统一创建 | ❌ **不成立** | `/admin/users`、成员管理对 API key **403**，无签发 key 接口 → **建号与发 key 必须在 KanEO UI 完成**，工具侧只做验证与接线（§6） |
+| 15 | 岗位机器人账号可由工具统一创建 | ❌ **不成立** | `/admin/users`、成员管理对 API key **403**，无签发 key 接口 → **建号与发 key 必须在 Kanban UI 完成**，工具侧只做验证与接线（§6） |
 
 ---
 
@@ -95,7 +95,7 @@ B: id=scptw8k2qwwp6t9e1uwttclr  createdAt=2026-11-04T08:10:07.709Z
    `回合`（PM 的周期性职责 ≈ 宪章）、`交付物`（产出）、`邊界`（岗位职责一任务一目录）、`WIP 合規 0`（岗位并发闸门）都已出现在真实评论里。
    → **RD.md 的叙事与团队实践同源** ✅
 2. **但两个项目的"负责人"用法不同**：FDEP 每张卡都有 assignee（单负责人）；pipeline **一张都没有**，改用角色标签做**一卡多角色合流**
-   （#59 上同时有 pm + bi + api + ux）。而 KanEO 的 **assignee 是单值**。
+   （#59 上同时有 pm + bi + api + ux）。而 Kanban 的 **assignee 是单值**。
    → **岗位归属需要两层**：主责 assignee（唯一，决定谁推进状态）+ 协同角色声明（多人）。已记入 RD.md §12.9。
 3. **真实评论已经写明两条与我们模型一致的边界**：
    「**不跨工作目录交付**」（→ 岗位职责一任务一目录）、「**不代領、不自領**」（→ 派工即认领，而非自取）。
@@ -123,8 +123,8 @@ B: id=scptw8k2qwwp6t9e1uwttclr  createdAt=2026-11-04T08:10:07.709Z
 
 | 实测 | 结论 |
 | --- | --- |
-| `GET /admin/users`、`GET/POST /admin/workspaces/{id}/members` → **403**（API key 无管理域） | **建号、加成员、发 key 都只能在 KanEO UI 做**；REST 没有 create-user 路由，也没有签发 key 的接口 |
-| `assignee` 是**单值**且必须是 **workspace 成员** | 一个岗位 ↔ 一个 KanEO 用户；账号必须先加入 ATEAM 工作区 |
+| `GET /admin/users`、`GET/POST /admin/workspaces/{id}/members` → **403**（API key 无管理域） | **建号、加成员、发 key 都只能在 Kanban UI 做**；REST 没有 create-user 路由，也没有签发 key 的接口 |
+| `assignee` 是**单值**且必须是 **workspace 成员** | 一个岗位 ↔ 一个 Kanban 用户；账号必须先加入 ATEAM 工作区 |
 | 现有 key 属于**人类管理员**（`吳思平`/admin） | 不能直接当岗位身份（责任、审计、撤权都会算到人头上） |
 
 交付物：
@@ -134,7 +134,7 @@ B: id=scptw8k2qwwp6t9e1uwttclr  createdAt=2026-11-04T08:10:07.709Z
 - [`../scripts/post-accounts.mjs`](../scripts/post-accounts.mjs) —— 用每个岗位的 key 调 `GET /user/me` 验证身份，输出**岗位档案**并打印每个实例要粘贴的设置值；
 - `keys/` 目录（已 gitignore）：key 文件落位处。
 
-当前状态：`ready 0/4`（4 个岗位都 `pending`，因为 UI 建号尚未执行）——脚本与流程已就绪，**只差管理员在 KanEO 里建号并发 key**。
+当前状态：`ready 0/4`（4 个岗位都 `pending`，因为 UI 建号尚未执行）——脚本与流程已就绪，**只差管理员在 Kanban 里建号并发 key**。
 
 ---
 
@@ -170,7 +170,7 @@ B: id=scptw8k2qwwp6t9e1uwttclr  createdAt=2026-11-04T08:10:07.709Z
 
 5 项检查全过。证据：[`artifacts/story-probe.json`](artifacts/story-probe.json)。
 
-> 结论：**"PM 颁布版本化宪章 → Worker 接单时读取并钉版本"** 与 **"一卡多角色（标签）+ 主/子任务分工"** 在 KanEO 上都成立。
+> 结论：**"PM 颁布版本化宪章 → Worker 接单时读取并钉版本"** 与 **"一卡多角色（标签）+ 主/子任务分工"** 在 Kanban 上都成立。
 
 ### 7.3 MinIO 端到端（产出落地）
 用**岗位职责**的路径（agent 工具 `minio_write` / `minio_read`）验证 §7 的键规范：
@@ -215,7 +215,7 @@ projects/<projectId>/<taskId>/<kind>/<name>@<version>
 | `label.attach` 失败（标签读不到） | **探针 bug**：`GET /task/{id}` 不返回 labels，须用 `GET /label/task/{id}` | 修正探针读写路径后 12/12 通过 |
 | 连续 4 次 `401 Unauthorized`（约 1 分钟）后自愈 | **平台现象**：瞬时鉴权失败 | 健康检查需容忍瞬时 401（连续 N 次才判凭据失效） |
 | 写操作批量触发 `429 RATE_LIMITED` | **平台限制**：API key 有窗口限流（响应带 `Retry-After`、`X-RateLimit-*`） | 探针改为：429 自动退避重试（最多 8 次）+ 写操作间 1.2s 节奏；实测退避后全部通过 |
-| 清理脚本把团队 PM 的评论误判为"探针残留" | **过滤器过宽**（按内容含 `probe` 匹配） | KanEO 对**他人评论**的 DELETE 返回 404 → **删不掉、也没删掉**（无损）；改为只按**自己创建的 id** 清理 |
+| 清理脚本把团队 PM 的评论误判为"探针残留" | **过滤器过宽**（按内容含 `probe` 匹配） | Kanban 对**他人评论**的 DELETE 返回 404 → **删不掉、也没删掉**（无损）；改为只按**自己创建的 id** 清理 |
 | 竞速脚本首轮报"0 个胜者" | **判定 bug**：胜负比较的字符串少了一段 | 修正后 4 次运行全部"恰好 1 个胜者" |
 | 故事探针报"看板上看不到标签"、写套件报"列没同步" | **端点误用**：无 `status` 过滤的看板快照**每列会截断**，新建卡不在其中 | 改用 `?status=<列>&limit=100` 后全部通过（见 §7.4）——现有实现本来就带 `status` 过滤 ✅ |
 | 用 PowerShell 批量改章节编号后文档乱码 | **工具事故**：`Get-Content/Set-Content` 按 ANSI 读写 UTF-8 | 用 write 工具整体重写；**今后不用 PowerShell 改中文文件** |
@@ -227,11 +227,11 @@ projects/<projectId>/<taskId>/<kind>/<name>@<version>
 | 位置 | 变化 |
 | --- | --- |
 | §6.3 | 「slug 稳定、列改名无害」由**实证**支撑；新增「列名高频变动 → 提醒需去抖（24h 冷却）」 |
-| §7 / §8 | **MinIO 作权威存储对 host 不成立** → 宪章权威存储改 KanEO；产出落地改为「岗位职责写桶、岗位取链接回写」；桶现状（ateam/dsh/aife）与键规范实测 |
+| §7 / §8 | **MinIO 作权威存储对 host 不成立** → 宪章权威存储改 Kanban；产出落地改为「岗位职责写桶、岗位取链接回写」；桶现状（ateam/dsh/aife）与键规范实测 |
 | §8 | 宪章载体（任务 + `charter` 标签 + `version:` 文本）与「Worker 读取并钉版本」实测通过 |
 | §11.2 | 互斥协议**并发实测成立**（4/4 恰好一个胜者）；补「禁 `PUT /task/{id}` 改单字段」硬规则 |
 | §11.5 | 新增实测基线（接口能力表、数据快照、测试清单） |
-| §12.8 | 账号与运维前置：建号/发 key **只能走 UI**；岗位需各自的 KanEO 机器人账号；监听列按项目配置；瞬时 401 与 429 的口径 |
+| §12.8 | 账号与运维前置：建号/发 key **只能走 UI**；岗位需各自的 Kanban 机器人账号；监听列按项目配置；瞬时 401 与 429 的口径 |
 | **§12.9（新增）** | **岗位归属：单负责人 vs 多角色合卡** → 归属分「主责 assignee + 协同角色声明」两层；WIP 合规升为面板指标 |
 | **§11.5（新增）** | **看板端点按列截断**：列举任务必须带 `status` 过滤，`limit ≤ 100`，超出用 `page`/`relatedPage` 翻页（§7.4） |
 
@@ -283,7 +283,7 @@ node scripts/post-accounts.mjs --roster config/post-accounts.json --out config/p
 
 ## 12. 一句话结论
 
-> 叙事在真实数据上**站得住**：KanEO 的字段、接口与限流行为足以支撑「PM 岗位 + Worker 岗位 + 岗位职责」，
+> 叙事在真实数据上**站得住**：Kanban 的字段、接口与限流行为足以支撑「PM 岗位 + Worker 岗位 + 岗位职责」，
 > 而且**看板上已经存在这套实践**（`agent:pm/bi/api/ux`、`回合`、`交付物`、`邊界`、`WIP 合規`），说明模型与团队同源；
 > 并发互斥协议实测成立（4/4 恰好一个胜者）；但要补四处让步——**互斥要自建**（无 CAS）、**MinIO 只能是产出落地处**、
-> **监听列按项目配置**、**建号与发 key 只能走 KanEO UI**，外加一处补强——**assignee 单值，归属要分「主责 + 协同角色」两层**。
+> **监听列按项目配置**、**建号与发 key 只能走 Kanban UI**，外加一处补强——**assignee 单值，归属要分「主责 + 协同角色」两层**。

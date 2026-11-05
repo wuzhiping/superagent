@@ -1,0 +1,40 @@
+{
+  "started": "2026-11-05T02:50:53.309Z",
+  "finished": "2026-11-05T02:57:51.358Z",
+  "marker": "us-20261105025053",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "created": null,
+  "stories": [
+    {
+      "id": "US-10",
+      "persona": "系统",
+      "title": "入库：其它来源的事件先落成卡，再由岗位接手",
+      "ok": true,
+      "failed": [],
+      "ms": 413787,
+      "checks": {
+        "ingest.card-filed": true,
+        "ingest.card-waits-in-todo": true,
+        "ingest.card-has-source-label": true,
+        "ingest.card-has-no-assignee": true,
+        "ingest.card-became-a-duty": true,
+        "ingest.card-got-the-worklog": true,
+        "ingest.card-reached-the-delivery-column": true
+      },
+      "evidence": {
+        "cardId": "easjvwxd58eapwvh0605ekbn",
+        "title": "[story us-20261105025053] 入库验证",
+        "column": "to-do",
+        "labels": [
+          "from:ntfy"
+        ],
+        "comments": 2,
+        "dutyId": "6ad4f8e0ddcbc00414741a05ed7daa1e",
+        "deliveredTo": "done",
+        "excerpt": "入库验证结论：ntfy → #524 入库链路成立。卡片标题嵌入 story id us-20261105025053，正文保留 ntfy 源链接，入库主题一致；卡片当前在 ready（入库待指派）列，尚未移入监听列，故按卡面约定尚未成为职责，本次仅回写结论。核验依据为看板入库绑定，未在看板外重新拉取 ntfy 原文。\n\n<!-- dsh-superagent:bf2ed7a6967e977a72"
+      }
+    }
+  ],
+  "passed": 1,
+  "failed": 0
+}

@@ -43,7 +43,7 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
 
 ### The PM seat and its rights
 
-The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The PM seat manages the board's flow, and that right lives in KanEO — only a workspace admin may change a project's columns. Before the reader takes the PM seat, the panel asks the host which account this Host uses; an account that may not manage the board is told so, and may still read the project. In the PM seat the posts page and the settings page carry a banner naming the account, its role, the missing right and the way out: another API key, or an admin who grants the right. The panel writes no board of its own — the board's columns are the server's — so nothing else is blocked. A post's seat is untouched: a post only needs an account to work its cards.
+The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The PM seat manages the board's flow, and that right lives in Kanban — only a workspace admin may change a project's columns. Before the reader takes the PM seat, the panel asks the host which account this Host uses; an account that may not manage the board is told so, and may still read the project. In the PM seat the posts page and the settings page carry a banner naming the account, its role, the missing right and the way out: another API key, or an admin who grants the right. The panel writes no board of its own — the board's columns are the server's — so nothing else is blocked. A post's seat is untouched: a post only needs an account to work its cards.
 
 ## Search
 

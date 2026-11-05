@@ -157,11 +157,11 @@
     <div class="head">
       <div class="kicker"><span class="dot"></span>USER STORY · 三来源 · 全生命周期</div>
       <h1>超级智能体的<span class="accent">一天</span></h1>
-      <p class="lead" style="max-width:44em">从 Kaneo 看板、Gitea 仓库到 ntfy 主题——<br>一条消息如何变成一次被授权、可执行、能回写的交付。</p>
+      <p class="lead" style="max-width:44em">从 Kanban 看板、Gitea 仓库到 ntfy 主题——<br>一条消息如何变成一次被授权、可执行、能回写的交付。</p>
     </div>
     <div class="content">
       <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
-        <span class="tag kaneo">Kaneo · 任务</span>
+        <span class="tag kaneo">Kanban · 任务</span>
         <span class="tag gitea">Gitea · 代码 / Issue</span>
         <span class="tag ntfy">ntfy · IM 提醒</span>
         <span class="tag">Human-in-the-loop</span>
@@ -182,7 +182,7 @@
     </div>
     <div class="content">
       <div class="grid g2 fill">
-        <div class="card k"><div class="bar"></div><div class="num">01 · SCENE</div><h3>Kaneo 看板任务</h3><p>拖进 ready 列之后，从 Trigger 到工单、到评论回写、再到看板推进的完整闭环。</p></div>
+        <div class="card k"><div class="bar"></div><div class="num">01 · SCENE</div><h3>Kanban 看板任务</h3><p>拖进 ready 列之后，从 Trigger 到工单、到评论回写、再到看板推进的完整闭环。</p></div>
         <div class="card g"><div class="bar"></div><div class="num">02 · SCENE</div><h3>Gitea Issue 里 @ 一句</h3><p>代码来源如何只消费增量、把提及变成请求，并以 Issue 评论回写结果。</p></div>
         <div class="card n"><div class="bar"></div><div class="num">03 · SCENE</div><h3>ntfy 提醒（公开 topic 低信任 / 私有可账号密码）</h3><p>pub_ 公开 topic 任何人可发；私有 topic 可用账号+密码（Basic）或 token 保护。</p></div>
         <div class="card"><div class="bar" style="background:#8b7bff"></div><div class="num">04 · MODEL</div><h3>全生命周期与人类方向盘</h3><p>十个阶段一张表，加上人类可随时按下的暂停、停止、重试与测试按钮。</p></div>
@@ -199,7 +199,7 @@
     </div>
     <div class="content">
       <div class="grid g3 fill">
-        <div class="card k"><div class="bar"></div><div class="num">SOURCE · KANEO</div><h3>Kaneo 看板</h3>
+        <div class="card k"><div class="bar"></div><div class="num">SOURCE · KANEO</div><h3>Kanban 看板</h3>
           <p><b style="color:#c9cfff">pl.feg.cn</b> · FDEP 项目</p><p>监听 ready 列；任务 = Thread，回复 = 任务评论。</p>
           <div class="chips"><span class="chip">poll 60s</span><span class="chip">API key</span></div></div>
         <div class="card g"><div class="bar"></div><div class="num">SOURCE · GITEA</div><h3>Gitea 仓库</h3>
@@ -221,7 +221,7 @@
     </div>
     <div class="content">
       <div class="flow">
-        <div class="step"><b>来源</b><span>Kaneo / Gitea / ntfy</span></div><div class="arrow">→</div>
+        <div class="step"><b>来源</b><span>Kanban / Gitea / ntfy</span></div><div class="arrow">→</div>
         <div class="step"><b>触发</b><span>归一化事件</span></div><div class="arrow">→</div>
         <div class="step"><b>Gate</b><span>名单 / 提及 / 准入</span></div><div class="arrow">→</div>
         <div class="step"><b>研判</b><span>主 Session 决定</span></div><div class="arrow">→</div>
@@ -238,7 +238,7 @@
       <div class="grid g3 fill">
         <div class="card"><h3>它只做被授权的事</h3><p>Gate 先把消息分成 explicit / inferred / ignore；没有明确授权的，不会变成工单。</p></div>
         <div class="card"><h3>它在自己的房间里干活</h3><p>Executor 是独立 Session：独立目录、受限命令、受控预算，主 Session 只看结果。</p></div>
-        <div class="card"><h3>它把结果送回原处</h3><p>评论回 Kaneo / Gitea，消息回 ntfy；幂等标记保证重试不会刷屏。</p></div>
+        <div class="card"><h3>它把结果送回原处</h3><p>评论回 Kanban / Gitea，消息回 ntfy；幂等标记保证重试不会刷屏。</p></div>
       </div>
     </div>
   </section>
@@ -247,7 +247,7 @@
   <section class="slide">
     <div class="head">
       <div class="kicker"><span class="dot"></span>SCENE 01 · 09:10 — 09:16</div>
-      <h2>Kaneo：拖进 <span class="accent">ready</span> 之后</h2>
+      <h2>Kanban：拖进 <span class="accent">ready</span> 之后</h2>
     </div>
     <div class="content">
       <div class="timeline">
@@ -355,7 +355,7 @@
       <table>
         <thead><tr><th style="width:13%">阶段</th><th style="width:17%">输入</th><th style="width:30%">系统动作</th><th style="width:15%">产出</th><th>失败 / 恢复</th></tr></thead>
         <tbody>
-          <tr><td>部署检查</td><td>账号、stateDir、executor</td><td>在线探测 Kaneo / Gitea / ntfy，CLI 校验 GitHub / Feishu</td><td>Deployment</td><td>面板显示修复入口；health paused / ready / error</td></tr>
+          <tr><td>部署检查</td><td>账号、stateDir、executor</td><td>在线探测 Kanban / Gitea / ntfy，CLI 校验 GitHub / Feishu</td><td>Deployment</td><td>面板显示修复入口；health paused / ready / error</td></tr>
           <tr><td>轮询接收</td><td>来源增量</td><td>读游标、首次记 baseline；每个流独立容错</td><td>Trigger</td><td>失败计数达阈值报 error；游标不丢</td></tr>
           <tr><td>Gate 策略</td><td>Trigger + Policy</td><td>名单 + addressed + 准入矩阵；bot 至多 inferred</td><td>explicit / inferred / ignore</td><td>决策记录可查；ignore 不打扰</td></tr>
           <tr><td>Eval 研判</td><td>明确/候选 + 上下文</td><td>主 Session 判断范围、可行性、风险</td><td>Decision</td><td>原因、耗时、规则命中可追溯</td></tr>
@@ -440,13 +440,13 @@
     <div class="content">
       <div class="flow">
         <div class="step"><b>01 装 bundle</b><span>设置 stateDir</span></div><div class="arrow">→</div>
-        <div class="step"><b>02 配三来源</b><span>Kaneo / Gitea / ntfy</span></div><div class="arrow">→</div>
+        <div class="step"><b>02 配三来源</b><span>Kanban / Gitea / ntfy</span></div><div class="arrow">→</div>
         <div class="step"><b>03 测试连接</b><span>通过才保存</span></div><div class="arrow">→</div>
         <div class="step"><b>04 定 Policy</b><span>allowed + 信任策略</span></div><div class="arrow">→</div>
         <div class="step"><b>05 验收</b><span>health 全 ready</span></div>
       </div>
       <div class="grid g3 fill">
-        <div class="card k"><div class="bar"></div><h3>Kaneo</h3><p>服务器 + API key + 项目 id；保存前自动探测，也可点「测试连接」。</p></div>
+        <div class="card k"><div class="bar"></div><h3>Kanban</h3><p>服务器 + API key + 项目 id；保存前自动探测，也可点「测试连接」。</p></div>
         <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ owner/name；<b>测试通过再保存</b>。</p></div>
         <div class="card n"><div class="bar"></div><h3>ntfy</h3><p>服务器 + topic + 认证：公开 <code style="color:#ffdfaa">pub_</code> 选 none；私有 topic 用账号+密码（basic）或 token。</p></div>
       </div>

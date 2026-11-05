@@ -13,10 +13,10 @@
 | 项目 Project（§4） | 设置 → 项目与岗位 | `src/app/narrative.ts` 的 `ProjectArchive`（`<stateDir>/projects.json`） |
 | 岗位 post（§5） | 编队页的岗位卡片 | `ArchivePost`：role / kaneoUserId / giteaUser / ntfySender / wipLimit / instance |
 | 岗位职责 duty（§5.3） | 岗位卡片的「在飞职责」 | `Ticket.postId`（新字段） |
-| 宪章 charter（§8） | 项目卡片的「宪章 vN」徽标 | 实时读 KanEO 宪章载体任务，解析 `version: N`，>7 天判过期 |
+| 宪章 charter（§8） | 项目卡片的「宪章 vN」徽标 | 实时读 Kanban 宪章载体任务，解析 `version: N`，>7 天判过期 |
 | WIP 合规 | 岗位卡片 `n / limit`，超限红框 | `dutyCount > wipLimit` |
 | 异常队列（§8 异常处置） | 编队页底部 | 等人回复 / 阻塞 / 失败 / 六小时无进展 四类 |
-| 产出路由（§7） | 工单上的 `deliverableType` | 由 KanEO 标签 `kind:<code\|doc\|plan\|memo\|log>` 推出 |
+| 产出路由（§7） | 工单上的 `deliverableType` | 由 Kanban 标签 `kind:<code\|doc\|plan\|memo\|log>` 推出 |
 
 ---
 
@@ -27,7 +27,7 @@
 | 文件 | 改动 |
 | --- | --- |
 | `src/app/narrative.ts`（新） | 项目档案 schema（zod）、读写、版本号并发保护、岗位↔actor 映射、职责行、异常行、宪章解析、工单盖章 `enrichTicket` |
-| `src/app/views/narrative.ts`（新） | 组装叙事视图：项目 → 岗位 → 在飞职责 → 宪章（KanEO 实读，失败降级为 stale） |
+| `src/app/views/narrative.ts`（新） | 组装叙事视图：项目 → 岗位 → 在飞职责 → 宪章（Kanban 实读，失败降级为 stale） |
 | `src/app/api.ts` | 新增 `GET narrative`、`GET project-archive`、`PUT project-archive` |
 | `src/app/http.ts` | 三条路由；档案写入失败（并发/校验）返回 400 |
 | `src/app/runtime.ts` | `prepareTicket` 钩子串上 `enrichTicket`：新工单自动带上 postId / projectId / deliverableType / charterVersion |
@@ -56,7 +56,7 @@
 | `src/client/route.ts` | `TABS_BY_PERSPECTIVE`、`SETTINGS_GROUPS_BY_PERSPECTIVE`、`HOME_BY_PERSPECTIVE`：岗位视角少一个"评估"页签与设置分组，首页落在"我的职责" |
 | `src/client/app.tsx` | 右上角视角开关；页签按视角取集合与文案（编队→我的岗位、执行→我的职责）；切到没有的页面时回到该视角首页 |
 | `src/client/posts.tsx` | 岗位视角只显示所选岗位的卡片、职责与"我的异常"；未选岗位时先给"我是哪个岗位"选择器 |
-| `src/client/overview.tsx` | 岗位视角把"队伍"摘要换成"我的岗位"摘要（在飞职责 n/limit、我的异常、KanEO 身份、宪章） |
+| `src/client/overview.tsx` | 岗位视角把"队伍"摘要换成"我的岗位"摘要（在飞职责 n/limit、我的异常、Kanban 身份、宪章） |
 | `src/client/project.tsx` | 岗位视角只显示自己的岗位且可编辑；项目字段只读（项目归 PM 管） |
 
 关键约束：**没有新增任何后端接口**——两个视角读的是同一个 `GET narrative` / `GET project-archive`，写的是同一个 `PUT project-archive`。视角是**读法**，不是第二套系统。
@@ -104,20 +104,20 @@ project FDEP (FDE) charter=v1 stale=False detail='The charter is current'
 GET /orchestrator/api/project-archive → revision=657656810 projects=1 posts=2
 ```
 
-> 「宪章 v1 / The charter is current」是**实时从 KanEO 宪章载体任务读到的**（`GET /api/task/{id}` 解析 `version: N`），
+> 「宪章 v1 / The charter is current」是**实时从 Kanban 宪章载体任务读到的**（`GET /api/task/{id}` 解析 `version: N`），
 > 不是写死的占位值；读取失败会降级为"过期/不可读"而不是报错。
 
 浏览器实测（headless Chrome + CDP）：面板页签为 `总览 | 编队 | 来源 | 触发 | 评估 | 执行 | 设置`，
-编队页显示 FDEP 卡片、绿色「宪章 v1」徽标、PM/Worker 两张岗位卡（KanEO 身份、实例、在飞职责 0/3）、异常队列 0。
+编队页显示 FDEP 卡片、绿色「宪章 v1」徽标、PM/Worker 两张岗位卡（Kanban 身份、实例、在飞职责 0/3）、异常队列 0。
 截图：`_shots/gui-posts.png`、`_shots/sop-*.png`。
 
 ---
 
 ## 4. 已知边界
 
-1. **在飞职责目前为 0**：本地实例没有产生过真实工单（KanEO 任务 → 工单的映射已在代码与单测覆盖，但线上未跑过一条完整链路）。
-2. **岗位身份靠 KanEO assignee id 匹配**：KanEO 不提供"用户 → 岗位"查询，档案里的 `kaneoUserId` 必须与看板 assignee 一致；不一致时职责不会归到任何岗位。
-3. **宪章读取走 KanEO 实时请求**（8 秒超时、失败降级），面板每次刷新会读一次；高频刷新时建议沿用 10 秒轮询。
+1. **在飞职责目前为 0**：本地实例没有产生过真实工单（Kanban 任务 → 工单的映射已在代码与单测覆盖，但线上未跑过一条完整链路）。
+2. **岗位身份靠 Kanban assignee id 匹配**：Kanban 不提供"用户 → 岗位"查询，档案里的 `kaneoUserId` 必须与看板 assignee 一致；不一致时职责不会归到任何岗位。
+3. **宪章读取走 Kanban 实时请求**（8 秒超时、失败降级），面板每次刷新会读一次；高频刷新时建议沿用 10 秒轮询。
 4. **MinIO 仍只有执行会话可写**：文档类产出由执行会话上传、岗位取链接回写，本期未做自动回写。
 5. **仓库集 / topic 集目前只是登记**：动态增删（Gitea 仓库上下线、ntfy topic 订阅变更）还没有自动化通路（RD.md §9、§10 的 ❓ 项）。
 

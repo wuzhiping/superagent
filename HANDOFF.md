@@ -1,4 +1,4 @@
-# HANDOFF — dsh-superagent 改造为「Kaneo FDEP pipeline 看板提取任务」并移植到 dsh web profile
+# HANDOFF — dsh-superagent 改造为「Kanban FDEP pipeline 看板提取任务」并移植到 dsh web profile
 
 > 本文件记录整个历程：**解读 → 学习 → 改造 → 移植**。所有阶段的过程细节、设计文档、决策记录放在 [`TDD/`](TDD/README.md)。
 > 本文件随工作推进持续更新；最后更新见文末「变更记录」。
@@ -6,15 +6,15 @@
 > **⚠ 2026-11-03 状态更新（按用户要求）**：实施阶段已**暂停**；web profile 的安装与配置已**回滚**（依赖/bundle 列表/patch 已还原，插件不再运行，`/orchestrator/api/state` 已 404，GUI 正常）。
 >
 > **✅ 2026-11-03 最终状态（本轮目标「完成改造和测试、完成部署」）**：
-> - 三来源（**Kaneo** 任务 + **Gitea** 代码/PR，默认 `https://git.feg.cn` + **ntfy** IM，默认 `https://msn.feg.cn`）**均已实现为完整 Source**：Trigger、Channel 回复、Thread 上下文、策略、环境变量、部署账号校验。
+> - 三来源（**Kanban** 任务 + **Gitea** 代码/PR，默认 `https://git.feg.cn` + **ntfy** IM，默认 `https://msn.feg.cn`）**均已实现为完整 Source**：Trigger、Channel 回复、Thread 上下文、策略、环境变量、部署账号校验。
 > - **已安装并运行**在 dsh web profile（`D:\Refine\Books\ntop\AI\dsh\profiles\web`），stateDir=`D:/Refine/Books/ntop/AI/dsh/state/superagent`；三个来源 health 均为 `ready`。
-> - **端到端实测通过**：Kaneo 任务 → 工单 → worker 执行 → 评论回写（completed）；ntfy 消息 → 工单 → worker 执行 → 主题回复（已发布并校验）。
+> - **端到端实测通过**：Kanban 任务 → 工单 → worker 执行 → 评论回写（completed）；ntfy 消息 → 工单 → worker 执行 → 主题回复（已发布并校验）。
 > - **Gitea**：匿名/公开仓库的只读轮询与读取已实测；写回/通知模式需要 agent 账号 API token（当前未提供），相关路径以单测验证。
 > - 中文界面产品名统一为「**超级智能体**」（技术标识 `dsh-superagent` 不变）；单测 34 项、typecheck、build 通过。
 > - 详见 [REPORT.md](REPORT.md)、[TDD/007-p2-readonly-skeleton.md](TDD/007-p2-readonly-skeleton.md) 与 [TDD/006-process-log.md](TDD/006-process-log.md)。
 > - 想先读"它是怎么被用的"：看用户故事 **[STORY.md](STORY.md)**（三来源使用场景 + 全生命周期）。
 >
-> **范围已扩展为三来源**：Kaneo（任务）+ Gitea（代码/PR，默认 `https://git.feg.cn`）+ ntfy（IM，默认 `https://msn.feg.cn`）。
+> **范围已扩展为三来源**：Kanban（任务）+ Gitea（代码/PR，默认 `https://git.feg.cn`）+ ntfy（IM，默认 `https://msn.feg.cn`）。
 > 后续改为「先理解/方案、评审通过再实施」的流程，新的原理/流程/分阶段方案见 **[REPORT.md](REPORT.md)**。
 > 本文件 §5 记录的是回滚前那次探索性安装的过程，仅作参考；**当前环境已按最终状态重新安装并验证**。
 
@@ -22,8 +22,8 @@
 | --- | --- |
 | 工作目录 | `C:\Users\shawoo\Desktop\feg.cn\dsh-superagent-prototype` |
 | 上游项目 | `dsh-superagent`（DSH bundle，research prototype，v0.1.0） |
-| 改造目标 | 从 **Kaneo**（`https://pl.feg.cn`）的 **FDEP pipeline 看板**提取任务，替代 GitHub / Feishu 作为工作来源 |
-| Kaneo 实例 | `https://pl.feg.cn`（自架；MCP 端点 `/api/mcp`，REST 端点 `/api`） |
+| 改造目标 | 从 **Kanban**（`https://pl.feg.cn`）的 **FDEP pipeline 看板**提取任务，替代 GitHub / Feishu 作为工作来源 |
+| Kanban 实例 | `https://pl.feg.cn`（自架；MCP 端点 `/api/mcp`，REST 端点 `/api`） |
 | 工作区 / 项目 | workspace **ATEAM**（`lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o`）、项目 **FDEP**（slug `FDE`，id `dgctny8ibgpn72ei2j8qj2hc`）；另有项目 `pipeline`（slug `PIP`，id `wwo9d2mmqddjq8otbj8jh2hs`）备用 |
 | 移植目标 | **dsh web profile**：`D:\Refine\Books\ntop\AI\dsh\profiles\web`（DSH_HOME=`D:\Refine\Books\ntop\AI\dsh`，当前 GUI `http://127.0.0.1:3080`） |
 | 运行环境 | Windows 10 / PowerShell 5.1 / Node v24.19.0 / pnpm 11.7.0 / dsh `0.2.1-rc.5` |
@@ -33,7 +33,7 @@
 
 ## 0. 一句话摘要
 
-上游 `dsh-superagent` 是一个「给一个 GitHub 仓库打工」的主动式 agent bundle：Source 产生 Trigger → Engine 评估（Gate + 模型研判）→ 接单成 Ticket → 独立 Executor Session 干活 → 通过 Channel 回到原会话。本次改造**保留其领域模型、Engine、Executor、管理面板与权限体系**，新增一个 **Kaneo Source Kind**：轮询 FDEP 看板指定列（默认 `待開工/ready`）的任务，把「任务进入该列」变成显式 Trigger，把「一条任务」当作一个 Thread，回复以 **Kaneo 任务评论**写回，并可自动把任务列推进到 `進行中/in-progress`；同时把只支持 GitHub 的部署检查（`Deployment`/`Setup`）与 Windows 路径约束适配成「无 GitHub 也能启动」，最后以 DSH bundle 形式安装进 web profile。
+上游 `dsh-superagent` 是一个「给一个 GitHub 仓库打工」的主动式 agent bundle：Source 产生 Trigger → Engine 评估（Gate + 模型研判）→ 接单成 Ticket → 独立 Executor Session 干活 → 通过 Channel 回到原会话。本次改造**保留其领域模型、Engine、Executor、管理面板与权限体系**，新增一个 **Kanban Source Kind**：轮询 FDEP 看板指定列（默认 `待開工/ready`）的任务，把「任务进入该列」变成显式 Trigger，把「一条任务」当作一个 Thread，回复以 **Kanban 任务评论**写回，并可自动把任务列推进到 `進行中/in-progress`；同时把只支持 GitHub 的部署检查（`Deployment`/`Setup`）与 Windows 路径约束适配成「无 GitHub 也能启动」，最后以 DSH bundle 形式安装进 web profile。
 
 ---
 
@@ -50,17 +50,17 @@
 ### 1.2 拆解成可执行目标
 
 1. **解读/学习**：读懂上游 bundle 的架构与 DSH 集成方式。
-2. **改造**：新增 Kaneo Source，取代 GitHub Source 作为任务来源；适配部署检查与 Windows。
+2. **改造**：新增 Kanban Source，取代 GitHub Source 作为任务来源；适配部署检查与 Windows。
 3. **移植**：构建并以 bundle 形式安装进 dsh web profile，配置并端到端验证。
 4. **记录**：本文件 + `TDD/` 子目录保存设计、过程、决策、验证与回滚。
 
 ### 1.3 成功标准（验收口径）
 
 - [x] K1：`pnpm typecheck` + `pnpm build` 通过；本次相关单测全部通过。（`pnpm test` 全量在 Windows 有 39 个**既有平台失败**，见 [`TDD/005-test-verification.md`](TDD/005-test-verification.md) §3。）
-- [x] K2：新增 Kaneo Source 单测 11/11 覆盖「任务 → Trigger → Thread」翻译、轮询游标/去重、Channel 幂等、ThreadContext、REST 重试。
+- [x] K2：新增 Kanban Source 单测 11/11 覆盖「任务 → Trigger → Thread」翻译、轮询游标/去重、Channel 幂等、ThreadContext、REST 重试。
 - [x] K3：bundle 安装进 web profile 后，`/orchestrator/api/state` 返回 `setup.problem=null`、`runtime=ready`、`kaneo=ready`。
-- [x] K4：Kaneo `待開工` 任务 #470 被提取成 Ticket（Decision `accept`/explicitRouted），并自动推进到 `進行中`。
-- [x] K5：Executor 的回复以 Kaneo 任务评论写回（ack + result，带幂等 marker）。
+- [x] K4：Kanban `待開工` 任务 #470 被提取成 Ticket（Decision `accept`/explicitRouted），并自动推进到 `進行中`。
+- [x] K5：Executor 的回复以 Kanban 任务评论写回（ack + result，带幂等 marker）。
 - [x] K6：HANDOFF.md 与 `TDD/` 文档完整，含回滚步骤与真实证据（`TDD/artifacts/`）。
 
 ---
@@ -154,7 +154,7 @@ Source ──Trigger──> Thread ──batch──> Eval ──Decision(accept
 - `SourceHost`：`sources: SourceRegistry` + `context(kind)`；主插件以 `orchestrator` service 暴露。
 - `Deployment`（[`src/deployment.ts`](src/deployment.ts)）：`stateDir` + `repository` + `github{cli,login,noreply}` + 可选 `feishu`。**这是「必须有 GitHub」的关键耦合点**。
 - `Setup`（[`src/app/setup.ts`](src/app/setup.ts)）：`run()` 决定 `configured()`；未配置时 Runtime 处于 paused，Passes 不评估、Source 不轮询。
-- `Settings`（[`src/policy.ts`](src/policy.ts)）：`sources` 是 `Record<string, {enabled, config}>`，**本身泛化**；每个 Source 的配置由 kind 的 zod schema 校验，所以新增 Kaneo Source 无需改 SettingsSchema。
+- `Settings`（[`src/policy.ts`](src/policy.ts)）：`sources` 是 `Record<string, {enabled, config}>`，**本身泛化**；每个 Source 的配置由 kind 的 zod schema 校验，所以新增 Kanban Source 无需改 SettingsSchema。
 - `Outbox/Channel`：回复按 `OutboundMessage` 走 `SourceRegistry.send` → `kind.channel.send`，失败重试、`gone` 丢弃。
 
 ### 3.3 持久化
@@ -164,7 +164,7 @@ Source ──Trigger──> Thread ──batch──> Eval ──Decision(accept
 - **stateDir 必须绝对路径**，且上游 schema 用 `^\//` 校验（只认 POSIX 风格），Windows 需适配。
 - 上游 `Setup` 会写 `<stateDir>/worker-bin` 的 `#!/bin/sh` shim 与 `worker-gitconfig`（GitHub credential helper），**Windows 上不适用**；本次无 GitHub 时跳过这些写入。
 
-### 3.4 Kaneo（`https://pl.feg.cn`）要点
+### 3.4 Kanban（`https://pl.feg.cn`）要点
 
 - 认证：MCP 端点 `Authorization: Bearer <API key>`；REST 端点 `x-api-key: <API key>`。skill 已带 `.key`（`C:\...\dsh-superagent-prototype\.dsh\skills\kaneo-mcp\.key`）。
 - 身份：`吴志平 / wu.zhiping@feg.cn`，workspace owner；workspace **ATEAM**（id `lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o`）。
@@ -211,12 +211,12 @@ Source ──Trigger──> Thread ──batch──> Eval ──Decision(accept
 
 ```
 [旧] GitHub notifications / PR / CI ──Trigger──> Engine ──> Ticket ──> DshExecutor ──> GitHub comment/PR
-[新] Kaneo FDEP 看板任务（进入监听列）──Trigger──> Engine ──> Ticket ──> DshExecutor ──> Kaneo 任务评论 + 列推进
+[新] Kanban FDEP 看板任务（进入监听列）──Trigger──> Engine ──> Ticket ──> DshExecutor ──> Kanban 任务评论 + 列推进
 ```
 
-### 4.2 Kaneo Source 设计要点（映射表）
+### 4.2 Kanban Source 设计要点（映射表）
 
-| 领域概念 | Kaneo 映射 |
+| 领域概念 | Kanban 映射 |
 | --- | --- |
 | Source kind | `kaneo`（插件行 id `dsh-superagent-kaneo`，entry `dsh-superagent/kaneo-watch`） |
 | Source instance config | `{ baseUrl, apiKey, projectId, watchColumns[], claimColumn?, pollSeconds, maxTasks }` |
@@ -225,19 +225,19 @@ Source ──Trigger──> Thread ──batch──> Eval ──Decision(accept
 | Channel | 评论写回 `POST /comment/{taskId}`；消息去重靠 Outbox 的 receipt（自带幂等） |
 | Channel link | 任务页 URL（`baseUrl` + 站点内路由；先用 `/dashboard` 回退） |
 | Thread context | 任务标题+描述作为 root，评论作为消息，供研判读取 |
-| Policy | `policy.allowed` = 允许发起任务的 Kaneo 用户 id / 显示名；`explicit` = 任务进入监听列；admission 行按列给出 |
+| Policy | `policy.allowed` = 允许发起任务的 Kanban 用户 id / 显示名；`explicit` = 任务进入监听列；admission 行按列给出 |
 | 自动推进 | `claimColumn`（如 `in-progress`）：Trigger 成功入库后把任务移入该列，表示已被认领；可关闭 |
 | 环境变量 | 只放非敏感信息（KANEO_TASK_ID/URL/PROJECT_ID）；**API key 不进入 prompt 文本** |
 | Health | `kaneo` 健康项：轮询失败连续 N 次报 error；source off / setup pending 报 paused |
 
-### 4.3 部署适配（Kaneo-only）
+### 4.3 部署适配（Kanban-only）
 
 1. `Deployment.github` 允许为空：`resolveDeployment` 在 `repository` 与 `cli` 都为空时返回「无 GitHub」的 Deployment（空字符串占位），而不是抛 `repositoryUnset/agentCliUnset`。
 2. `Setup.resolve`：仅当 `deployment.github.cli` 非空时才写 worker shim/git 配置并 `verifyEnvironment`；否则跳过（Windows 上本来也不可用）。
-3. `Setup.checkAccounts`：`source:kaneo` 不做账号探测（Kaneo 无 CLI 身份）。
+3. `Setup.checkAccounts`：`source:kaneo` 不做账号探测（Kanban 无 CLI 身份）。
 4. Windows 绝对路径：`stateDir` / `executor.directory` 的 schema 正则放宽到 `^([/]|[A-Za-z]:[\\/])`。
 5. `Setup.check()`：无 GitHub 时仍按「configured 即健康」处理。
-6. `runtime.links()`：`repository` 为空时仍可构造（GitHub link 返回空 url），不影响 Kaneo。
+6. `runtime.links()`：`repository` 为空时仍可构造（GitHub link 返回空 url），不影响 Kanban。
 
 ### 4.4 代码变更清单（计划）
 
@@ -268,7 +268,7 @@ Source ──Trigger──> Thread ──batch──> Eval ──Decision(accept
 
 ### 4.5 非目标（本期不做）
 
-- 不做 Kaneo ↔ GitHub 双来源深度融合（可同时运行，但默认只开 Kaneo）。
+- 不做 Kanban ↔ GitHub 双来源深度融合（可同时运行，但默认只开 Kanban）。
 - 不做到「任务评论里 @agent 触发新 Eval」的完整 follow-up 流（先做列进入触发；评论上下文可读）。
 - 不改前端面板视觉；沿用上游 Superagent 面板。
 - 不解决 GitHub Source 在 Windows 的 shim/git 凭据支持（保持原样，默认关闭）。
@@ -302,14 +302,14 @@ pnpm check        # typecheck + vitest + build
 
 ### 5.3 配置（已完成）
 
-- `source:kaneo`：`baseUrl=https://pl.feg.cn`、`projectId=dgctny8ibgpn72ei2j8qj2hc`、`workspaceId=lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o`、`watchColumns=ready`、`claimColumn=in-progress`、`bootstrap=skip`、`pollSeconds=60`；保存时校验 Kaneo API，随后 `restarting:true`。
+- `source:kaneo`：`baseUrl=https://pl.feg.cn`、`projectId=dgctny8ibgpn72ei2j8qj2hc`、`workspaceId=lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o`、`watchColumns=ready`、`claimColumn=in-progress`、`bootstrap=skip`、`pollSeconds=60`；保存时校验 Kanban API，随后 `restarting:true`。
 - `policy`：`sources.kaneo.allowed` = 5 位团队成员（吴志平/郑琪俊/解雨心/王常军/高洁）。**PowerShell 提交中文须用 UTF-8 字节体**，否则 `name` 会变 `???`（已重存 revision 2 修复）。
 - `eval`/`executor` 保持默认（`observe`、`maxWorkers=3`、目录 `<stateDir>/work`）。
 
 ### 5.4 验证（已完成）
 
 - `/orchestrator/api/state`：`setup.problem=null`、`runtime=ready`、`kaneo=ready`（"0 new tasks from ready"）。
-- 烟雾任务 #470：在 `待辦池` 创建 → 移到 `ready` → 一个轮询周期内 `stats.received=1`、任务自动进 `in-progress`、Decision `accept`（explicitRouted）、Ticket 创建、Worker 执行并创建 `smoke.txt`、Kaneo 收到 ack + result 两条评论、Ticket `completed`。
+- 烟雾任务 #470：在 `待辦池` 创建 → 移到 `ready` → 一个轮询周期内 `stats.received=1`、任务自动进 `in-progress`、Decision `accept`（explicitRouted）、Ticket 创建、Worker 执行并创建 `smoke.txt`、Kanban 收到 ack + result 两条评论、Ticket `completed`。
 - 验证后删除 #470（404 确认），证据保存在 [`TDD/artifacts/`](TDD/artifacts/)。
 - 最终代码删除临时诊断后重新 build，并通过禁用/启用插件做冷重载：`setup.problem=null`、`runtime=ready`、`kaneo=ready`。
 
@@ -334,8 +334,8 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-03 12:5x | 摸清 DSH_HOME（`D:\Refine\Books\ntop\AI\dsh`）与活动 web profile（`...\profiles\web`）；发现 profile 已装 `kaneo-web` 等本地 bundle |
 | 2026-11-03 13:0x | 读 README/SETUP/docs 001/002/006/007；建立领域模型与部署模型 |
 | 2026-11-03 13:1x | 用 `kaneo-mcp` skill 查询：whoami=吴志平、workspace=ATEAM、projects=FDEP/pipeline；FDEP 8 列、285 任务；确认 REST 端点 |
-| 2026-11-03 13:14 | 实现 Kaneo Source（6 个新文件）+ 部署/Windows 适配 + 测试 |
-| 2026-11-03 13:10–13:20 | `pnpm install`、typecheck、Kaneo 单测 11/11、全量测试（39 个 Windows 基线失败） |
+| 2026-11-03 13:14 | 实现 Kanban Source（6 个新文件）+ 部署/Windows 适配 + 测试 |
+| 2026-11-03 13:10–13:20 | `pnpm install`、typecheck、Kanban 单测 11/11、全量测试（39 个 Windows 基线失败） |
 | 2026-11-03 13:34 | `pnpm build` 成功，产出 `lib/kaneo-watch.js` |
 | 2026-11-03 13:37 | 备份 profile → 加 stateDir 配置 → `plugin_manager install_bundle` → `applied` |
 | 2026-11-03 13:38 | 保存 `source:kaneo` → `restarting:true` |
@@ -347,17 +347,23 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-04 上午 | **叙事化面板**：编队页（项目/岗位/宪章/职责/异常）、项目与岗位设置页、叙事 API（`GET narrative`、`GET/PUT project-archive`）、工单带 `postId`/`deliverableType`/`charterVersion`；两种面板视角（PM / 岗位）共用一套后台；SOP.md + SOP.html（16 页）交付 → [TDD/009](TDD/009-narrative-ui.md) |
 | 2026-11-04 下午 | **用户故事反复验证**：写 `scripts/user-stories.mjs`（9 条故事，真实环境跑，带限流退避与配置还原），连跑 9 轮（4/8 → 9/9），逐条修 bug → [TDD/010](TDD/010-user-stories-validation.md) |
 | 2026-11-04 下午 | **B-4 认领时机**：从"读到请求就认领"改成"岗位第一次回写才认领"（只有带 `ticketId` 的消息才认领）→ `src/sources/kaneo-channel.ts` + `src/sources/registry.ts`（host 带 `config`） |
-| 2026-11-04 下午 | **B-9 交付列**：KanEO Source 新增 `doneColumn`——岗位交付结果时把卡移进交付列，Thread 随之关闭、工单才结束（此前岗位无法推进卡片状态，职责永远等不到卡关闭） |
+| 2026-11-04 下午 | **B-9 交付列**：Kanban Source 新增 `doneColumn`——岗位交付结果时把卡移进交付列，Thread 随之关闭、工单才结束（此前岗位无法推进卡片状态，职责永远等不到卡关闭） |
 | 2026-11-04 傍晚 | **B-8 看板自动化**：隔离实验证实 FDEP 看板有"进入 ready 即开工"的自动化（~20 秒），60 秒轮询会漏掉请求 → 脚本轮询 15 秒 + 重新派工；写进 SOP 与 RD §6.4 |
 | 2026-11-04 傍晚 | **用户叙事校正**：任务不必然是编程、flow 是周复盘长出来的、项目类型多样 → RD §6.4/§7/§9 重写；档案新增 `kind`/`flow`/`workfaces`；编队页显示价值流与流程漂移；SOP.md/SOP.html 同步 |
-| 2026-11-04 晚 | **设置瘦身**：按"设置应该减少、应该通用、PM 直接在 KanEO 设置"——档案只剩**项目 / 岗位 / 宪章**三件事；价值流从服务器读 ✅；仓库由卡片自己说 ✅（工单新增 `repos[]` ✅）；监听列移到岗位 ✅ |
+| 2026-11-04 晚 | **设置瘦身**：按"设置应该减少、应该通用、PM 直接在 Kanban 设置"——档案只剩**项目 / 岗位 / 宪章**三件事；价值流从服务器读 ✅；仓库由卡片自己说 ✅（工单新增 `repos[]` ✅）；监听列移到岗位 ✅ |
 | 2026-11-04 深夜 | **宪章改本地文档**：面板里写并「发布」（版本 +1、记发布者、旧版进历史 ✅）；工单仍钉开工那版 ✅；编队页拿宪章声明的流程与看板真实的列比对 ✅ |
-| 2026-11-04 深夜 | **KanEO 成为唯一直接来源**：新增 `src/sources/kaneo-inbox.ts` ✅，Gitea/ntfy 事件先入库成卡（`to-do` ✅、`from:gitea`/`from:ntfy` 标签 ✅、不指派 ✅），开关 `ingestEvents` ✅ |
+| 2026-11-04 深夜 | **Kanban 成为唯一直接来源**：新增 `src/sources/kaneo-inbox.ts` ✅，Gitea/ntfy 事件先入库成卡（`to-do` ✅、`from:gitea`/`from:ntfy` 标签 ✅、不指派 ✅），开关 `ingestEvents` ✅ |
 | 2026-11-04 深夜 | **内置提示词中性化**（12 个 `prompts/*.md` ✅）：交付物/载体/工作日志去编程味 ✅、GitHub 说法改条件句 ✅、新增 PM「当期流程」指引 ✅ |
 | 2026-11-04 深夜 | **插件装不上**：宿主按虚拟 store 路径解析插件裸导入 ✅，仓库却是 `nodeLinker: hoisted` ✅ → 改成 `isolated` + `shamefullyHoist` ✅（两种布局并存 ✅） |
 | 2026-11-05 00:00 | **用户故事全绿**：9 条故事 **9 ✅ / 0 ❌** ✅（run 16 ✅），报告见 [TDD/010](TDD/010-user-stories-validation.md) ✅ |
 | 2026-11-05 早上 | **US-10 入库链路**：ntfy 事件 → 自动落成看板卡（`to-do` ✅、`from:ntfy` ✅、不指派 ✅）→ PM 指派 → 岗位领 → 回写那张卡 ✅ ✅ **全绿** ✅ |
-| 2026-11-05 早上 | **多 Host 同项目**（用户校正 ✅ ✅）：RD §4.1 ✅ ✅、SOP §2.6 ✅ ✅——多台 Host 连同一个 KanEO 项目各演一个岗位 ✅ ✅；**管理权限检查**：新增 `GET capabilities` ✅ ✅（`GET /user/me` ✅ ✅ → 账号与角色 ✅ ✅ → `canManageFlow` ✅ ✅ ✅）✅ ✅ |
+| 2026-11-05 早上 | **多 Host 同项目**（用户校正 ✅ ✅）：RD §4.1 ✅ ✅、SOP §2.6 ✅ ✅——多台 Host 连同一个 Kanban 项目各演一个岗位 ✅ ✅；**管理权限检查**：新增 `GET capabilities` ✅ ✅（`GET /user/me` ✅ ✅ → 账号与角色 ✅ ✅ → `canManageFlow` ✅ ✅ ✅）✅ ✅ |
+| 2026-11-05 上午 | **Kanban 统一命名** ✅（用户校正）：文档与面板文案全部改名为 Kanban，代码标识保留 ✅ |
+| 2026-11-05 上午 | **宪章改为项目级共享文档** ✅：宪章正文 = 项目的 `description`；发布=替换、盖章版本/发布者/时间；**每周至多一版**（7 天内再发会被拒，PM 可显式覆盖）；每个项目只有一份最新，所有 Host 读同一份 ✅（[TDD/011](TDD/011-charter-and-pipeline-growth.md)）|
+| 2026-11-05 上午 | **价值流成长验证** ✅：空项目 RSI（默认 4 列）→ 发布宪章 v6 声明默认流程 → 复盘加列 `QA 驗收` → 面板看到漂移 `added=[qa-驗收]` → 宪章 v7 确认 → 对齐 ✅（`scripts/lib/rsi-pipeline-growth.mjs`）|
+| 2026-11-05 上午 | **清理中心** ✅：PM 视角「清理」页列出已结束职责的工作区（线上 27 个）、大小、session 数、是否有交付物；人确认后清（默认不删文件夹、不删 session 日志）✅ |
+| 2026-11-05 上午 | **凭据从存储记录读** ✅：`src/sources/bdd-storage.ts` 遮蔽 `refs.*` → POST `/BDD/API/AI/dsh/storage/{kaneo,gitea,ntfy,s3}`；Kanban 卡片不填 key 也能跑（启动预热、setup 回退）✅ |
+| 2026-11-05 上午 | **Gitea 免账号** ✅：只有服务器地址 + 仓库名即可匿名读公开仓库；401 给可读错误；真实探测 `git.feg.cn/shawoo/PDP` ✅ |
 | 2026-11-04 晚 | 全量回归：`pnpm typecheck` 通过；目标测试全绿（`kaneo` 16、`views` 16、`narrative` 8、`panel-posts` 4、`styles` 2、`gitea`/`ntfy` 40 ✅）；既有的 dev 环境失败与本次改动无关（用 `git worktree` 在 HEAD 上逐文件比对 ✅） |
 
 ---
@@ -366,12 +372,12 @@ pnpm check        # typecheck + vitest + build
 
 **当前阶段：✅ 已部署在 web profile（127.0.0.1:3080）并在真实测试环境反复验证；代码与文档都在仓库里，尚未提交。**
 
-> 2026-11-04 的进展见 §6 的时间线与 [TDD/009](TDD/009-narrative-ui.md)（叙事化面板）与 [TDD/010](TDD/010-user-stories-validation.md)（用户故事反复验证）。
+> 2026-11-04 的进展见 §6 的时间线与 [TDD/009](TDD/009-narrative-ui.md)（叙事化面板）；2026-11-05 见 [TDD/010](TDD/010-user-stories-validation.md)（用户故事）与 [TDD/011](TDD/011-charter-and-pipeline-growth.md)（项目宪章 / 价值流成长 / 清理中心）。
 
 - [x] 解读 bundle 架构与 DSH 集成
-- [x] 学习 Kaneo API 与 FDEP 数据
+- [x] 学习 Kanban API 与 FDEP 数据
 - [x] 建立 HANDOFF.md 与 TDD 索引
-- [x] Kaneo Source 实现（6 个新文件 + 11 项单测）
+- [x] Kanban Source 实现（6 个新文件 + 11 项单测）
 - [x] 部署/Windows 适配（含 `tools.restrict` 的 Windows 修复）
 - [x] 构建（`lib/kaneo-watch.js`）
 - [x] 安装到 web profile（备份 + `install_bundle`）
@@ -379,19 +385,22 @@ pnpm check        # typecheck + vitest + build
 - [x] 文档回填（HANDOFF + TDD/001–006 + artifacts）
 - [x] 叙事化面板：编队页、项目与岗位设置、叙事 API、两种视角、SOP.md / SOP.html（TDD/009）
 - [x] 用户故事反复验证：11 条故事 × 19 轮，发现并修复 B-1 ~ B-20（TDD/010），**最终 11 ✅ / 0 ❌** ✅
-- [x] 用户叙事校正（任务不必然是编程 / flow 由复盘长出来 / 项目类型多样 / 设置要少要通用 / KanEO 是唯一直接来源 / 提示词要中性）落到 RD、档案模型、编队页、来源实现与提示词
+- [x] 用户叙事校正（任务不必然是编程 / flow 由复盘长出来 / 项目类型多样 / 设置要少要通用 / Kanban 是唯一直接来源 / 提示词要中性）落到 RD、档案模型、编队页、来源实现与提示词
 - [x] **多 Host 同项目**（用户校正 ✅）：RD §4.1 ✅、SOP §2.6 ✅ ✅；**管理权限自检** ✅：`GET capabilities` ✅ ✅（账号与角色 → `canManageFlow` ✅ ✅）+ 面板提示 ✅ ✅✅
+- [x] **Kanban 统一命名** ✅；**宪章改为项目级共享文档**（每周至多一版）✅；**价值流成长**在 RSI 空项目上真实验证 ✅（TDD/011）
+- [x] **清理中心**（工作区/session 膨胀）✅；**凭据从存储记录读**（Masked Key）✅；**Gitea 免账号**✅
 
 **下一步（建议，按优先级）**：
 
-1. **Worker 岗位的 KanEO 账号**：`w1-fdep` 还没有 KanEO 身份。**KanEO 没有建号 API** ✅ ✅（`GET /user` 404 ✅ ✅、无建号端点 ✅ ✅）——
-   需要**人在 KanEO 网页里建号** ✅ ✅（SOP §2.3 ✅ ✅ ✅），建好把用户 id 填进档案 ✅ ✅。
+1. **Worker 岗位的 Kanban 账号**：`w1-fdep` 还没有 Kanban 身份。**Kanban 没有建号 API** ✅ ✅（`GET /user` 404 ✅ ✅、无建号端点 ✅ ✅）——
+   需要**人在 Kanban 网页里建号** ✅ ✅（SOP §2.3 ✅ ✅ ✅），建好把用户 id 填进档案 ✅ ✅。
 2. **两个岗位真实并发**：PM 与 Worker 各一台 Host（admin key ✅ ✅ + member key ✅ ✅ ✅），看板上的派工与回写才真正跑一遍 ✅ ✅。
 3. **非编程项目的真实故事**：客诉 / 物流这类项目跑一遍 US-02~US-04（`kind:` 标签与工作面已经支持 ✅ ✅）。
-4. **产出回写 MinIO**：执行会话能写桶，但"上传 → 取回链接 → 回写看板"的闭环还没跑通。
-5. **按角色的团队提示词段**：三个团队段（communication/scope/delivery）目前两个角色共用 ✅；要做到"只给 worker 一份交付要求"需要改 `PromptConfigSchema` ❓。
-6. **确认业务口径**：监听列/标签范围、允许发起人名单、完成后的列推进目标（`done` / `in-review`）——见 §8.1。
-7. **Windows 测试基线**（可选）：给上游 POSIX 测试补平台分支，使 `pnpm test` 全绿。
+4. **产出回写 MinIO**：执行会话能写桶，但"上传 → 取回链接 → 回写看板"的闭环还没跑通（宪章已约定，缺固定套路与验证）。
+5. **ntfy / Gitea 也用存储凭据**：provider 已就位，Kanban 已接；这两条来源内部的 fallback 还没接。
+6. **按角色的团队提示词段**：三个团队段（communication/scope/delivery）目前两个角色共用 ✅；要做到"只给 worker 一份交付要求"需要改 `PromptConfigSchema` ❓。
+7. **确认业务口径**：监听列/标签范围、允许发起人名单、完成后的列推进目标（`done` / `in-review`）——见 §8.1。
+8. **Windows 测试基线**（可选）：给上游 POSIX 测试补平台分支，使 `pnpm test` 全绿。
 
 ---
 
@@ -411,9 +420,9 @@ pnpm check        # typecheck + vitest + build
 
 | 风险 | 等级 | 缓解 |
 | --- | --- | --- |
-| 装进活动 web profile 影响现有会话/目录 | 中 | 备份 profile 配置；只启用 Kaneo、GitHub/Feishu disabled；回滚步骤见 TDD/004 |
+| 装进活动 web profile 影响现有会话/目录 | 中 | 备份 profile 配置；只启用 Kanban、GitHub/Feishu disabled；回滚步骤见 TDD/004 |
 | 上游代码面向 POSIX，Windows 下 shim/git 不可用 | 中 | 跳过 GitHub 环境写入；已修主 Session 工具名；其余为既有基线问题 |
-| Kaneo API 限流（100/min） | 低 | 轮询 60s、单列 1 读 + 认领 1 写 |
+| Kanban API 限流（100/min） | 低 | 轮询 60s、单列 1 读 + 认领 1 写 |
 | 任务内容不可信（prompt injection） | 中 | 外部数据不改变授权；API key 不进 prompt；Gate 按 allowed 名单 |
 | 真实看板会真的产生工单/消费模型额度 | 中 | `bootstrap=skip` 避免抓爆已有任务；`maxWorkers=3`、`maxTasksPerColumn=50`；可随时 pause |
 | 评论作者 = API key 用户 | 低 | 建专用 agent 账号/key（二期） |
@@ -433,12 +442,12 @@ pnpm check        # typecheck + vitest + build
 | `TDD/README.md` | TDD 目录索引与方法论 |
 | `TDD/001-bundle-anatomy.md` | 上游 bundle 代码级解剖（解读/学习） |
 | `TDD/002-requirements-assumptions.md` | 需求、假设、开放问题、决策 |
-| `TDD/003-kaneo-source-design.md` | Kaneo Source 详细设计 |
+| `TDD/003-kaneo-source-design.md` | Kanban Source 详细设计 |
 | `TDD/004-port-deployment.md` | 移植/安装/配置/验证/回滚（实际执行记录） |
 | `TDD/005-test-verification.md` | 测试与验收矩阵（含 Windows 基线说明） |
 | `TDD/006-process-log.md` | 逐次操作过程日志（含故障与修复） |
 | `TDD/artifacts/` | 端到端验证证据（Ticket/Decision/Comment/State JSON） |
-| `src/sources/kaneo.ts` | Kaneo Source kind + 插件入口 + 轮询 |
+| `src/sources/kaneo.ts` | Kanban Source kind + 插件入口 + 轮询 |
 | `src/sources/kaneo-config.ts` | 账号字段与完整配置 schema、URL |
 | `src/sources/kaneo-api.ts` | REST 客户端（x-api-key、zod、重试） |
 | `src/sources/kaneo-trigger.ts` | 任务 → Trigger / Thread / Channel / 过滤 |
@@ -453,7 +462,7 @@ pnpm check        # typecheck + vitest + build
 | 时间 | 变更 |
 | --- | --- |
 | 2026-11-03 13:05 | 初版：完成解读/学习，建立 TDD 骨架，记录假设与计划 |
-| 2026-11-03 13:20 | 实现完成：6 个 Kaneo 源文件 + 部署适配 + 测试 |
+| 2026-11-03 13:20 | 实现完成：6 个 Kanban 源文件 + 部署适配 + 测试 |
 | 2026-11-03 13:37 | 安装到 web profile 并配置 |
 | 2026-11-03 13:52 | 修复 Windows `tools.restrict`；插件 ready |
 | 2026-11-03 13:57 | 端到端验证通过；清理测试卡 |

@@ -111,7 +111,7 @@ Effects:
 
 只读能力：`deployment`、`commands`、`ready`、`configured()`、`config<C>(kind)`、`state`(KV)、`threads.get/subscribed/describe/patch`、`tickets.get/open`、`triggers.get/latest`。
 写能力：`receive(trigger)`、`atomic(work)`、`tickets.bindThread/threadClosed`、`notify(message)`、`report(entry, health)`。
-→ Kaneo Source 可以完全通过这个面完成：轮询 + Trigger + KV 游标 + Thread 描述 + 评论 notify。**不需要** Store/Engine 直连。
+→ Kanban Source 可以完全通过这个面完成：轮询 + Trigger + KV 游标 + Thread 描述 + 评论 notify。**不需要** Store/Engine 直连。
 
 ### 4.3 `SourceRegistry`（`src/sources/registry.ts`）
 
@@ -132,15 +132,15 @@ Effects:
 - `Setup.run(settings)`：`resolveDeployment` 失败 → `problem`，`configured()` 为 false；成功后 `writeEnvironment`（worker-bin shims + worker-gitconfig）+ `applyEnvironment` + `verifyEnvironment`。
 - `Runtime.paused()`：`!configured() || settings.paused`。**未配置时 Passes 不评估、Effects 不派发。**
 
-→ **Kaneo-only 的阻断点就是 `resolveDeployment` 与 `writeEnvironment`**。改造见 003/004。
+→ **Kanban-only 的阻断点就是 `resolveDeployment` 与 `writeEnvironment`**。改造见 003/004。
 
 ### 5.2 `SETUP_FIELDS`
 
-`{ github: ['repository','cli'], feishu: ['cli'] }`：只有这些字段变化才重启重跑 setup。Kaneo 的配置不走 setup（无 CLI），保存时不应触发账号检查。
+`{ github: ['repository','cli'], feishu: ['cli'] }`：只有这些字段变化才重启重跑 setup。Kanban 的配置不走 setup（无 CLI），保存时不应触发账号检查。
 
 ### 5.3 Settings 泛化程度
 
-`SettingsSchema.sources` 是 `Record<id, {enabled, config}>`；实例的 config 由对应 kind 的 zod schema 校验（`SourceRegistry.validate`）。**新增 Kaneo Source 不需要改 SettingsSchema**；面板的 source 卡片从 `kind.fields` 渲染，`Settings.view()` 通过 `sources.instances()` 枚举。
+`SettingsSchema.sources` 是 `Record<id, {enabled, config}>`；实例的 config 由对应 kind 的 zod schema 校验（`SourceRegistry.validate`）。**新增 Kanban Source 不需要改 SettingsSchema**；面板的 source 卡片从 `kind.fields` 渲染，`Settings.view()` 通过 `sources.instances()` 枚举。
 
 ### 5.4 与 GitHub 硬绑定的代码点（本次要绕开的）
 
@@ -154,7 +154,7 @@ Effects:
 - `src/app/migration.ts` / `kv.ts`：旧 GitHub/Feishu KV。
 - `src/app/outbox.ts`：Feishu IM 长度限制。
 
-**取舍**：Kaneo Source 不依赖以上任何 GitHub 逻辑（不同于「把 GitHub payload 换掉」，而是新增一种 Source）。运行时仍需容忍 `deployment.repository === ''`：`links()`、`pullEndNotices`、环境变量渲染都要能处理空值（它们本身多数已经能用空串处理，只需确认不抛错）。
+**取舍**：Kanban Source 不依赖以上任何 GitHub 逻辑（不同于「把 GitHub payload 换掉」，而是新增一种 Source）。运行时仍需容忍 `deployment.repository === ''`：`links()`、`pullEndNotices`、环境变量渲染都要能处理空值（它们本身多数已经能用空串处理，只需确认不抛错）。
 
 ## 6. Client 面板
 
@@ -174,4 +174,4 @@ Effects:
 1. **保留**：`src/core/*`、`src/app/*`（除 Setup/Deployment 小改）、`src/executor/*`、`src/client/*`、agent presets、管理 API。
 2. **新增**：`src/sources/kaneo*.ts`，作为第三个 Source kind（独立 loader 行）。
 3. **适配**：`deployment.ts`/`setup.ts`/`environment.ts` 容忍「无 GitHub」；Windows 路径正则。
-4. **开关**：bundle patch 默认只启用 Kaneo，GitHub/Feishu 置 `disabled: true`；原能力保留可再开。
+4. **开关**：bundle patch 默认只启用 Kanban，GitHub/Feishu 置 `disabled: true`；原能力保留可再开。

@@ -3,7 +3,7 @@
 > **⚠ 2026-11-03 状态更新**：按用户要求，**部署已回滚**（`plugin_manager remove_bundle` + 还原 profile patch；当前 web profile 未安装本插件，`/orchestrator/api/state` 返回 404）。
 > 本文记录回滚前的探索性安装过程与实测结果，仅作参考；后续按 [REPORT.md](../REPORT.md) 的分阶段方案重新评审，不默认沿用。
 
-目标：把改造后的 bundle 构建并以 **DSH bundle** 形式安装到 **web profile**（`D:\Refine\Books\ntop\AI\dsh\profiles\web`，DSH_HOME=`D:\Refine\Books\ntop\AI\dsh`），配置 Kaneo Source，并端到端验证。
+目标：把改造后的 bundle 构建并以 **DSH bundle** 形式安装到 **web profile**（`D:\Refine\Books\ntop\AI\dsh\profiles\web`，DSH_HOME=`D:\Refine\Books\ntop\AI\dsh`），配置 Kanban Source，并端到端验证。
 
 ## 1. 前置与版本
 
@@ -65,14 +65,14 @@ target: C:\Users\shawoo\Desktop\feg.cn\dsh-superagent-prototype
 
 管理 API：`http://127.0.0.1:3080/orchestrator/api/`，必须带 `x-orchestrator-request: 1`，Host 为 127.0.0.1:3080。
 
-### 4.1 Kaneo Source
+### 4.1 Kanban Source
 
 ```powershell
 PUT /orchestrator/api/settings/source:kaneo
 {
   "value": { "enabled": true, "config": {
     "baseUrl": "https://pl.feg.cn",
-    "apiKey": "<64-char Kaneo API key>",
+    "apiKey": "<64-char Kanban API key>",
     "projectId": "dgctny8ibgpn72ei2j8qj2hc",
     "workspaceId": "lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o",
     "watchColumns": "ready",
@@ -89,9 +89,9 @@ PUT /orchestrator/api/settings/source:kaneo
 → {"saved":true,"revision":1,"policy_changed":false,"restarting":true,"context_delivery":"pending"}
 ```
 
-保存时执行 Kaneo 账号检查（`GET /task/tasks/{projectId}?limit=1`），随后 `restarting:true` 触发插件重启；重启后 setup 成功、runtime `ready`、Kaneo 轮询开始。
+保存时执行 Kanban 账号检查（`GET /task/tasks/{projectId}?limit=1`），随后 `restarting:true` 触发插件重启；重启后 setup 成功、runtime `ready`、Kanban 轮询开始。
 
-### 4.2 Policy（允许发起任务的 Kaneo 用户）
+### 4.2 Policy（允许发起任务的 Kanban 用户）
 
 ```powershell
 PUT /orchestrator/api/settings/policy  (revision 0)
@@ -122,7 +122,7 @@ health.kaneo   = {"state":"ready","detail":"0 new tasks from ready; next poll �
 setup.accounts = {"repository":"","agent":"","feishu":null}
 ```
 
-（`repository`/`agent` 为空是预期：Kaneo-only 部署没有 GitHub 账号。）
+（`repository`/`agent` 为空是预期：Kanban-only 部署没有 GitHub 账号。）
 
 ### 5.2 端到端（烟雾任务）
 
@@ -176,8 +176,8 @@ state   → setup.problem=null, runtime=ready, kaneo=ready
 | 隔离性 | 装进活动 web profile（用户要求） | 上游建议独立 profile。本插件在无 GitHub 时**不修改进程环境**（跳过 worker shim/git 配置），面板/Session/状态目录均独立；主要风险是与 profile 现有插件共享进程与重启。 |
 | 首次轮询 | `bootstrap: skip` | 首次轮询把 `ready` 列已有任务记为已见、不产生请求；任务第一次进入监听列才成为请求（一任务一次）。 |
 | 认领 | `claimColumn: in-progress` | Trigger 入库后立即把任务移到该列；置空可关闭。若 Eval 后来忽略，任务仍停在认领列，需人工移回。 |
-| 评论身份 | API key 的所属用户（吴志平） | 没有独立 bot 身份；如需区分，请为 agent 建专用 Kaneo 账号并签发独立 API key。 |
+| 评论身份 | API key 的所属用户（吴志平） | 没有独立 bot 身份；如需区分，请为 agent 建专用 Kanban 账号并签发独立 API key。 |
 | 完成后的列推进 | 未实现 | 目前只做「认领」，不自动进 qa/done；可作为二期（在 poll 中观察 ticket ended 后移动）。 |
-| 任务链接 | 未验证 | 当前用 `…/dashboard/<workspace>/project/<projectId>?task=<taskId>`；Kaneo SPA 路由未实测，必要时修正 `kaneoTaskUrl`。 |
+| 任务链接 | 未验证 | 当前用 `…/dashboard/<workspace>/project/<projectId>?task=<taskId>`；Kanban SPA 路由未实测，必要时修正 `kaneoTaskUrl`。 |
 | 限流 | 60s/列 | API key 每分钟 100 次；当前 1 列 = 每轮 1 次读 + 认领写。 |
 | 日志 | 进程控制台 | DSH web 未写文件日志；排障可通过管理 API 的 `health` 与临时诊断代码定位。本次定位到的重启失败是 `tools.restrict() names unknown global tool "bash"`（Windows），已修。 |

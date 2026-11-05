@@ -322,6 +322,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/app/store-read.ts` | `storeReads`: the Store's read queries for the views, the tools and the Sources' polls, which never write |
 | `src/app/migration.ts` | The schema 11 migration: one step from schema 10 that writes every stored record in its current shape |
 | `src/app/effects.ts` | Effects |
+| `src/app/maintenance.ts` | The cleanup audit for ended duties: a workspace's size with its byte and file caps, its Session count, the safe removal plan, and the guarded removal of a workspace registration and its directory |
 | `src/app/versions.ts` | `Versions`: a record kept as numbered snapshots with a pointer to the current one, for the settings and the prompts |
 | `src/app/cache.ts` | `TextCache`: texts kept in memory within a size, the least recently used dropped first |
 | `src/app/settings.ts` | Settings |
@@ -368,11 +369,11 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/github-channel.ts` | The GitHub Channel: comments and review thread replies, `sent` or `gone` |
 | `src/sources/github-read.ts` | CI snapshots, repository reads, the `github/` resources, and `githubThreadContext`: an Issue's or pull request's conversation by page |
 | `src/sources/feishu.ts` | The Feishu kind and plugin entry, exported as `./feishu-watch` |
-| `src/sources/kaneo.ts` | The Kaneo kind and plugin entry, exported as `./kaneo-watch`: watched board columns polled on an interval, a task in one of them turned into a Trigger, and its Thread described |
-| `src/sources/kaneo-config.ts` | The Kaneo account fields deployment setup resolves (`baseUrl`, `apiKey`, `projectId`), the full Source configuration schema, and the board and task URLs |
-| `src/sources/kaneo-api.ts` | The Kaneo REST client: `x-api-key`, JSON validated by zod, a timeout, and bounded retries for rate limits and transient failures |
-| `src/sources/kaneo-trigger.ts` | Kaneo tasks as domain Triggers (one explicit request per task), the `kaneo:<taskId>` Thread, Channel addresses, and the required-label filter |
-| `src/sources/kaneo-channel.ts` | The Kaneo Channel: a reply as a task comment carrying a marker so a retried send comments once |
+| `src/sources/kaneo.ts` | The Kanban kind and plugin entry, exported as `./kaneo-watch`: watched board columns polled on an interval, a task in one of them turned into a Trigger, and its Thread described |
+| `src/sources/kaneo-config.ts` | The Kanban account fields deployment setup resolves (`baseUrl`, `apiKey`, `projectId`), the full Source configuration schema, and the board and task URLs |
+| `src/sources/kaneo-api.ts` | The Kanban REST client: `x-api-key`, JSON validated by zod, a timeout, and bounded retries for rate limits and transient failures |
+| `src/sources/kaneo-trigger.ts` | Kanban tasks as domain Triggers (one explicit request per task), the `kaneo:<taskId>` Thread, Channel addresses, and the required-label filter |
+| `src/sources/kaneo-channel.ts` | The Kanban Channel: a reply as a task comment carrying a marker so a retried send comments once |
 | `src/sources/kaneo-read.ts` | `kaneoThreadContext`: a task's description as the root and its comments as the thread, for assessments |
 | `src/sources/gitea.ts` | The Gitea kind and plugin entry, exported as `./gitea-watch`: polls notifications or repository increments, turns addressed issues/comments into Triggers, posts replies as issue comments |
 | `src/sources/gitea-config.ts` | The Gitea account fields, the kind's configuration schema, and `owner/name` parsing |
@@ -390,9 +391,10 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/app.tsx` | The panel: header, search, glossary, tabs and the page of the current route |
 | `src/client/provider.tsx` | What every page reads from its host: copy, calls, navigation, notices, the state poll, and `restart`, which reads the state quickly while dsh-superagent restarts |
 | `src/client/api.ts` | Calls and polls of the management API, typed by `src/app/api.ts`, and the Decision filters of the Eval status |
-| `src/client/capabilities.tsx` | The KanEO account behind this Host and the rights it has: the words the panel uses about them, and the banner the PM perspective shows when the account may not manage the board's flow |
+| `src/client/capabilities.tsx` | The Kanban account behind this Host and the rights it has: the words the panel uses about them, and the banner the PM perspective shows when the account may not manage the board's flow |
 | `src/client/route.ts` | The tabs, the settings groups, the typed routes that `parseRoute` reads, and the route memory with the settings group opened last |
 | `src/client/overview.tsx` | The overview |
+| `src/client/maintenance.tsx` | The Cleanup page: ended duties by size, preselected except those with a deliverable, and the confirmed cleanup with its separate folder removal |
 | `src/client/source.tsx`, `trigger.tsx`, `eval.tsx`, `execution.tsx` | One file per stage: its status, and its settings where it has some |
 | `src/client/thread.tsx`, `ticket.tsx` | The record pages: a Thread with its timeline, and a Ticket with its authorization, Inputs and Assignments |
 | `src/client/settings.tsx` | The Settings tab: the group navigation and the group on screen |
@@ -410,7 +412,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/locales.ts` | All copy in both languages, and the glossary of [001 Domain model](001-domain.md) |
 | `src/client/client.css`, `css.d.ts` | The panel's stylesheet, loaded as text |
 
-`src/sources/github.ts` and `src/sources/feishu.ts` are also the entries of the two Source plugins, built by `tsdown.config.ts` and exported in `package.json` as `./github-watch` and `./feishu-watch`. `src/sources/kaneo.ts` is the entry of the Kaneo Source plugin, exported as `./kaneo-watch`. The bundle's `cordis.patch.yml` inserts the four plugins; for the Kaneo deployment the GitHub and Feishu rows are disabled, and the profile's patch enables one of them after its card is set.
+`src/sources/github.ts` and `src/sources/feishu.ts` are also the entries of the two Source plugins, built by `tsdown.config.ts` and exported in `package.json` as `./github-watch` and `./feishu-watch`. `src/sources/kaneo.ts` is the entry of the Kanban Source plugin, exported as `./kaneo-watch`. The bundle's `cordis.patch.yml` inserts the four plugins; for the Kanban deployment the GitHub and Feishu rows are disabled, and the profile's patch enables one of them after its card is set.
 
 ## Tests
 
@@ -428,8 +430,10 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/background.spec.ts` | Waiting for a worker's shell jobs and subagents: an end that woke it, and a host that stops |
 | `tests/bundle-patch.spec.ts` | The bundle's patch, read as DeepSeek Harness reads it, and the agent preset of Executor Sessions it defines |
 | `tests/effects.spec.ts` | The effect queue: coalescing, limits, retries with backoff, health and shutdown |
+| `tests/maintenance.spec.ts` | The cleanup audit: only ended duties are listed, open duties block their directory, a huge workspace stops at its scan cap, and a removal path outside the executor root or at the state directory is refused |
+| `tests/panel-maintenance.spec.tsx` | The cleanup page: default selection, the confirmation, and the separate folder removal |
 | `tests/passes.spec.ts` | Passes: one at a time, the ones asked for during a pass run as one after it, and the runtime health a failed pass reports |
-| `tests/kaneo.spec.ts` | The Kaneo Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, and the REST client's retries |
+| `tests/kaneo.spec.ts` | The Kanban Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, and the REST client's retries |
 | `tests/gitea.spec.ts` | The Gitea Source: config defaults, trigger mapping, first-poll baseline, increments, channel idempotence, thread context, retries and refusals |
 | `tests/ntfy.spec.ts` | The ntfy Source: config/auth headers, history parsing with tombstones, trigger mapping, poll cursor and bootstrap, publish idempotence |
 | `tests/outbox.spec.ts` | The Outbox on a running Runtime: messages wait while processing is paused or their Source is not installed |
