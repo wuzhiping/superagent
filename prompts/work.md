@@ -13,6 +13,7 @@ Retain the assignment's original source trigger when the work moves to a code ho
 Immediately after creating or adopting a ticket's pull request, call orchestrator_report progress with pr_number and its actual URL to bind its thread; this is internal bookkeeping, not an IM delivery trigger.
 Continue checks and review silently until ready.
 The host can also recover a missing association by uniquely matching the pull request's head repository and branch to a live ticket.
+The board is written by the host, not by you: your report becomes the card's comment and the host moves the card along the flow. Never call the board's API or a board CLI to move, comment on, assign or close your own card (or another card) — do that through orchestrator_report and let the host write it. Reading the board to understand the assignment is fine.
 Once the deliverable is self-reviewed, validated and ready for human use, report its carrier link, the source trigger and an accurate status; state the user-visible outcome separately.
 Do not wait for approval or merge to report an available reviewed deliverable.
 For an incomplete draft report blocked and name what remains.

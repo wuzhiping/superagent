@@ -363,6 +363,7 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-05 上午 | **价值流成长验证** ✅：空项目 RSI（默认 4 列）→ 发布宪章 v6 声明默认流程 → 复盘加列 `QA 驗收` → 面板看到漂移 `added=[qa-驗收]` → 宪章 v7 确认 → 对齐 ✅（`scripts/lib/rsi-pipeline-growth.mjs`）|
 | 2026-11-05 上午 | **清理中心** ✅：PM 视角「清理」页列出已结束职责的工作区（线上 27 个）、大小、session 数、是否有交付物；人确认后清（默认不删文件夹、不删 session 日志）✅ |
 | 2026-11-05 上午 | **凭据从存储记录读** ✅：`src/sources/bdd-storage.ts` 遮蔽 `refs.*` → POST `/BDD/API/AI/dsh/storage/{kaneo,gitea,ntfy,s3}`；Kanban 卡片不填 key 也能跑（启动预热、setup 回退）✅ |
+| 2026-11-05 中午 | **交付物存 MinIO、进度与结果回 Kanban** ✅：worker 拿到 `minio_*` 工具 ✅；提示词写明非代码交付物的 key 规矩（`deliverables/<项目 id>/<ticket id>/<file>`）与「卡片不贴文件本体」✅；**看板由宿主写**（worker 只报告，宿主回写评论并搬卡）✅。真实验证：FDEP 卡 `td2r7vr…` → 评论带 `ateam/deliverables/…/delivery.md` → 卡片 done，对象 701 bytes 在桶里 ✅（`scripts/lib/minio-delivery-e2e.mjs`）|
 | 2026-11-05 上午 | **Gitea 免账号** ✅：只有服务器地址 + 仓库名即可匿名读公开仓库；401 给可读错误；真实探测 `git.feg.cn/shawoo/PDP` ✅ |
 | 2026-11-04 晚 | 全量回归：`pnpm typecheck` 通过；目标测试全绿（`kaneo` 16、`views` 16、`narrative` 8、`panel-posts` 4、`styles` 2、`gitea`/`ntfy` 40 ✅）；既有的 dev 环境失败与本次改动无关（用 `git worktree` 在 HEAD 上逐文件比对 ✅） |
 
@@ -389,6 +390,8 @@ pnpm check        # typecheck + vitest + build
 - [x] **多 Host 同项目**（用户校正 ✅）：RD §4.1 ✅、SOP §2.6 ✅ ✅；**管理权限自检** ✅：`GET capabilities` ✅ ✅（账号与角色 → `canManageFlow` ✅ ✅）+ 面板提示 ✅ ✅✅
 - [x] **Kanban 统一命名** ✅；**宪章改为项目级共享文档**（每周至多一版）✅；**价值流成长**在 RSI 空项目上真实验证 ✅（TDD/011）
 - [x] **清理中心**（工作区/session 膨胀）✅；**凭据从存储记录读**（Masked Key）✅；**Gitea 免账号**✅
+- [x] **交付物存 MinIO、进度与结果回 Kanban** ✅：`minio_*` 工具给 worker ✅、key 规矩与「卡片不贴文件本体」写进提示词 ✅、看板由宿主写 ✅、FDEP 真实闭环 ✅
+- [x] **项目从列表选**（`GET projects` 读工作区/项目，面板两处都用选择器）✅
 
 **下一步（建议，按优先级）**：
 

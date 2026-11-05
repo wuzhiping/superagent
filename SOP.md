@@ -234,6 +234,19 @@ dsh-superagent status                              # 看三个来源是否 ready
 > **边界**：MinIO 只有**执行会话（岗位职责）**能写，岗位（host）取回链接即可回写——所以文档类产出由执行环节上传，岗位负责把链接贴回看板。
 > **不是编程任务的职责**：没有仓库就不需要 Gitea 身份，照样能接单（只要有 Kanban 身份）。
 
+**文档/方案的固定套路（已实现，2026-11-05 实测）** ✅：
+
+```text
+写文件（工作目录） → minio_write 到 deliverables/<Kanban 项目 id>/<ticket id>/<文件名>
+                 → minio_read / minio_list 读回确认（记录 size/etag）
+                 → 完成报告里写 bucket/key（`orchestrator_report`）
+                 → 宿主把结果写成卡片评论，并把卡片推进到交付列
+```
+
+- **key 的规矩**：`deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>`；修订**覆盖同一 key**，不要散落多份版本 ✅。
+- **卡片上不放文件本体**：评论是状态通道，不是文件仓库；卡片只留「做了什么 + `bucket/key`」，人要看内容就按 key 取 ✅。
+- **看板由宿主写**：worker 报告 `ready` 后，宿主回写评论并搬卡；**worker 不要自己调用看板 API/CLI 搬卡**（会白耗步数）✅。
+
 ### 4.3 交付与回写
 
 1. 产出必须**有可点击引用**（PR 链接 / 对象键与 URL）写进任务评论。

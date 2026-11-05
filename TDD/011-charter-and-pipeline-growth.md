@@ -86,6 +86,41 @@ GET /orchestrator/api/projects
 
 测试：projects（列表/缓存/失败原因）、panel-projects（两处选择器，含「列表读不到时保留当前项目」）✅
 
+## 4.6 交付物存 MinIO，进度与结果回 Kanban ✅
+
+### 做法
+
+- **worker 拿得到对象存储工具**：`WORK_TOOLS` 增加 `minio_list / minio_read / minio_write / minio_bucket`（`src/app/sessions.ts`）✅
+- **提示词写明载体规则**（`prompts/team/delivery.md`）：非代码交付物（`kind:doc/plan/memo/log`）写好文件 → `minio_write` 到
+  `deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>` → `minio_read` 读回确认 → 报告里给 `bucket/key`；
+  **卡片只留进度与结果，不贴文件本体**；修订覆盖同一 key ✅
+- **看板由宿主写**（`prompts/work.md` 新规则 + 实测教训）：worker **不调用看板 API / CLI** 去搬卡、评论；它报告 `ready`，
+  宿主把结果写成评论并把卡片推进到交付列 ✅
+
+### 真实闭环（FDEP 看板，2026-11-05）
+
+```text
+card td2r7vrup3yvrqv3a3pj9sn3  status=done  comments=2
+  --- 04:45:37 收到：…看板由宿主回写。
+  --- 04:46:44 交付物已存入对象存储并读回确认：
+      `ateam/deliverables/dgctny8ibgpn72ei2j8qj2hc/99541661d0f401b11776cb838e67579f/delivery.md`
+
+ticket 99541661d0f401b11776cb838e67579f  state=ended  assignment=ended
+
+MinIO  store deliverables/*: 2
+  deliverables/dgctny8ibgpn72ei2j8qj2hc/99541661d0f401b11776cb838e67579f/delivery.md   (701 bytes, etag 0cddb5e6…)
+  deliverables/dgctny8ibgpn72ei2j8qj2hc/9e5e256c6a9d4b6398efa49f2b38e971/delivery.md   (748 bytes)
+```
+
+一键复跑：`node scripts/lib/minio-delivery-e2e.mjs 900`（建卡 `kind:doc` → 指派 → ready → 等宿主回写 → 校验对象真的在桶里）。
+
+### 这一轮抓到的两个真问题
+
+| 问题 | 现象 | 修正 |
+| --- | --- | --- |
+| **worker 自己去搬卡** | 第一轮它把「完成后把卡片推进到交付列」当自己的活，下载 kaneo MCP CLI、派子代理翻 MinIO 找 dsh CLI 文档，70 多步还没停 | 提示词明确「看板由宿主写」，卡描述也改成「报告 ready，别动看板」；第二轮约 70 秒完成 ✅ |
+| **看板自动化抢在轮询前** | FDEP 的自动化把进入 `ready` 的卡约 20 秒就搬去 `in-progress`，而来源 60 秒轮询一次 → 漏掉 | 验证脚本先收窄 `pollSeconds=15` 再建卡，跑完还原 ✅（真实使用建议：PM 指派后保持在 `ready` 至少一个轮询周期，或把 `in-progress` 也纳入监听列）|
+
 ## 5. 凭据：从存储记录读（Masked Key）
 
 `src/sources/bdd-storage.ts`：

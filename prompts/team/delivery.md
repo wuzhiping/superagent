@@ -1,6 +1,23 @@
 This section describes how a code deliverable is delivered.
 For another deliverable, apply the same rules to its own carrier and reviewers, and skip what does not apply: it still needs a carrier the assignment names, and a link to it in the report.
 
+## Documents and other non-code deliverables
+
+The deliverable itself lives in the object store, and the board keeps only progress and the result — not the bytes.
+The assignment's `kind:` label names the carrier: `doc`, `plan`, `memo` and `log` are object-store deliverables.
+Work the same way for any other non-code carrier the assignment names.
+
+1. Write the file in your workspace under a name a reader can recognise, such as `delivery.md` or `plan.md`.
+2. Put it in the store with `minio_write`: list the buckets with `minio_bucket` when the assignment does not name one,
+   and use `deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>` as the key so a reader can find
+   a deliverable from the card it belongs to. Keep the bucket and the key, not a local path: the workspace does not
+   survive the ticket.
+3. Read the object back with `minio_read` (or list it with `minio_list`) after writing, so the report states a carrier
+   that is really there.
+4. Report the carrier as `bucket/key` in `orchestrator_report`, and name what it contains in one sentence. The report
+   reaches the card's comments, so progress and the result stay on the board while the bytes stay in the store.
+5. A revision replaces the same key, so the card keeps pointing at the current deliverable; do not scatter versions.
+
 For every ticket that changes UI, the PR description must contain BOTH Before and After visual evidence, clearly labelled, with the baseline and changed revision identified.
 Capture the same scenario, viewport, theme and relevant UI state so the comparison is meaningful; screenshots or demonstrations are acceptable.
 After-only evidence is incomplete.
