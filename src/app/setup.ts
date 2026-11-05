@@ -6,7 +6,8 @@ import { agentVariables, applyEnvironment, verifyEnvironment, withoutDirectory, 
 import type { Settings, SettingsBlock } from '../policy.ts'
 import { SetupError, type SetupProblem } from '../setup.ts'
 import { KaneoClient, KaneoError } from '../sources/kaneo-api.ts'
-import { kaneoAccountOf, type KaneoAccount } from '../sources/kaneo-config.ts'
+import { storedKaneoAccount } from '../sources/bdd-storage.ts'
+import { DEFAULT_BASE_URL, kaneoAccountOf, type KaneoAccount } from '../sources/kaneo-config.ts'
 import { GiteaClient, GiteaError } from '../sources/gitea-api.ts'
 import { giteaAccountOf, giteaHasAuth, repositoryOf, type GiteaAccount } from '../sources/gitea-config.ts'
 import { NtfyClient, NtfyError } from '../sources/ntfy-api.ts'
@@ -22,6 +23,17 @@ export interface SetupHost {
 const setupFields = (settings: Settings) =>
   JSON.stringify(Object.entries(SETUP_FIELDS).map(([id, keys]) => keys.map(key => settings.sources[id]?.config[key] ?? '')))
 export const setupChanged = (before: Settings, after: Settings): boolean => setupFields(before) !== setupFields(after)
+
+/**
+ * The Kaneo account when the card names no key: the one this Host's storage record carries, with the server and
+ * project the card names. The key stays in memory — it is never written to the settings file.
+ */
+function storedKaneo (config: Record<string, unknown> | undefined): KaneoAccount | undefined {
+  const stored = storedKaneoAccount(typeof config?.baseUrl === 'string' && config.baseUrl.trim() ? config.baseUrl : DEFAULT_BASE_URL)
+  if (!stored) return undefined
+  const parsed = kaneoAccountOf({ ...config, ...stored })
+  return parsed ? { ...parsed, ...stored } : undefined
+}
 
 /** Check that a saved Kaneo account can read its project board; the failure names the card that fixes it. */
 async function verifyKaneo(account: KaneoAccount): Promise<void> {
@@ -150,7 +162,10 @@ export class Setup {
   private async resolve(settings: Settings): Promise<Deployment> {
     const { context, machine, lifetime } = this.host
     const probe = this.probe()
-    const kaneo = kaneoAccountOf(settings.sources.kaneo?.enabled === false ? undefined : settings.sources.kaneo?.config)
+    const kaneoConfig = settings.sources.kaneo?.enabled === false ? undefined : settings.sources.kaneo?.config
+    // The key may come from this Host's storage record instead of the card: a Host runs as a user and reads its own
+    // service connection, so nothing has to be typed (BDD storage, masked-key lookup).
+    const kaneo = kaneoAccountOf(kaneoConfig) ?? storedKaneo(kaneoConfig)
     const gitea = giteaAccountOf(settings.sources.gitea?.enabled === false ? undefined : settings.sources.gitea?.config)
     const ntfy = ntfyAccountOf(settings.sources.ntfy?.enabled === false ? undefined : settings.sources.ntfy?.config)
     const deployment = await resolveDeployment(machine, settings.sources.github?.config, probe, undefined, kaneo, gitea, ntfy)

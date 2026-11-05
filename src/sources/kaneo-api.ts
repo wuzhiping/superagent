@@ -34,6 +34,17 @@ const WorkspaceSchema = z.looseObject({ id: z.string().min(1), name: z.string().
 const KaneoUserSchema = z.looseObject({
   id: z.string().min(1), name: z.string().default(''), email: z.string().default(''), role: z.string().default('member'),
 })
+/** One project: the board's title, the description the charter is published into, and the columns' slugs. */
+const KaneoProjectSchema = z.looseObject({
+  id: z.string().min(1), name: z.string().default(''), slug: z.string().default(''), description: z.string().default(''),
+  icon: z.string().default(''), isPublic: z.boolean().default(false),
+  columns: z.array(z.looseObject({ slug: z.string().optional(), name: z.string().optional() })).default([]),
+})
+/** One board column as the workflow endpoints answer it: the cuid identifies it, the slug is what tasks are stored by. */
+const KaneoColumnSchema = z.looseObject({
+  id: z.string().min(1), name: z.string().default(''), slug: z.string().default(''), isFinal: z.boolean().default(false),
+  position: z.number().optional(),
+})
 
 const errorText = (text: string, status: number): string => {
   try {
@@ -113,6 +124,35 @@ export class KaneoClient {
   /** One task by id. */
   async task(id: string, options: RequestOptions = {}): Promise<unknown> {
     return this.request(z.unknown(), 'GET', `/task/${encodeURIComponent(id)}`, undefined, options)
+  }
+
+  /**
+   * One project: its name, its columns and — the project-level charter's home — its description. Every post of the
+   * project reads the same record, whichever Host it runs on (RD.md §4.1, §8).
+   */
+  async project(id: string, options: RequestOptions = {}): Promise<z.infer<typeof KaneoProjectSchema>> {
+    return this.request(KaneoProjectSchema, 'GET', `/project/${encodeURIComponent(id)}`, undefined, options)
+  }
+
+  /**
+   * Replaces one project. The server validates the whole project, so every field the request carries must be sent —
+   * the caller reads the project first and sends it back with the field it changes (the charter publishes into
+   * `description`).
+   */
+  async updateProject(id: string, body: { name: string, slug: string, icon: string, isPublic: boolean, description: string },
+    options: RequestOptions = {}): Promise<void> {
+    await this.request(z.unknown(), 'PUT', `/project/${encodeURIComponent(id)}`, body, options)
+  }
+
+  /** The columns of one project's board, in board order; the value stream the team works in. */
+  async columns(projectId: string, options: RequestOptions = {}): Promise<z.infer<typeof KaneoColumnSchema>[]> {
+    return this.request(z.array(KaneoColumnSchema), 'GET', `/column/${encodeURIComponent(projectId)}`, undefined, options)
+  }
+
+  /** Adds a column to the end of a project's board: the flow grows by the PM confirming what the retrospective found. */
+  async createColumn(projectId: string, body: { name: string, icon?: string, color?: string, isFinal?: boolean },
+    options: RequestOptions = {}): Promise<z.infer<typeof KaneoColumnSchema>> {
+    return this.request(KaneoColumnSchema, 'POST', `/column/${encodeURIComponent(projectId)}`, body, options)
   }
 
   /** The comments of one task, oldest first as Kaneo returns them. */

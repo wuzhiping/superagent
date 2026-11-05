@@ -48,6 +48,7 @@ import { mainTools, type MainToolsHost } from './tools/main.ts'
 import { executorTools, type ExecutorToolsHost } from './tools/executor.ts'
 import { enrichTicket, readArchive } from './narrative.ts'
 import { readCharter } from './charter.ts'
+import { storedConnections } from '../sources/bdd-storage.ts'
 
 // Source plugins interact with dsh-superagent exclusively through the `SourceHost` service interface.
 declare module '@deepseek-ai/cordis' { interface Context { orchestrator: SourceHost } }
@@ -203,12 +204,17 @@ export class Runtime extends Service implements SourceHost {
   private async initialize(): Promise<void> {
     // Register management HTTP routes before setup completes so operators can fix setup problems in the UI.
     this.disposers.push(registerHttp(this.ctx, this.httpHost()))
+    // The service connections come from this Host's storage records (BDD storage, masked-key lookup): read them before
+    // setup, which accepts a Host whose card names no key because its storage record carries one. A failure is kept for
+    // the health entry, never thrown.
+    await storedConnections.warm(['kaneo', 'gitea', 'ntfy'])
     if (!await this.setup.run(this.store.settings())) {
       this.runtimeHealth.set({ ...health('paused', 'setupPending'), at: now() })
       return
     }
     this.sessions.install()
     this.executor.install()
+    void storedConnections.warm(['s3'])
     await this.sessions.ensure(this.masterId, this.machine.stateDir, 'dsh-superagent orchestrator', 'orchestrator')
     for (const id of this.settings.syncable()) await this.settings.sync(id).catch(() => { /* sync() records its failure in health. */ })
     // If stop() was called while awaiting setup, session creation, or policy sync, do not start background loops.

@@ -30,20 +30,33 @@ function Field({ label, value, onChange, placeholder, readOnly }: {
   </label>
 }
 
-/** The charter editor: the PM writes in the draft and publishes it, which mints the version every duty pins. */
-function CharterEditor({ charter, onChange, readOnly }: {
-  charter: Project['charter']; onChange: (charter: Project['charter']) => void; readOnly?: boolean
+/** The charter editor: the PM writes in the draft and publishes it into the project, which mints the version every duty pins. */
+function CharterEditor({ charter, projectId, onChange, onPublished, readOnly }: {
+  charter: Project['charter']; projectId: string; onChange: (charter: Project['charter']) => void
+  onPublished?: () => void; readOnly?: boolean
 }) {
-  const { t } = usePanel()
+  const { t, call, notify } = usePanel()
+  const [busy, setBusy] = useState(false)
+  const [refused, setRefused] = useState<string>()
   const draft = charter.draft || charter.text
-  const publish = () => {
-    const version = charter.version + 1
-    onChange({
-      ...charter, version, publishedAt: new Date().toISOString(), publishedBy: '', text: draft, draft: '',
-      history: charter.version > 0
-        ? [...charter.history, { version: charter.version, publishedAt: charter.publishedAt, publishedBy: charter.publishedBy, text: charter.text }]
-        : charter.history,
-    })
+  // A project's charter is one document every post reads, so publishing replaces it; at most once a week.
+  const publish = async (force: boolean) => {
+    setBusy(true)
+    setRefused(undefined)
+    try {
+      const result = await call('POST narrative/charter', { body: {
+        projectId, text: draft, publishedBy: charter.publishedBy || 'pm', ...(force ? { force: true } : {}),
+      } })
+      onChange({ ...charter, version: result.charter.version, publishedAt: result.charter.publishedAt,
+        publishedBy: result.charter.publishedBy, text: result.charter.text, draft: '',
+        history: charter.version > 0
+          ? [...charter.history, { version: charter.version, publishedAt: charter.publishedAt, publishedBy: charter.publishedBy, text: charter.text }]
+          : charter.history })
+      notify(t('projectCharterPublished'))
+      onPublished?.()
+    } catch (error) {
+      setRefused(error instanceof Error ? error.message : String(error))
+    } finally { setBusy(false) }
   }
   return <div className="dt-archive-card">
     <div className="dt-grid">
@@ -58,10 +71,13 @@ function CharterEditor({ charter, onChange, readOnly }: {
         onChange={event => onChange({ ...charter, draft: event.target.value })} />
     </label>
     <p className="dt-hint">{t('projectCharterHint')}</p>
-    {!readOnly && <Button variant="primary" size="sm" icon={<Icon name="decision" size={14} />} onClick={publish}>
-      {t('projectCharterPublish')}</Button>}
+    {refused && <div className="dt-charter-refused"><p className="dt-error" role="alert">{refused}</p>
+      {!readOnly && <Button variant="outline" size="sm" disabled={busy} onClick={() => { void publish(true) }}>
+        {t('projectCharterForce')}</Button>}</div>}
+    {!readOnly && <Button variant="primary" size="sm" icon={<Icon name="decision" size={14} />} disabled={busy || !draft.trim()}
+      onClick={() => { void publish(false) }}>{t('projectCharterPublish')}</Button>}
     {charter.history.length > 0 && <p className="dt-hint">
-      {t('projectCharterHistory', { versions: charter.history.map(item => `v${item.version}`).join('、') })}</p>}
+      {t('projectCharterHistory', { versions: charter.history.map(item => 'v' + item.version).join('、') })}</p>}
   </div>
 }
 
@@ -83,7 +99,7 @@ function PostEditor({ post, onChange, onRemove, readOnly }: {
           <option value="pm">{t('postsRolePm')}</option>
         </select>
       </label>
-      <Field label={t('projectPostKanEO')} value={post.kaneoUserId} placeholder="KanEO 用户 id" readOnly={readOnly}
+      <Field label={t('projectPostKanban')} value={post.kaneoUserId} placeholder="KanEO 用户 id" readOnly={readOnly}
         onChange={value => onChange({ ...post, kaneoUserId: value })} />
       <Field label={t('postsWatchColumns')} value={post.watchColumns} placeholder="ready" readOnly={readOnly}
         onChange={value => onChange({ ...post, watchColumns: value })} />
@@ -103,8 +119,9 @@ function PostEditor({ post, onChange, onRemove, readOnly }: {
   </div>
 }
 
-function ProjectEditor({ project, onChange, onRemove, scoped, seat }: {
-  project: Project; onChange: (project: Project) => void; onRemove: () => void; scoped?: boolean; seat?: string
+function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat }: {
+  project: Project; onChange: (project: Project) => void; onRemove: () => void; onPublished?: () => void
+  scoped?: boolean; seat?: string
 }) {
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
@@ -123,7 +140,7 @@ function ProjectEditor({ project, onChange, onRemove, scoped, seat }: {
     <div className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('projectCharter')}</span>
         <span className="dt-count">v{project.charter.version}</span></h3>
-      <CharterEditor charter={project.charter} readOnly={scoped}
+      <CharterEditor charter={project.charter} projectId={project.id} readOnly={scoped} onPublished={onPublished}
         onChange={charter => onChange({ ...project, charter })} />
     </div>
     <div className="dt-section">
@@ -180,7 +197,7 @@ export function ProjectSettings() {
   return <div className="dt-project-settings">
     <Hint>{scoped ? t('projectHintPost') : t('projectHint')}</Hint>
     {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId}
-      onChange={next => update(index, next)}
+      onChange={next => update(index, next)} onPublished={() => { void save.run() }}
       onRemove={() => setArchive(current => ({ ...current, projects: current.projects.filter((_item, at) => at !== index) }))} />)}
     {!scoped && <div className="dt-row-buttons">
       <Button variant="outline" icon={<Icon name="plus" size={14} />}

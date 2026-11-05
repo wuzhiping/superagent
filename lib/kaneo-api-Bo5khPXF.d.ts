@@ -29,6 +29,27 @@ declare const KaneoUserSchema: z.ZodObject<{
   email: z.ZodDefault<z.ZodString>;
   role: z.ZodDefault<z.ZodString>;
 }, z.core.$loose>;
+/** One project: the board's title, the description the charter is published into, and the columns' slugs. */
+declare const KaneoProjectSchema: z.ZodObject<{
+  id: z.ZodString;
+  name: z.ZodDefault<z.ZodString>;
+  slug: z.ZodDefault<z.ZodString>;
+  description: z.ZodDefault<z.ZodString>;
+  icon: z.ZodDefault<z.ZodString>;
+  isPublic: z.ZodDefault<z.ZodBoolean>;
+  columns: z.ZodDefault<z.ZodArray<z.ZodObject<{
+    slug: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
+  }, z.core.$loose>>>;
+}, z.core.$loose>;
+/** One board column as the workflow endpoints answer it: the cuid identifies it, the slug is what tasks are stored by. */
+declare const KaneoColumnSchema: z.ZodObject<{
+  id: z.ZodString;
+  name: z.ZodDefault<z.ZodString>;
+  slug: z.ZodDefault<z.ZodString>;
+  isFinal: z.ZodDefault<z.ZodBoolean>;
+  position: z.ZodOptional<z.ZodNumber>;
+}, z.core.$loose>;
 /** One Kaneo server; `request` is the only method that touches the network, so tests substitute `fetch` and the retry clock. */
 declare class KaneoClient {
   private readonly config;
@@ -47,6 +68,32 @@ declare class KaneoClient {
   board(projectId: string, options?: RequestOptions): Promise<void>;
   /** One task by id. */
   task(id: string, options?: RequestOptions): Promise<unknown>;
+  /**
+   * One project: its name, its columns and — the project-level charter's home — its description. Every post of the
+   * project reads the same record, whichever Host it runs on (RD.md §4.1, §8).
+   */
+  project(id: string, options?: RequestOptions): Promise<z.infer<typeof KaneoProjectSchema>>;
+  /**
+   * Replaces one project. The server validates the whole project, so every field the request carries must be sent —
+   * the caller reads the project first and sends it back with the field it changes (the charter publishes into
+   * `description`).
+   */
+  updateProject(id: string, body: {
+    name: string;
+    slug: string;
+    icon: string;
+    isPublic: boolean;
+    description: string;
+  }, options?: RequestOptions): Promise<void>;
+  /** The columns of one project's board, in board order; the value stream the team works in. */
+  columns(projectId: string, options?: RequestOptions): Promise<z.infer<typeof KaneoColumnSchema>[]>;
+  /** Adds a column to the end of a project's board: the flow grows by the PM confirming what the retrospective found. */
+  createColumn(projectId: string, body: {
+    name: string;
+    icon?: string;
+    color?: string;
+    isFinal?: boolean;
+  }, options?: RequestOptions): Promise<z.infer<typeof KaneoColumnSchema>>;
   /** The comments of one task, oldest first as Kaneo returns them. */
   comments(taskId: string, options?: RequestOptions): Promise<unknown[]>;
   /** Posts a comment on a task. */

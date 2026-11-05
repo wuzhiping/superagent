@@ -8,8 +8,10 @@ import type { SettingsView } from './views/settings.ts'
 import type { SourceStatusView } from './views/sources.ts'
 import type { DecisionListView, SearchView, ThreadDetailView, ThreadListView } from './views/threads.ts'
 import type { TicketListView } from './views/tickets.ts'
+import type { MaintenanceCleanResult, MaintenanceView } from './maintenance.ts'
 import type { NarrativeView } from './views/narrative.ts'
 import type { ProjectArchive } from './narrative.ts'
+import type { CharterInfo } from './narrative.ts'
 import type { Capabilities } from './capabilities.ts'
 
 export const TICKET_FILTERS = ['open', 'person', 'working', 'idle', 'ended'] as const
@@ -27,6 +29,8 @@ export interface Api {
   'GET narrative': { response: NarrativeView }
   'GET project-archive': { response: { archive: ProjectArchive; revision: number } }
   'PUT project-archive': { body: { archive: unknown; revision: number }; response: { revision: number } }
+  /** Publishes a project's charter into the project itself: one document per project, at most once a week. */
+  'POST narrative/charter': { body: { projectId: string; text: string; publishedBy: string; force?: boolean }; response: { charter: CharterInfo } }
   'GET search': { query: { q: string }; response: SearchView }
   'GET sources': { response: SourceStatusView[] }
   'GET settings': { response: SettingsView }
@@ -42,6 +46,9 @@ export interface Api {
   'GET tickets/:id': { response: TicketPageView }
   'POST tickets/:id/retry': { response: { retried: true } }
   'POST tickets/:id/stop': { response: { stopped: true } }
+  // The cleanup page: the workspaces ended duties left behind, and the safe cleanup a person confirmed.
+  'GET maintenance': { response: MaintenanceView }
+  'POST maintenance/clean': { body: { ticketIds: string[]; removeFiles?: boolean }; response: MaintenanceCleanResult }
   'POST executor/pause': { body: { paused: boolean }; response: { paused: boolean } }
   'PUT settings/:block': { body: { value: unknown; revision: number }; response: { revision: number; restarting: boolean } }
   'GET policy/history': { response: HistoryView }

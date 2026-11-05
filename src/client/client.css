@@ -416,3 +416,15 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 16px; }
 .dt-archive-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .dt-field-label { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary); }
+
+/* The cleanup page: one row per ended duty, checked only after a person confirms its deliverable. */
+.dt-maintenance-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; }
+.dt-maintenance-option { display: inline-flex; align-items: center; gap: 6px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; cursor: pointer; }
+.dt-maintenance-check { margin: 0; accent-color: var(--dsw-alias-brand-primary); }
+.dt-maintenance-count { margin-left: auto; color: var(--dsw-alias-label-caption); font-size: 12px; }
+.dt-maintenance-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-caption); }
+.dt-maintenance-table td { vertical-align: top; }
+.dt-maintenance-ticket { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--dsw-alias-label-primary); font-weight: 500; }
+.dt-maintenance-dir { max-width: 280px; color: var(--dsw-alias-label-secondary); }
+.dt-maintenance-reason { display: block; margin-top: 2px; font-size: 12px; line-height: 18px; font-weight: 400; color: var(--dsw-alias-label-caption); }
+

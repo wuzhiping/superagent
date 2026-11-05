@@ -40,7 +40,7 @@ it('edits the project archive in the settings page and saves it', async () => {
   await click(tab(zh['tab.settings']))
   await click(find(zh['settingsGroup.project'], '.dt-settings-link'))
   expect(find(zh['settingsGroup.project'], '.dt-settings-link').getAttribute('aria-current')).toBe('page')
-  expect(all('.dt-field-label').map(label => label.textContent)).toContain(zh.projectPostKanEO)
+  expect(all('.dt-field-label').map(label => label.textContent)).toContain(zh.projectPostKanban)
   const identity = [...document.querySelectorAll<HTMLInputElement>('input')].find(input => input.value === 'u-pm')
   expect(identity).toBeDefined()
   await click(zh.projectSave)

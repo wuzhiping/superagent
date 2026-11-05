@@ -9,7 +9,7 @@ import type { Api, ApiResponse, RouteParams } from '../../src/app/api.ts'
 import type { Capabilities } from '../../src/app/capabilities.ts'
 import { SKILL_NAME, SKILL_PREFIX, TEAM_SECTIONS, builtInBase, builtInPart, builtInParts, composePrompt, composeSkill, defaultPrompts,
   environmentSection, policySection, promptParts } from '../../src/app/prompts.ts'
-import type { DroppedReply, HistoryView, Problem, PromptsView, SetupView, SourceStatusRow, SourceView, StateView, ThreadPageView,
+import type { DroppedReply, HistoryView, MaintenanceView, Problem, PromptsView, SetupView, SourceStatusRow, SourceView, StateView, ThreadPageView,
   ThreadRow, TicketPageView,
   TicketRow, TicketStage,
   TriggerRow } from '../../src/client/api.ts'
@@ -127,8 +127,12 @@ export interface PanelServer {
   /** The project archive the panel edits; the fixture keeps the last written value. */
   archive?: unknown
   archiveRevision?: number
+  /** The version a published charter takes next; the route bumps it so a test can watch the version move. */
+  charterVersion: number
   /** The KanEO account of this Host and the rights it has; the panel asks before it lets someone sit as PM. */
   capabilities: Capabilities
+  /** The cleanup page's audit: ended duties and the workspace each one left behind. */
+  maintenance: MaintenanceView
 }
 export let server: PanelServer
 
@@ -253,6 +257,24 @@ function threadPage(key: string, { before, around }: { before?: string; around?:
   return { ...base, earlier: 'cursor-1', timeline: [trigger('e3', '2026-09-23T00:00:00Z', { disposition: { fanout: ['t1'] } }),
     trigger('e4', '2026-09-23T00:01:00Z', { disposition: { filtered: { code: 'not_a_member' } } })] }
 }
+/** The cleanup audit: a big ended duty, a smaller one with a deliverable to confirm, and one whose directory is gone. */
+const maintenanceView = (): MaintenanceView => ({
+  workspaces: [
+    { ticketId: 't0', title: '旧工单', state: 'ended', outcome: 'stopped', endedAt: '2026-09-21T00:00:00Z', directory: '/w/t0',
+      workspaceId: 'ws-t0', workspaceExists: true, sizeBytes: 3_145_728, sizeCapped: false, lastModified: '2026-09-21T00:00:00Z',
+      sessions: 1, files: ['README.md', 'src'], deliverable: false, removable: true,
+      reasons: ['ended', 'directoryExists', 'unreferenced', 'registered'] },
+    { ticketId: 't3', title: '已合并的工单', state: 'ended', outcome: 'merged', endedAt: '2026-09-20T00:00:00Z', directory: '/w/t3',
+      workspaceId: 'ws-t3', workspaceExists: true, sizeBytes: 1_048_576, sizeCapped: false, lastModified: '2026-09-20T00:00:00Z',
+      sessions: 2, files: ['docs'], deliverable: true, deliverableType: 'doc', removable: true,
+      reasons: ['ended', 'directoryExists', 'unreferenced', 'registered'] },
+    { ticketId: 't6', title: '目录已消失', state: 'ended', outcome: 'completed', endedAt: '2026-09-19T00:00:00Z', directory: '/w/t6',
+      workspaceExists: false, sizeBytes: 0, sizeCapped: false, sessions: 0, files: [], deliverable: false, removable: false,
+      reasons: ['missingDirectory'] },
+  ],
+  totals: { count: 3, bytes: 3_145_728 + 1_048_576 },
+  notes: ['sessionsKept', 'filesOptional', 'endedOnly'],
+})
 function initial(): PanelServer {
   const settings = SettingsSchema.parse({
     policy: { sources: { feishu: { allowed: [{ id: 'ou_alice', name: 'Alice' }], syncChat: 'oc_team' },
@@ -287,6 +309,8 @@ function initial(): PanelServer {
         note: { text: 'LlmError: no adapter registered for provider "provider-a"', error: true } }, { stage: 'person', action: 'failed' })],
     search: { items: [], threads: [] },
     capabilities: adminCapabilities(),
+    charterVersion: 3,
+    maintenance: maintenanceView(),
     history: { current: 3, policyVersion: 'abcdef1234567890', items: [
       { revision: 4, savedAt: '2026-09-23T00:00:00Z', source: 'panel', policyVersion: '9876543210fedcba', policyChanged: true, notified: [],
         block: 'source:feishu',
@@ -316,6 +340,15 @@ const SourceSave = z.object({ enabled: z.boolean(), config: z.unknown() })
 const ROUTES: { [K in keyof Api]: Route<K> } = {
   'GET state': { answer: stateView },
   'GET capabilities': { answer: (): ApiResponse<'GET capabilities'> => server.capabilities },
+  // Publishing a charter writes the project and mirrors it into the archive; the fixture answers with the new version.
+  'POST narrative/charter': { body: true, answer: (request): ApiResponse<'POST narrative/charter'> => {
+    const body = request.body as { projectId: string, text: string, publishedBy: string, force?: boolean }
+    const previous = server.charterVersion
+    server.charterVersion = previous + 1
+    return { charter: { version: server.charterVersion, publishedAt: '2026-11-05T00:00:00Z',
+      publishedBy: body.publishedBy, text: `version: ${server.charterVersion}\n${body.text}`, ageDays: 0, stale: false,
+      hasDraft: false, versions: [], detail: 'The charter is current' } }
+  } },
   'GET overview': { answer: overviewView },
   'GET narrative': { answer: (): ApiResponse<'GET narrative'> => ({
     configured: true,
@@ -410,6 +443,23 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     if (!ticketOf(params.id)) return refuse(404, 'Ticket not found')
     server.tickets.open = []; server.person = server.person.filter(ticket => ticket.id !== params.id)
     return { stopped: true }
+  } },
+  'GET maintenance': { answer: () => server.maintenance },
+  'POST maintenance/clean': { body: true, answer: ({ body }) => {
+    const ids = new Set(body.ticketIds)
+    const removed = server.maintenance.workspaces.filter(row => ids.has(row.ticketId) && row.removable)
+    const skipped: ApiResponse<'POST maintenance/clean'>['skipped'] = body.ticketIds
+      .filter(id => !removed.some(row => row.ticketId === id))
+      .map(id => ({ ticketId: id, reasons: server.maintenance.workspaces.find(row => row.ticketId === id)?.reasons ?? ['unknown'] }))
+    server.maintenance = {
+      ...server.maintenance,
+      workspaces: server.maintenance.workspaces.filter(row => !removed.some(item => item.ticketId === row.ticketId)),
+      totals: { count: 0, bytes: 0 },
+    }
+    server.maintenance.totals = { count: server.maintenance.workspaces.length,
+      bytes: server.maintenance.workspaces.reduce((sum, row) => sum + row.sizeBytes, 0) }
+    return { cleaned: removed.map(row => ({ ticketId: row.ticketId, title: row.title, sizeBytes: row.sizeBytes,
+      workspaceDeleted: !!row.workspaceId, filesDeleted: !!body.removeFiles })), skipped }
   } },
   'POST executor/pause': { body: true, answer: ({ body }) => {
     server.settings = { ...server.settings, paused: body.paused }

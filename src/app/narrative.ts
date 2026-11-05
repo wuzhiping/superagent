@@ -156,8 +156,12 @@ export interface CharterInfo {
   stale: boolean
   /** Whether the PM has a draft that is not published yet. */
   hasDraft: boolean
+  /** Whether this text is the project's own copy (read from the kanban project) rather than a local mirror. */
+  shared?: boolean
   /** The published versions before the current one. */
   versions: { version: number; publishedAt: string; publishedBy: string }[]
+  /** When the charter may be published again (ISO): a project's charter changes at most once a week. */
+  nextPublishAt?: string
   detail: string
 }
 
@@ -189,15 +193,18 @@ export function charterOfText (text: string | undefined, publishedAt = '', publi
  */
 export function flowOfCharter (text: string | undefined): DeclaredFlowStep[] {
   for (const line of (text ?? '').split('\n')) {
-    if (!line.includes('流程')) continue
+    // A heading names the flow ("## 当期流程") without being it; the flow itself is a line of steps joined by arrows.
+    if (!line.includes('流程') || /^\s*#/.test(line) || !/→|->/.test(line)) continue
     const steps = line.split(/→|->/).map(item => item.trim()).filter(Boolean)
     const parsed: DeclaredFlowStep[] = []
     for (const step of steps) {
       const withoutPrefix = step.replace(/^[-*\s]*.*?流程[:：]?\s*/, '').trim()
-      const match = /^([a-z][a-z0-9-]*)\s*(.*)$/i.exec(withoutPrefix)
+      // A step is the column's slug (whatever characters it has: a column named in Chinese gets a Chinese slug) and,
+      // after the first space, what that column means now.
+      const match = /^(\S+?)(?:\s+(\S.*))?$/.exec(withoutPrefix)
       if (match) parsed.push({ column: match[1]!, meaning: (match[2] ?? '').trim() })
     }
-    // The first line that names the flow and reads as steps is the flow; a heading alone names none.
+    // The first line that names the flow and reads as steps is the flow.
     if (parsed.length) return parsed
   }
   return []

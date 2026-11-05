@@ -57,7 +57,7 @@ function PostLine({ post }: { post: PostView }) {
         <span className="dt-post-name">{post.name}</span>
       </div>
       <p className="dt-hint">
-        {t('postsKanEOIdentity')}: <code className="dt-code">{post.kaneoUserId || t('postsUnset')}</code>
+        {t('postsKanbanIdentity')}: <code className="dt-code">{post.kaneoUserId || t('postsUnset')}</code>
         {post.instance ? <> · {t('postsInstance')}: <code className="dt-code">{post.instance}</code></> : null}
       </p>
       <p className="dt-hint">
@@ -138,7 +138,7 @@ export function PostsPage() {
       <Section title={post.name} icon="inbox" badge={project ? <CharterBadge project={project} /> : undefined}
         hint={t('postsMyPostHint')} action={<Button variant="ghost" size="sm" onClick={() => setPostId('')}>{t('postsChangeSeat')}</Button>}>
         <ul className="dt-kv">
-          <li><dt>{t('postsKanEOIdentity')}</dt><dd>{post.kaneoUserId || t('postsUnset')}</dd></li>
+          <li><dt>{t('postsKanbanIdentity')}</dt><dd>{post.kaneoUserId || t('postsUnset')}</dd></li>
           <li><dt>{t('postsInstance')}</dt><dd>{post.instance || t('postsUnset')}</dd></li>
           <li><dt>{t('postsWip')}</dt><dd>{post.dutyCount} / {post.wipLimit}</dd></li>
           <li><dt>{t('postsWatchColumns')}</dt><dd>{post.watchColumns || t('postsUnset')}</dd></li>

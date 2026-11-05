@@ -49,6 +49,10 @@ export function giteaAccountOf(stored: Record<string, unknown> | undefined): Git
 export const giteaHasAuth = (config: Pick<GiteaAccount, 'user' | 'password' | 'token'>): boolean =>
   !!config.token || (!!config.user && !!config.password)
 
+/** How the Source reads, for health: `anonymously`, `with an API token`, or `as <login>`. */
+export const giteaReader = (config: Pick<GiteaAccount, 'user' | 'password' | 'token'>): string =>
+  !giteaHasAuth(config) ? 'anonymously' : config.token ? 'with an API token' : `as ${config.user.trim()}`
+
 /** Split `owner/name`, or undefined when the repository is unset or malformed. */
 export function repositoryOf(value: string): { owner: string; name: string } | undefined {
   const match = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(value.trim())

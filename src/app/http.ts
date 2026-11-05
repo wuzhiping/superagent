@@ -1,6 +1,9 @@
 /** Loopback-only management HTTP routes with same-origin enforcement for the web panel. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-workspace'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { z } from 'zod'
 import { THREAD_FILTERS, TICKET_FILTERS, type Api, type ApiResponse, type RouteParams } from './api.ts'
@@ -19,11 +22,16 @@ import type { SourceRegistry } from '../sources/registry.ts'
 import type { Sessions } from './sessions.ts'
 import type { Store } from './store.ts'
 import { writeArchive } from './narrative.ts'
+import { charterOfText } from './narrative.ts'
+import { kaneoAccount, publishCharter, publishWindow, readServerCharter } from './charter.ts'
 import { readCapabilities } from './capabilities.ts'
+import { storedKaneoAccount } from '../sources/bdd-storage.ts'
+import { DEFAULT_BASE_URL } from '../sources/kaneo-config.ts'
 import { archiveView, narrativeView } from './views/narrative.ts'
 import type { TextCache } from './cache.ts'
 import type { LinkTarget, ViewHost } from './views/records.ts'
-import type { Variable } from './execution-environment.ts'
+import { executionRoot, type Variable } from './execution-environment.ts'
+import { audit, clean, type CleanHost } from './maintenance.ts'
 import { policyHistory } from './settings-history.ts'
 import { overview } from './views/overview.ts'
 import { settingsView } from './views/settings.ts'
@@ -151,6 +159,7 @@ const SourceBlock = z.templateLiteral(['source:', z.string().regex(/^[a-z][a-z0-
 const SettingsBlockSchema = z.union([z.enum(['policy', 'eval', 'executor']), SourceBlock])
 const SaveRequest = z.object({ value: z.unknown(), revision: z.number().int().nonnegative() })
 const TestSourceRequest = z.object({ config: z.record(z.string(), z.unknown()) })
+const CleanRequest = z.object({ ticketIds: z.array(z.string().min(1)).max(1000), removeFiles: z.boolean().optional() })
 
 /** Merge a source card's hidden secret fields with the stored values: an empty field means "keep the saved secret". */
 function mergedSourceConfig(runtime: HttpHost, id: string, submitted: Record<string, unknown>): Record<string, unknown> {
@@ -165,15 +174,16 @@ function mergedSourceConfig(runtime: HttpHost, id: string, submitted: Record<str
   return config
 }
 
-function routes(runtime: HttpHost): Routes {
+function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
   const { store } = runtime
   const ticket = (id: string) => { if (!store.tickets.get(id)) throw new RouteError(404, 'Ticket not found'); return id }
   const promptBody = (input: { body: (maxBytes?: number) => Promise<unknown> }) => input.body(4 * runtime.machine.promptMaxChars.get() + 4096)
   return {
     'GET state': () => stateView(runtime),
-    // What this Host may do as a post: its KanEO account and the management rights that come with it (RD.md §4).
+    // What this Host may do as a post: its Kanban account and the management rights that come with it (RD.md §4).
     'GET capabilities': async () => {
-      const account = runtime.configured() ? runtime.deployment.kaneo : undefined
+      const deployed = runtime.configured() ? runtime.deployment.kaneo : undefined
+      const account = deployed?.apiKey ? deployed : storedKaneoAccount(deployed?.baseUrl ?? DEFAULT_BASE_URL)
       return readCapabilities(account)
     },
     'GET overview': () => overview(views(runtime), runtime.health, policyVersion(store.settings()),
@@ -191,6 +201,44 @@ function routes(runtime: HttpHost): Routes {
       }
     },
     'GET search': ({ query }) => search(views(runtime), query.q ?? '', runtime.sourceLinks),
+    // Publishing a project's charter: it replaces the one the project holds (one document, every post reads it), at
+    // most once a week; the panel keeps the draft and the history.
+    'POST narrative/charter': async ({ body }) => {
+      const input = await body(64 * 1024) as { projectId?: unknown, text?: unknown, publishedBy?: unknown, force?: unknown }
+      const projectId = typeof input?.projectId === 'string' ? input.projectId.trim() : ''
+      const text = typeof input?.text === 'string' ? input.text.trim() : ''
+      const publishedBy = typeof input?.publishedBy === 'string' ? input.publishedBy.trim() : ''
+      if (!projectId || !text) throw new RouteError(400, 'A charter needs a project and its text')
+      const stateDir = runtime.machine.stateDir
+      const current = archiveView(stateDir)
+      const project = current.archive.projects.find(item => item.id === projectId)
+      if (!project) throw new RouteError(404, 'Project not found in the archive')
+      const account = kaneoAccount(runtime.sources)
+      const previous = await readServerCharter(account, projectId)
+      const window = publishWindow(previous?.publishedAt ?? (project.charter.publishedAt || undefined))
+      if (!window.ok && input?.force !== true) {
+        throw new RouteError(400, `A project's charter changes at most once a week; it may be published again on ${new Date(window.dueAt).toISOString()}`)
+      }
+      let published
+      try {
+        published = await publishCharter(account, projectId, text, publishedBy, previous)
+      } catch (error) {
+        throw new RouteError(400, error instanceof Error ? error.message : String(error))
+      }
+      project.charter = {
+        version: published.version,
+        publishedAt: published.publishedAt,
+        publishedBy: publishedBy || project.charter.publishedBy,
+        text: published.text,
+        draft: '',
+        history: project.charter.version > 0
+          ? [...project.charter.history, { version: project.charter.version, publishedAt: project.charter.publishedAt,
+              publishedBy: project.charter.publishedBy, text: project.charter.text }]
+          : project.charter.history,
+      }
+      writeArchive(stateDir, current.archive, current.revision)
+      return { charter: charterOfText(published.text, published.publishedAt, project.charter.publishedBy) }
+    },
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),
     'POST sources/:id/labels': ({ params }) => runtime.settings.refreshLabels(params.id),
@@ -239,6 +287,12 @@ function routes(runtime: HttpHost): Routes {
     'GET tickets/:id': ({ params }) => ticketPage(runtime, params.id),
     'POST tickets/:id/retry': ({ params }) => { const id = ticket(params.id); runtime.engine.retryTicket(id); return { retried: true } },
     'POST tickets/:id/stop': ({ params }) => { const id = ticket(params.id); runtime.engine.stopTicket(id); return { stopped: true } },
+    // The cleanup page: what the ended duties left behind, and the safe cleanup a person confirmed.
+    'GET maintenance': async () => {
+      const { workspaces, totals, notes } = await audit(maintenance)
+      return { workspaces, totals, notes }
+    },
+    'POST maintenance/clean': async ({ body }) => clean(maintenance, CleanRequest.parse(await body())),
     'POST executor/pause': async ({ body }) => runtime.settings.pause(z.object({ paused: z.boolean() }).parse(await body()).paused, 'panel'),
     'PUT settings/:block': async ({ params, body }) => {
       const block = SettingsBlockSchema.parse(params.block)
@@ -285,7 +339,18 @@ function match(table: Routes, method: string, segments: string[]) {
 }
 export function registerHttp(ctx: Context, runtime: HttpHost): () => void {
   if (ctx.webServer.host !== '127.0.0.1') throw new Error('Orchestrator management requires a loopback Web server')
-  const table = routes(runtime)
+  // Read the workspace registry and Session persistence lazily, when the cleanup routes ask: a Host without them still
+  // serves every other route, and a test host need not provide them.
+  const maintenance: CleanHost = {
+    tickets: () => runtime.store.tickets.list(),
+    workspaces: async () => ctx.workspaceRegistry.list().map(workspace => ({ id: String(workspace.id), path: workspace.path })),
+    sessions: async () => (await ctx.sessionPersistence.list()).flatMap(snapshot => snapshot.header.cwd
+      ? [{ id: String(snapshot.header.id), cwd: snapshot.header.cwd }] : []),
+    executionRoot: () => executionRoot(runtime.store.settings(), runtime.machine.stateDir),
+    stateDir: () => runtime.machine.stateDir,
+    deleteWorkspace: id => ctx.workspaceRegistry.delete(id as WorkspaceId),
+  }
+  const table = routes(runtime, maintenance)
   const disposers = [
     ctx.webServer.register({ kind: 'prefix', path: '/orchestrator', handler: async (req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost')

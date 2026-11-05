@@ -1,6 +1,6 @@
 import { W as Trigger, ht as GiteaConfig, mt as DEFAULT_GITEA_URL } from "./intake-LzTuo899.js";
 import { n as SourceContext, t as SourceKind } from "./kind-DUtZFUu7.js";
-import { t as InboxEvent } from "./kaneo-inbox-CL8e1ymG.js";
+import { t as InboxEvent } from "./kaneo-inbox-LWshGjwT.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/gitea-api.d.ts
@@ -103,6 +103,11 @@ declare class GiteaClient {
   constructor(account: GiteaAuth, fetchImpl?: GiteaFetch, wait?: (ms: number) => Promise<void>);
   /** Sends one request and parses its JSON body; 429 and 5xx retry with backoff, others surface `GiteaError`. */
   request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST', path: string, body?: unknown, signal?: AbortSignal): Promise<T>;
+  /**
+   * A readable failure: an anonymous read that was refused usually means the repository is private, so it names the
+   * account fields that fix it instead of looking like an empty repository.
+   */
+  private failureMessage;
   /** `GET /version`; works without a token and tells which Gitea the instance runs. */
   version(signal?: AbortSignal): Promise<string>;
   /** `GET /user`; requires a token and is how deployment verifies the agent account. */

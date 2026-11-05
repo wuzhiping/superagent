@@ -15,7 +15,7 @@ import { pause } from './poll.ts'
 import { GiteaClient, GiteaError, type GiteaComment, type GiteaIssue, type GiteaNotification } from './gitea-api.ts'
 import { KaneoClient } from './kaneo-api.ts'
 import { fileEventOnce, inboxAccount, ingestEvents, type InboxEvent } from './kaneo-inbox.ts'
-import { DEFAULT_GITEA_URL, giteaBot, giteaHasAuth, GiteaConfigSchema, repositoryOf, type GiteaConfig } from './gitea-config.ts'
+import { DEFAULT_GITEA_URL, giteaBot, giteaHasAuth, giteaReader, GiteaConfigSchema, repositoryOf, type GiteaConfig } from './gitea-config.ts'
 
 export const SOURCE = 'gitea'
 const now = (): string => new Date().toISOString()
@@ -111,24 +111,29 @@ export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
   title: { zh: 'Gitea 仓库', en: 'Gitea repository' },
   description: {
-    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。用邮箱+密码（或 API token）登录，读取 agent 通知或仓库里的 Issue/PR/评论增量；事件先在 KanEO 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
-    en: 'A self-hosted Gitea repository (default https://git.feg.cn). It signs in with the account e-mail and password (or an API token), reads the agent notifications or repository issue/PR/comment increments; every event is filed as a card in the KanEO board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
+    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。公开仓库只填服务器地址和仓库名即可匿名读取 Issue/PR/评论；私有仓库或 agent 通知模式才需要邮箱+密码（或 API token）。事件先在 KanEO 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
+    en: 'A self-hosted Gitea repository (default https://git.feg.cn). A public repository needs only the server address and the repository name and is read anonymously; a private repository or the agent notification mode needs the account e-mail and password (or an API token). Every event is filed as a card in the KanEO board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
   },
   schema: GiteaConfigSchema,
-  /** Settings-panel probe: log in with the entered account and read the entered repository, without saving. */
+  /** Settings-panel probe: read the entered repository with the entered account (or anonymously), without saving. */
   async test(config: GiteaConfig): Promise<void> {
     const repo = repositoryOf(config.repository)
     if (!repo) throw new Error('The repository must be owner/name')
     if (config.listen === 'notifications' && !giteaHasAuth(config)) throw new Error('The notification mode needs an account password or an API token')
     const client = new GiteaClient(config)
+    // An account, when supplied, must actually log in; without one the repository must be readable anonymously.
     if (giteaHasAuth(config)) await client.user()
-    await client.repository(repo.owner, repo.name)
+    // Read one issue and one pull request: the streams the Source consumes, both readable anonymously when public.
+    await client.issues(repo.owner, repo.name, { limit: 1 })
+    // Gitea answers 404 for `/pulls` when pull requests are disabled on the repository: that is not unreadable.
+    try { await client.pulls(repo.owner, repo.name, { limit: 1 }) }
+    catch (error) { if (!(error instanceof GiteaError && error.status === 404)) throw error }
   },
   fields: [
-    { key: 'baseUrl', type: 'text', label: { zh: 'Gitea 服务器', en: 'Gitea server' }, hint: { zh: '例如 https://git.feg.cn。', en: 'For example https://git.feg.cn.' } },
-    { key: 'user', type: 'text', label: { zh: '邮箱', en: 'E-mail' }, hint: { zh: 'agent 的 Gitea 登录邮箱（或登录名）；只用于宿主进程，不进入提示词。', en: 'The agent Gitea e-mail (or login); host process only, never prompts.' } },
-    { key: 'password', type: 'password', label: { zh: '密码', en: 'Password' }, hint: { zh: '与邮箱配套的 Gitea 密码（HTTP Basic）；留空表示不修改已保存的密码。', en: 'The Gitea password for that e-mail (HTTP Basic); leave it empty to keep the saved password.' } },
-    { key: 'token', type: 'password', advanced: true, label: { zh: 'API token（可选）', en: 'API token (optional)' }, hint: { zh: '用于 2FA 账号或 CI bot；设置后优先于邮箱密码，留空表示不修改。', en: 'For a 2FA account or a CI bot; when set it takes precedence over the password. Leave empty to keep it.' } },
+    { key: 'baseUrl', type: 'text', label: { zh: 'Gitea 服务器', en: 'Gitea server' }, hint: { zh: '例如 https://git.feg.cn。公开仓库只需服务器地址和仓库名，账号可以留空。', en: 'For example https://git.feg.cn. A public repository needs only the server and the repository name; the account may stay empty.' } },
+    { key: 'user', type: 'text', label: { zh: '邮箱（可选）', en: 'E-mail (optional)' }, hint: { zh: '公开仓库可以不填；私有仓库才需要。填写 agent 的 Gitea 登录邮箱（或登录名）。只用于宿主进程，不进入提示词。', en: 'Empty for a public repository; a private repository needs it. The agent Gitea e-mail (or login); host process only, never prompts.' } },
+    { key: 'password', type: 'password', label: { zh: '密码（可选）', en: 'Password (optional)' }, hint: { zh: '公开仓库可留空（匿名读取）；私有仓库才需要，与邮箱配套（HTTP Basic）。留空表示不修改已保存的密码。', en: 'Empty for a public repository (anonymous reads); a private repository needs it with the e-mail (HTTP Basic). Leave it empty to keep the saved password.' } },
+    { key: 'token', type: 'password', advanced: true, label: { zh: 'API token（可选）', en: 'API token (optional)' }, hint: { zh: '公开仓库不需要；私有仓库或用 notifications 模式时可代替邮箱+密码，设置后优先于邮箱密码。留空表示不修改。', en: 'Not needed for a public repository; for a private repository or the notifications mode it takes the place of the e-mail and password. Leave empty to keep it.' } },
     { key: 'repository', type: 'text', label: { zh: '仓库', en: 'Repository' }, hint: { zh: 'owner/name；留空则来源暂停。', en: 'owner/name; empty keeps the Source paused.' } },
     { key: 'listen', type: 'select', label: { zh: '读取方式', en: 'Read mode' }, options: [
       { value: 'repo', label: { zh: '仓库增量（Issue/评论/PR）', en: 'Repository increments (issues/comments/PRs)' } },
@@ -233,10 +238,11 @@ export const giteaKind: SourceKind<GiteaConfig> = {
  */
 export async function pollRound(ctx: SourceContext, config: GiteaConfig, client: GiteaClient, signal?: AbortSignal): Promise<number> {
   const cursorKey = config.listen === 'notifications' ? KV.gitea.notifications : KV.gitea.repo
+  const reader = giteaReader(config)
   const cursor = ctx.state.get(cursorKey)
   if (!cursor) {
     ctx.state.set(cursorKey, now())
-    ctx.report('gitea', { state: 'ready', detail: 'baseline recorded; the next poll reports new activity', at: now() })
+    ctx.report('gitea', { state: 'ready', detail: `baseline recorded; the next poll reports new activity, reading ${reader}`, at: now() })
     return config.pollSeconds
   }
   let received = 0
@@ -307,7 +313,7 @@ export async function pollRound(ctx: SourceContext, config: GiteaConfig, client:
   const detail = ingest
     ? `${filed} card(s) filed in KanEO from ${config.repository || 'notifications'}`
     : `${received} new event(s) from ${config.repository || 'notifications'}`
-  ctx.report('gitea', { state: 'ready', detail: `${detail}${problems.length ? ` (partial: ${problems.join('; ')})` : ''}`, at: now() })
+  ctx.report('gitea', { state: 'ready', detail: `${detail}, reading ${reader}${problems.length ? ` (partial: ${problems.join('; ')})` : ''}`, at: now() })
   return config.pollSeconds
 }
 

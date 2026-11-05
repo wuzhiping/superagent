@@ -3,8 +3,9 @@
  * KanEO 是唯一的直接来源：入库的卡停在 `to-do` 待辦池，不指派任何人；PM 指派并移进监听列之后，卡片才成为请求。
  */
 import { KV } from '../kv.ts'
+import { storedKaneoAccount } from './bdd-storage.ts'
 import { KaneoClient } from './kaneo-api.ts'
-import { kaneoTaskUrl, type KaneoConfig } from './kaneo-config.ts'
+import { DEFAULT_BASE_URL, DEFAULT_PROJECT, kaneoTaskUrl, type KaneoConfig } from './kaneo-config.ts'
 import type { SourceContext } from './host.ts'
 
 /** 待辦池：入库的卡先落在这里，还没排进价值流（RD.md §10.2）。 */
@@ -53,7 +54,14 @@ export function inboxAccount(ctx: SourceContext): InboxAccount | undefined {
   let account: { baseUrl: string; apiKey: string; projectId: string; workspaceId?: string | undefined } | undefined
   // The deployment throws while setup is still running; that is the same as "no account yet".
   try { account = ctx.deployment.kaneo } catch { return undefined }
-  return account?.apiKey ? { baseUrl: account.baseUrl, apiKey: account.apiKey, projectId: account.projectId, workspaceId: account.workspaceId } : undefined
+  if (account?.apiKey) {
+    return { baseUrl: account.baseUrl, apiKey: account.apiKey, projectId: account.projectId, workspaceId: account.workspaceId }
+  }
+  // A Host whose storage record carries the key needs nothing typed into the Source card.
+  const stored = storedKaneoAccount(account?.baseUrl ?? DEFAULT_BASE_URL)
+  if (!stored) return undefined
+  return { baseUrl: stored.baseUrl, apiKey: stored.apiKey, projectId: account?.projectId ?? ctx.config<KaneoConfig>('kaneo')?.projectId ?? DEFAULT_PROJECT,
+    workspaceId: account?.workspaceId ?? ctx.config<KaneoConfig>('kaneo')?.workspaceId }
 }
 
 /**

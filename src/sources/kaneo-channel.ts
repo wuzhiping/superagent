@@ -3,7 +3,8 @@ import type { OutboundMessage } from '../core/index.ts'
 import type { SourceContext } from './host.ts'
 import { KaneoClient, KaneoError } from './kaneo-api.ts'
 import { KaneoCommentSchema } from './kaneo-trigger.ts'
-import { claimColumnOf, doneColumnOf, type KaneoConfig } from './kaneo-config.ts'
+import { storedKaneoAccount } from './bdd-storage.ts'
+import { claimColumnOf, doneColumnOf, DEFAULT_BASE_URL, type KaneoConfig } from './kaneo-config.ts'
 import type { ChannelLink, ChannelLinks } from './kind.ts'
 
 /** Kaneo's comment length limit with headroom for the marker; longer replies are cut rather than refused. */
@@ -41,10 +42,15 @@ async function move (client: KaneoClient, taskId: string, column: string): Promi
 
 /** Posts a reply as a task comment, checking for an earlier attempt with the same marker first so Outbox retries stay idempotent. */
 export async function sendKaneo(host: Pick<SourceContext, 'commands' | 'config'>, message: OutboundMessage): Promise<'sent' | 'gone'> {
-  const account = host.commands.deployment.kaneo
-  if (!account?.apiKey) throw new Error('The Kaneo Source has no API key configured')
+  const deployed = host.commands.deployment.kaneo
+  // The card's comments go out as the post: the API key of the Source card, or the one the storage record carries.
+  const config = host.config('kaneo') as KaneoConfig | undefined
+  const account = deployed?.apiKey
+    ? deployed
+    : storedKaneoAccount(deployed?.baseUrl ?? config?.baseUrl ?? DEFAULT_BASE_URL)
+  if (!account?.apiKey) throw new Error('The Kanban Source has no API key: configure it, or run as a user whose credentials carry the storage reference')
   const taskId = message.channel.address.taskId
-  if (!taskId) throw new Error('Missing Kaneo reply target')
+  if (!taskId) throw new Error('Missing Kanban reply target')
   const client = new KaneoClient(account)
   const marker = `<!-- dsh-superagent:${message.id} -->`
   try {
@@ -55,7 +61,6 @@ export async function sendKaneo(host: Pick<SourceContext, 'commands' | 'config'>
     })
     if (mine) return 'sent'
     const text = `${message.text.slice(0, COMMENT_CHARS)}\n\n${marker}`
-    const config = host.config('kaneo') as KaneoConfig | undefined
     // Only a message about a duty claims the card; a notice that nobody acted on leaves it where it is.
     if (message.ticketId) await claim(client, taskId, config)
     await client.comment(taskId, text)

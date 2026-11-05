@@ -6,6 +6,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { KV } from '../kv.ts'
+import { storedKaneoAccount } from './bdd-storage.ts'
 import { health, sourceContext, type Health, type SourceContext } from './host.ts'
 import { KaneoClient } from './kaneo-api.ts'
 import { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, DEFAULT_WATCH_COLUMNS, KaneoConfigSchema, requiredLabelsOf,
@@ -174,8 +175,10 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
   while (!signal.aborted) {
     const config = ctx.config<KaneoConfig>(SOURCE)
     try {
-      if (!config?.apiKey) ctx.report('kaneo', health('paused', 'sourceOff'))
-      else { failures = 0; await pollRound(ctx, config, new KaneoClient(config), signal) }
+      // The key comes from the Source card, or from this Host's storage record (BDD storage): a Host needs no typed secret.
+      const account = config?.apiKey ? config : config ? storedKaneoAccount(config.baseUrl) ?? config : undefined
+      if (!account?.apiKey) ctx.report('kaneo', health('paused', 'sourceOff'))
+      else { failures = 0; await pollRound(ctx, { ...config, ...account } as KaneoConfig, new KaneoClient(account), signal) }
     } catch (error) {
       failures += 1
       if (!signal.aborted && failures >= (config?.failuresBeforeError ?? 1)) ctx.report('kaneo', failing(failures, error))

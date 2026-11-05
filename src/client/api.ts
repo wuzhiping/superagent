@@ -146,3 +146,10 @@ export type DutyRow = NarrativeView['duties'][number]
 export type ExceptionRow = NarrativeView['exceptions'][number]
 /** The project archive the settings page edits. */
 export type ProjectArchive = ApiResponse<'GET project-archive'>['archive']
+/** The cleanup page: ended duties with the workspace each left behind, already marked removable or skipped. */
+export type MaintenanceView = ApiResponse<'GET maintenance'>
+export type MaintenanceRow = MaintenanceView['workspaces'][number]
+export type MaintenanceReason = MaintenanceRow['reasons'][number]
+export type MaintenanceNote = MaintenanceView['notes'][number]
+export type MaintenanceCleanResult = ApiResponse<'POST maintenance/clean'>
+

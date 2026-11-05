@@ -4,8 +4,8 @@ import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import { key, type Trigger } from '../src/core/index.ts'
 import type { SourceContext } from '../src/sources/host.ts'
-import { GiteaClient, type GiteaFetch } from '../src/sources/gitea-api.ts'
-import { GiteaConfigSchema, giteaBot, repositoryOf, type GiteaConfig } from '../src/sources/gitea-config.ts'
+import { GiteaClient, GiteaError, type GiteaFetch } from '../src/sources/gitea-api.ts'
+import { GiteaConfigSchema, giteaBot, giteaReader, repositoryOf, type GiteaConfig } from '../src/sources/gitea-config.ts'
 import { commentTrigger, giteaKind, giteaThreadKey, issueTrigger, notificationTrigger, pollRound, refFromUrl, SOURCE } from '../src/sources/gitea.ts'
 
 const config = (overrides: Partial<GiteaConfig> = {}): GiteaConfig => GiteaConfigSchema.parse({ repository: 'acme/widgets', ...overrides })
@@ -97,6 +97,90 @@ describe('gitea client authentication', () => {
     }))
     await client.version()
     expect(header).toBe('token tk')
+  })
+  it('sends no Authorization header when no account is set', async () => {
+    let headers: Record<string, string> | undefined
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn' }, stubFetch(async (_url, init) => {
+      headers = init?.headers as Record<string, string>
+      return response([])
+    }))
+    await client.issues('acme', 'widgets', { limit: 1 })
+    expect(headers?.authorization).toBeUndefined()
+    expect(Object.keys(headers ?? {}).map(name => name.toLowerCase())).not.toContain('authorization')
+  })
+  it('explains that a refused anonymous request may need an account', async () => {
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn' }, stubFetch(async () => response({ message: 'The repository does not exist' }, 401)),
+      async () => {})
+    const error = await client.issues('acme', 'private', { limit: 1 }).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(GiteaError)
+    expect((error as GiteaError).status).toBe(401)
+    expect((error as Error).message).toMatch(/anonymous/)
+    expect((error as Error).message).toMatch(/may be private or need an account/)
+  })
+  it('keeps the original refusal message when an account is set', async () => {
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn', user: 'u', password: 'p' }, stubFetch(async () => response({ message: 'user is not permitted' }, 403)),
+      async () => {})
+    const error = await client.issues('acme', 'widgets', { limit: 1 }).catch((caught: unknown) => caught)
+    expect((error as Error).message).toBe('user is not permitted (403)')
+  })
+})
+
+describe('gitea anonymous access', () => {
+  it('tests a public repository anonymously by reading one issue and one pull request', async () => {
+    const calls: { url: string; authorization: unknown }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      calls.push({ url: String(input), authorization: (init?.headers as Record<string, string> | undefined)?.authorization })
+      return response([])
+    }))
+    await expect(giteaKind.test!(config())).resolves.toBeUndefined()
+    const issues = calls.find(call => call.url.includes('/issues?'))
+    const pulls = calls.find(call => call.url.includes('/pulls?'))
+    expect(issues?.url).toContain('limit=1')
+    expect(pulls?.url).toContain('limit=1')
+    expect(calls.every(call => call.authorization === undefined)).toBe(true)
+  })
+  it('still logs in and reads one issue and pull request when an account is set', async () => {
+    const calls: { url: string; authorization: unknown }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, authorization: (init?.headers as Record<string, string> | undefined)?.authorization })
+      if (url.endsWith('/user')) return response({ id: 1, login: 'agent' })
+      return response([])
+    }))
+    await expect(giteaKind.test!(config({ user: 'agent@feg.cn', password: 'secret' }))).resolves.toBeUndefined()
+    const login = calls.find(call => call.url.endsWith('/user'))
+    expect(login?.authorization).toBe(`Basic ${Buffer.from('agent@feg.cn:secret').toString('base64')}`)
+    expect(calls.some(call => call.url.includes('/issues?'))).toBe(true)
+    expect(calls.some(call => call.url.includes('/pulls?'))).toBe(true)
+  })
+  it('treats disabled pull requests as readable, not as a failed test', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => String(input).includes('/pulls?')
+      ? response({ message: 'pull requests are disabled' }, 404) : response([])))
+    await expect(giteaKind.test!(config())).resolves.toBeUndefined()
+  })
+  it('names the reader (anonymous or the account) in the health detail', async () => {
+    const anonymous = config()
+    const first = context(anonymous)
+    kaneoRest().stub()
+    first.state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
+    await pollRound(first.ctx, anonymous, new GiteaClient({ baseUrl: 'https://git.feg.cn' }, stubFetch(async () => response([]))))
+    expect(first.reports.at(-1)?.health.detail).toContain('reading anonymously')
+
+    const account = config({ user: 'agent@feg.cn', password: 'secret' })
+    const second = context(account)
+    second.state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
+    await pollRound(second.ctx, account, new GiteaClient({ baseUrl: 'https://git.feg.cn', user: 'agent@feg.cn', password: 'secret' }, stubFetch(async () => response([]))))
+    expect(second.reports.at(-1)?.health.detail).toContain('reading as agent@feg.cn')
+    expect(giteaReader({ user: '', password: '', token: '' })).toBe('anonymously')
+    expect(giteaReader({ user: 'agent', password: 'secret', token: 'tk' })).toBe('with an API token')
+  })
+  it('fails a poll with a readable hint instead of silently reporting zero events', async () => {
+    const cfg = config()
+    const { ctx, state } = context(cfg)
+    state.set(KV.gitea.repo, '2026-11-01T00:00:00.000Z')
+    const client = new GiteaClient({ baseUrl: 'https://git.feg.cn' }, stubFetch(async () => response({ message: 'The repository does not exist' }, 401)),
+      async () => {})
+    await expect(pollRound(ctx, cfg, client)).rejects.toThrow(/may be private or need an account/)
   })
 })
 

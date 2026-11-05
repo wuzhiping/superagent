@@ -12,7 +12,7 @@ beforeEach(() => { localStorage.clear() })
 
 it('opens in the PM perspective with every tab and settings group', async () => {
   await mount()
-  expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['概览', '编队', '来源', '触发', '评估', '执行', '设置'])
+  expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['概览', '编队', '来源', '触发', '评估', '执行', '清理', '设置'])
   await click(tab(zh['tab.settings']))
   expect(all('.dt-settings-link').map(link => link.textContent)).toEqual(['项目与岗位', '来源', '评估', '执行', '提示词', '部署'])
   expect(find(zh['perspective.pm'], '.dt-perspective-option').getAttribute('aria-pressed')).toBe('true')

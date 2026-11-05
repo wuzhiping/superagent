@@ -74,6 +74,8 @@ export class GiteaClient {
   /** Sends one request and parses its JSON body; 429 and 5xx retry with backoff, others surface `GiteaError`. */
   async request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST', path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     let lastError: unknown
+    const auth = giteaAuthHeaders(this.account)
+    const anonymous = Object.keys(auth).length === 0
     for (let attempt = 1; attempt <= RETRIES; attempt += 1) {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -81,12 +83,12 @@ export class GiteaClient {
       try {
         const response = await this.fetchImpl(`${this.base}${path}`, {
           method, signal: requestSignal,
-          headers: { accept: 'application/json', ...giteaAuthHeaders(this.account), ...body === undefined ? {} : { 'content-type': 'application/json' } },
+          headers: { accept: 'application/json', ...auth, ...body === undefined ? {} : { 'content-type': 'application/json' } },
           ...body === undefined ? {} : { body: JSON.stringify(body) },
         })
         const text = await response.text()
         if (response.ok) return schema.parse(text ? JSON.parse(text) : undefined)
-        const error = new GiteaError(errorText(text, response.status), response.status)
+        const error = new GiteaError(this.failureMessage(text, response.status, method, path, anonymous), response.status)
         if (!(response.status === 429 || response.status >= 500) || attempt === RETRIES) throw error
         lastError = error
         await this.wait(retryAfter(response.headers) ?? 500 * attempt)
@@ -103,6 +105,16 @@ export class GiteaClient {
       } finally { clearTimeout(timeout) }
     }
     throw lastError instanceof Error ? lastError : new GiteaError(String(lastError))
+  }
+
+  /**
+   * A readable failure: an anonymous read that was refused usually means the repository is private, so it names the
+   * account fields that fix it instead of looking like an empty repository.
+   */
+  private failureMessage(text: string, status: number, method: string, path: string, anonymous: boolean): string {
+    const detail = errorText(text, status)
+    if (!anonymous || (status !== 401 && status !== 403)) return detail
+    return `Gitea refused the anonymous request ${method} ${path} (${status}): the repository may be private or need an account; set the Gitea e-mail and password (or an API token). ${detail}`
   }
 
   /** `GET /version`; works without a token and tells which Gitea the instance runs. */
