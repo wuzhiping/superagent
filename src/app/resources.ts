@@ -26,6 +26,7 @@ export const RESOURCES: readonly { name: string; holds: string; executor?: true 
   { name: 'triggers', holds: 'trigger cards with where each went, newest first' },
   { name: 'threads', holds: 'subscribed threads, newest activity first, with their labels, tickets, current assessment and polling errors' },
   { name: 'thread/<key>', holds: 'one thread: its label and link, its tickets and latest decisions, and its triggers, newest first', executor: true },
+  { name: 'charter', holds: 'the project charter the ticket works under: its version, its carrier and its text (read-only; every post works under it)', executor: true },
   { name: 'decisions', holds: 'decisions, newest first' },
   { name: 'decision/<id>', holds: 'one decision with its audit' },
   { name: 'ticket/<id>', holds: 'a ticket\'s card, the trigger, decision and threads it is tied to, its latest assignments with the start of each '
@@ -64,6 +65,8 @@ export interface ResourceHost {
   readonly masterId: string
   readonly context: Context
   promptVersion(sessionId: string): PromptVersion
+  /** The project's charter as its carrier holds it, for `charter`: the version, where it lives and its text. */
+  charter(projectId: string): Promise<{ version: number, carrier: string, carrierRef?: string, publishedAt: string, text: string } | undefined>
   /** Whether a Session may read `revision` (the revision it currently runs under or any revision it ran under previously). */
   mayRead(sessionId: string, revision: number): boolean
   feishuPageSize(): number
@@ -207,6 +210,16 @@ const ROUTES: readonly Route[] = [
     return sourcePage(read, 'feishu', () => feishuRead(commands, ref, read.resource, read.host.feishuPageSize()))
   }],
   ['github/', read => sourcePage(read, 'github', () => readGithub(read.host.commands.withSignal(read.signal), read.resource))],
+  ['charter', async read => {
+    const { host, ticketId } = read
+    // It is a project resource: the worker reads the charter of its own ticket's project, never another's.
+    const ticket = ticketId ? host.store.tickets.get(ticketId) : undefined
+    if (!ticket?.projectId) throw new Error('The charter is read from a ticket of a project')
+    const charter = await host.charter(ticket.projectId)
+    if (!charter) throw new Error('No charter is published for this project')
+    return { version: charter.version, carrier: charter.carrier, ...charter.carrierRef ? { carrier_ref: charter.carrierRef } : {},
+      published_at: charter.publishedAt, ...text(read, charter.text) }
+  }],
   ['trigger/', async read => {
     const { host, rest, ticketId, offset, signal } = read
     if (!rest || rest.includes('/')) throw new Error('Unknown context resource')

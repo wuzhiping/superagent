@@ -204,8 +204,10 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
    - 回写规则：状态 + 工作日志 + 产出引用
    ```
 
-   「发布」会把宪章**写到项目上**（项目描述就是宪章，**每个项目只有一份最新** ✅），并做三件事：**版本号加一**、
-   记下**发布时间与发布者**、把被替换的那版**留在本机历史里** ✅。其他 Host 上的岗位读的是**同一个项目**，所以看到同一份。
+   「发布」会把宪章**写进宪章的家**：**Gitea 仓库的 `README.md`**（Gitea 卡片上的仓库 + 宪章文件路径，**每个项目只有一份最新** ✅），
+   并做三件事：**版本号加一**、记下**发布时间与发布者**（都写在正文头部）、把被替换的那版**留在本机历史里** ✅；
+   仓库的 commit 历史就是宪章的版本历史。没配 Gitea、或本机没有该仓库写权限时，才写回 **Kanban 项目描述**（镜像），
+   面板徽标会显示载体（如 `shawoo/rsi_superagent/README.md`）。其他 Host 上的岗位读的是**同一个仓库文件**，所以看到同一份。
 
    > **每周至多一版** ✅：7 天内再次发布会返回「下次可发布时间」；确实要提前改（流程必须马上变），
    > 点面板上的「**仍然发布（覆盖每周一次的限制）**」，并在正文里写清为什么 ✅。
@@ -214,6 +216,20 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 3. **当期流程写在宪章里**：写成 `- 当期流程：ready 待開工 → in-progress 進行中 → …` 这样一行 ✅；
    面板拿它与**看板真实的列**（从服务器读 ✅）比对，黄色提示「看板多出的列」= 流程长出来了还没被确认 ✅。
    确认流程成长的做法：**先在 Kanban 的 Workflow 里加/改列 → 再发布宪章确认** ✅（顺序反了会一直显示漂移）。
+
+### 3.6 值流闭环演练（每个新项目或每次改版后跑一次）
+
+把「宪章 → 任务 → 实时沟通 → 交付 → 复盘」整条链真跑一遍，**只信实测**（2026-11-06 首跑）：
+
+1. **宪章**：确认面板徽标显示宪章版本与载体（如 `shawoo/rsi_superagent/README.md`）；`GET narrative` 读回 `carrier=gitea`。
+2. **任务**：在 Kanban 项目里建一张带 `kind:doc`（或对应载体）标签的卡，指派给岗位账号，移进监听列；卡的描述里写清交付物与 key 规则。
+3. **实时沟通**：往项目 topic 发一条通知（如「任务已派，交付物在 MinIO」），确认它入库成卡（`from:ntfy`）且不被当作新任务（监听带标签过滤）。
+4. **交付**：等宿主派工 → 岗位执行 → 交付物进 MinIO → 卡片收到工作日志与 `bucket/key` → 卡片到达交付列。
+5. **验收**：按 key 读回对象（UTF-8 校验，中文不许有替换字符）；卡片评论里有载体引用；ntfy topic 里能看到宿主的进度回复。
+6. **复盘**：把这轮的时间线、卡点、改进写进 TDD 复盘文档；能落地的改进改 SOP/宪章，再按 §3.3 发布新版宪章（每周至多一版）。
+
+> 首跑的实测数字（2026-11-06，RSI 项目）：宪章 v11 读取 → 派卡 → ntfy 入库 9s → 工单 19s → MinIO 交付物 2m41s → 卡片 done 4m40s。
+> 卡点：岗位读不到 Gitea 原文（已修：`orchestrator_read charter`）；ntfy 换 topic 时游标可能跳过消息（已修：换 topic 回退 600s）。
 
 ### 3.4 处理异常（与 §5 同一张表）
 
@@ -227,6 +243,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 ### 4.1 接单
 
+0. **开工第一步：读宪章。** 用 `orchestrator_read charter` 读本期宪章（返回 `version`、`carrier`/`carrier_ref` 与正文），
+   在收到请求的回复里报出版本与载体——宿主已经把宪章从 Gitea README（或镜像）带进工具面，**不需要 shell/HTTP** ✅（2026-11-06 实测）。
 1. 只在**被指派给自己（Kanban 账号）**的卡上动手。别人的卡 = 不代领、不自领。
 2. **认领三步**（Kanban 没有 CAS，必须这样做）：
    1. **读回**：把 assignee 读回来确认是自己；
@@ -260,7 +278,10 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
                  → 宿主把结果写成卡片评论，并把卡片推进到交付列
 ```
 
-- **key 的规矩**：`deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>`；修订**覆盖同一 key**，不要散落多份版本 ✅。
+- **key 的规矩（唯一写法）**：`deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>`；修订**覆盖同一 key**，不要散落多份版本 ✅。
+  宪章里不再有 `projects/<id>/<task>/<kind>/<name>@<version>` 这种并行写法——**交付物只用 deliverables/ 这一种**（2026-11-06 复盘结论）✅。
+- **实时沟通**：项目主题 `pub_<Kanban 项目 id>`（本部署 `pub_at8xrho45bisco2umjzgl1xp`）；ntfy 消息先入库为看板卡（标签 `from:ntfy`），
+  有阻塞在卡片评论或 topic 说明，宿主把进度回复发回同一 topic ✅。
 - **卡片上不放文件本体**：评论是状态通道，不是文件仓库；卡片只留「做了什么 + `bucket/key`」，人要看内容就按 key 取 ✅。
 - **看板由宿主写**：worker 报告 `ready` 后，宿主回写评论并搬卡；**worker 不要自己调用看板 API/CLI 搬卡**（会白耗步数）✅。
 
@@ -310,6 +331,9 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 ---
 
 ## 7. 已知限制（会撞到的，别浪费力气）
+
+- **宿主重启会打断正在跑的工单**：工单会带着「host restarted」的输入自动续跑（实测一次 US-10 因此多花约 20 分钟）。跑长任务时别保存来源设置（保存会重启插件）。
+- **ntfy 换 topic 会回退游标 600s**，避免切换瞬间发布的消息被跳过；因此换 topic 后可能重复入库极少数旧消息（入库标记会去重）。
 
 | 限制 | 现象 | 绕法 |
 | --- | --- | --- |

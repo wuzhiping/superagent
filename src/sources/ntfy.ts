@@ -18,6 +18,8 @@ import { fileEventOnce, inboxAccount, ingestEvents, type InboxEvent } from './ka
 import { DEFAULT_NTFY_URL, NtfyConfigSchema, ntfyAccountOf, ntfyTopicUrl, type NtfyConfig } from './ntfy-config.ts'
 
 export const SOURCE = 'ntfy'
+/** How far a topic switch rewinds the read cursor, so a message published at the switch is not lost. */
+const TOPIC_SWITCH_REWIND_SEC = 600
 const nowSec = (): number => Math.floor(Date.now() / 1000)
 const clamp = (text: string, limit = 4000): string => text.length <= limit ? text : `${text.slice(0, limit)}…`
 /** The title convention for a sender: `#name` or `@name`. */
@@ -154,7 +156,16 @@ export const ntfyKind: SourceKind<NtfyConfig> = {
  * it becomes a card in the `to-do` pool, and the board schedules it from there.
  */
 export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: NtfyClient, signal?: AbortSignal): Promise<number> {
-  const stored = ctx.state.get(KV.ntfy.since)
+  let stored = ctx.state.get(KV.ntfy.since)
+  if (typeof stored === 'number') {
+    // The cursor is kept across a topic switch. Rewinding it a little keeps a message published around the switch from
+    // being skipped by the poll that already moved the cursor past it.
+    const previousTopic = ctx.state.get(KV.ntfy.topic)
+    if (previousTopic !== undefined && previousTopic !== config.topic) {
+      stored = Math.max(0, stored - TOPIC_SWITCH_REWIND_SEC)
+      ctx.state.set(KV.ntfy.since, stored)
+    }
+  }
   if (stored === undefined) {
     const baseline = config.bootstrap === 'history' ? 0 : nowSec()
     ctx.state.set(KV.ntfy.since, nowSec())

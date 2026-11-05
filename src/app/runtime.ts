@@ -47,7 +47,7 @@ import type { ResourceHost } from './resources.ts'
 import { mainTools, type MainToolsHost } from './tools/main.ts'
 import { executorTools, type ExecutorToolsHost } from './tools/executor.ts'
 import { enrichTicket, readArchive } from './narrative.ts'
-import { readCharter } from './charter.ts'
+import { charterTarget, readCharter } from './charter.ts'
 import { storedConnections } from '../sources/bdd-storage.ts'
 
 // Source plugins interact with dsh-superagent exclusively through the `SourceHost` service interface.
@@ -118,7 +118,14 @@ export class Runtime extends Service implements SourceHost {
       const links: LinkHost = { store, links: this.sourceLinks, commands, sources, lifetime: this.lifetime }
       const link = (trigger: Trigger, signal?: AbortSignal) => sourceLink(links, trigger, signal)
       const environment = (ticket: Ticket) => this.ticketEnvironment(ticket)
-      const resources: ResourceHost = { store, pages: new TextCache(4_000_000), prompts, commands, masterId, context: ctx,
+      const charterOf = async (projectId: string) => {
+        const project = readArchive(machine.stateDir).projects.find(item => item.id === projectId)
+        if (!project) return undefined
+        const info = await readCharter(project, charterTarget(sources))
+        return { version: info.version, carrier: info.carrier ?? 'archive', ...info.carrierRef ? { carrierRef: info.carrierRef } : {},
+          publishedAt: info.publishedAt, text: info.text }
+      }
+      const resources: ResourceHost = { store, pages: new TextCache(4_000_000), prompts, commands, masterId, context: ctx, charter: charterOf,
         promptVersion: id => this.sessions.promptVersion(id), mayRead: (id, revision) => this.sessions.mayRead(id, revision),
         feishuPageSize: () => feishuSettings(sources).readPageSize, sourceLink: link }
       const sessions = this.sessions = new Sessions({ context: ctx, store, prompts, effects, health: board.claim('models'), masterId,

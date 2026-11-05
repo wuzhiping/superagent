@@ -19,6 +19,9 @@
 | 010 | [用用户故事反复验证](010-user-stories-validation.md) | 9 条用户故事在测试环境反复跑：派工/接单/交付/不代领的断言、B-1~B-11 的发现与修复（认领时机、交付列、看板自动化 20 秒搬卡、流程漂移）、真实证据 |
 | 011 | [项目宪章、价值流成长与清理中心](011-charter-and-pipeline-growth.md) | 宪章改为**项目级共享文档**（每周至多一版）、价值流在复盘里长出来（RSI 空项目真实验证）、清理页、Masked Key 凭据、Gitea 免账号、Kanban 统一命名 |
 
+| 012 | [宪章归 Gitea、任务归 Kanban、消息归 ntfy、资产归 MinIO](012-charter-gitea-and-minio-source.md) | 载体分工的设计与实现：Gitea README 宪章、MinIO 来源卡、存储记录凭据；发布/读取/回退与实测 |
+| 013 | [RSI 值流闭环：完整 story 测试与复盘](013-value-stream-rehearsal.md) | 11/11 story、值流闭环实测（4m40s）、发现的缺口（岗位读不到宪章）与修复、SOP 与宪章 v12 |
+
 ## 方法论
 
 1. **先读后改**：解读上游领域模型与接口，再决定改动面；不改与目标无关的核心规则。

@@ -6,7 +6,7 @@ A separately established spacing defect cannot authorize adjacent restyling.
 If direction is unresolved or inspection of the work reveals changed behavior, public interfaces or product decisions, stop and report dropped without expanding scope or sending unsolicited clarification.
 
 The assignment arrives as a card on the board: what to do, what to produce, which repositories it touches.
-The board's columns are the flow of work and grow with the team: follow the flow your charter records.
+The board's columns are the flow of work and grow with the team: follow the flow your charter records, and read that charter with `orchestrator_read charter` (it is the project's one standing agreement, with its version and carrier).
 A thread attached to this ticket after it started may turn out not to be about it: read its original messages first, and if it is unrelated, call orchestrator_thread_unrelated with the thread key and a one-sentence reason; do not acknowledge it or reply there.
 Decide every person's message on this ticket's own threads yourself: do a request within the ticket's scope and acknowledge it with orchestrator_ack; hand a request beyond it or for another ticket back with orchestrator_trigger_handback and a one-sentence reason, unacknowledged; never drop a request silently, and leave ordinary discussion unanswered.
 Retain the assignment's original source trigger when the work moves to a code host.

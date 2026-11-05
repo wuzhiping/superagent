@@ -33,6 +33,15 @@
 
 ## ⚡ 2026-11-06：载体分工（Gitea 宪章 / Kanban 任务 / ntfy 消息 / MinIO 资产）
 
+### 完整 story 测试与值流闭环（2026-11-06 晚，TDD/013）
+
+- **完整 story 11/11 通过**（RSI 项目）：`node scripts/user-stories.mjs --project at8xrho45bisco2umjzgl1xp --timeout 600`，报告 `TDD/artifacts/user-stories-us-20261105220348.json`。harness 已改为板无关（监听列/交付列从设置读，不再写死 FDEP 的 `ready`）。
+- **值流闭环跑通**（`scripts/lib/value-stream-rehearsal.mjs`，`TDD/artifacts/rehearsal-20261105221436.json`）：宪章 v11（Gitea README）→ 卡 #12 进 RSI 项目 → ntfy 通知 9s 入库 → 工单 19s 派工 → MinIO 交付物 2m41s → 卡片 done 4m40s；载体 `ateam/deliverables/at8x.../bf87186.../retro.md` 回读 UTF-8 无替换字符。
+- **复盘发现并修掉的缺口**：① 岗位读不到 Gitea 宪章（无 shell/HTTP、无 gitea 资源）→ 新增 `orchestrator_read charter`（宿主读 Gitea README/镜像后返回 version+carrier+正文），第二张卡实测报出 v11/gitea/当期流程，单测 `tests/resources-charter.spec.ts`；② ntfy 换 topic 时游标可能跳过刚发的消息 → 换 topic 回退 600s（入库标记去重）；③ 交付物 key 两种写法并存 → 只保留 `deliverables/<projectId>/<ticketId>/<file>`。
+- **SOP**：§3.3（发布=写 Gitea README）、§4.1（开工先读宪章）、§4.2（key 唯一写法 + topic）、§3.6 新增「值流闭环演练」清单、§7 两条已知限制。
+- **宪章 v12** 已发布到 `shawoo/rsi_superagent/README.md`（`version: 12` / `pm-rsi` / 755 B），narrative 读回 `carrier=gitea`。
+
+
 - **宪章的家搬到 Gitea**：Gitea 卡片上的仓库 + 「宪章文件」（默认 `README.md`）即宪章；`readGiteaCharter` 读 contents API，`publishCharter` 提交该文件（`charter vN: <发布者>`）。Kanban 项目描述只做镜像（无 Gitea 或无写权限时）。返回值 `carrier` / `carrierRef` 进 narrative 与面板徽标。见 TDD/012。
 - **MinIO/S3 成为第四张来源卡**（`dsh-superagent-s3` → `s3-watch`）：不产生任务，只配置 + 自检桶；凭据默认取存储记录，region 自动跟随（本机 `us-west-rack-2`）。线上 `s3: ready — ateam: 5 object(s) readable`。
 - **凭据默认走存储记录**：`storedGiteaAccount` / `storedNtfyAccount` / `storedS3Account`；卡片可逐字段覆盖，密钥只留宿主内存。

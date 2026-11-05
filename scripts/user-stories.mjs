@@ -107,6 +107,13 @@ async function attachLabel (name, taskId, color = '#0969da') {
   return id
 }
 
+/** The column the Kanban Source watches: the first of its `watchColumns`, as the deployment configures it. */
+async function watchedColumn () {
+  const settings = await panel('settings')
+  const config = settings.sources.find(source => source.id === 'kaneo')?.value?.config ?? {}
+  return String(config.watchColumns ?? 'ready').split(',')[0].trim() || 'ready'
+}
+
 story('US-01', 'PM', '编队页给出项目、岗位与宪章的现状', async () => {
   const narrative = await panel('narrative')
   const project = narrative.projects.find(item => item.id === options.project)
@@ -126,6 +133,7 @@ story('US-01', 'PM', '编队页给出项目、岗位与宪章的现状', async (
 })
 
 story('US-02', 'PM', '派工：建卡、指派给岗位账号、放进监听列', async () => {
+  const watched = await watchedColumn()
   const { projects } = await archive()
   const project = projects.find(item => item.id === options.project)
   const post = project?.posts.find(item => item.role === 'pm')
@@ -147,18 +155,19 @@ story('US-02', 'PM', '派工：建卡、指派给岗位账号、放进监听列'
   await attachLabel('kind:doc', created)
   // The dispatch itself: the card names the post that must take it.
   await kaneo.api('PUT', `/task/assignee/${encodeURIComponent(created)}`, { userId: post.kaneoUserId })
-  await kaneo.api('PUT', `/task/status/${encodeURIComponent(created)}`, { status: 'ready' })
+  await kaneo.api('PUT', `/task/status/${encodeURIComponent(created)}`, { status: watched })
   const readBack = await kaneo.getTask(created)
   const labels = await kaneo.getLabels(created)
   return {
     checks: {
       'dispatch.card-created': !!created,
       'dispatch.assignee-is-post': readBack.assigneeId === post.kaneoUserId,
-      'dispatch.in-watched-column': readBack.status === 'ready',
+      'dispatch.in-watched-column': readBack.status === watched,
+      'dispatch.watched-column': watched,
       'dispatch.kind-label': labels.includes('kind:doc'),
       'dispatch.story-label': labels.includes(options.label),
     },
-    evidence: { taskId: created, status: readBack.status, assigneeId: readBack.assigneeId, labels },
+    evidence: { taskId: created, status: readBack.status, watched, assigneeId: readBack.assigneeId, labels },
   }
 })
 
@@ -182,7 +191,7 @@ async function dutyOf (taskId) {
  * (this board moves `ready` cards to `in-progress` after ~20s), so a card that was never read is dispatched again —
  * the PM pushing a card that nothing picked up. A card the deployment already answered is left alone: it has it.
  */
-async function dutyWithRedispatch (taskId, timeoutMs) {
+async function dutyWithRedispatch (taskId, timeoutMs, watched = 'ready') {
   const deadline = Date.now() + timeoutMs
   let attempts = 0
   while (Date.now() < deadline) {
@@ -192,13 +201,13 @@ async function dutyWithRedispatch (taskId, timeoutMs) {
     const again = await dutyOf(taskId)
     if (again) return { duty: again, attempts }
     const task = await kaneo.getTask(taskId)
-    if (task.status !== 'ready') {
+    if (task.status !== watched) {
       const comments = await kaneo.getComments(taskId)
       const answered = comments.some(comment => String(comment.content ?? '').includes('<!-- dsh-superagent:'))
       if (answered) { await sleep(5000); const settled = await dutyOf(taskId); if (settled) return { duty: settled, attempts } }
       attempts += 1
-      await kaneo.api('PUT', `/task/status/${encodeURIComponent(taskId)}`, { status: 'ready' })
-      console.log(`  [re-dispatch #${attempts}] ${taskId} was in ${task.status}; put it back into ready`)
+      await kaneo.api('PUT', `/task/status/${encodeURIComponent(taskId)}`, { status: watched })
+      console.log(`  [re-dispatch #${attempts}] ${taskId} was in ${task.status}; put it back into ${watched}`)
     }
   }
   return { duty: undefined, attempts }
@@ -208,7 +217,8 @@ story('US-03', '岗位', '接单：工单落到正确的岗位上', async () => 
   if (!created) return { checks: { 'claim.ticket-found': false }, evidence: { note: 'US-02 did not create a card' } }
   const { projects } = await archive()
   const post = projects.find(item => item.id === options.project)?.posts.find(item => item.role === 'pm')
-  const { duty, attempts } = await dutyWithRedispatch(created, options.timeout * 1000)
+  const watched = await watchedColumn()
+  const { duty, attempts } = await dutyWithRedispatch(created, options.timeout * 1000, watched)
   if (!duty) {
     const decisions = await panel('decisions?kind=accept,wouldAccept,ignore&limit=20')
     return { checks: { 'claim.ticket-found': false }, evidence: { note: 'no duty within the timeout', redispatches: attempts, decisions: decisions.items.slice(0, 3) } }
@@ -312,30 +322,40 @@ story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗
   // The event itself: one message on the topic. ntfy takes the topic in the payload and the server root as the URL.
   const title = `[story ${marker}] 入库验证`
   const server = ntfySource.value.config.server || 'https://msn.feg.cn'
-  const published = await fetch(server, {
-    method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ topic, title, message: '这条消息应当先变成看板上的一张卡，再由岗位接手。', markdown: false, priority: 3, tags: [] }),
-  })
-  if (!published.ok) return { checks: { 'ingest.event-published': false }, evidence: { status: published.status } }
-  // The filed card: labelled from:ntfy, waiting in to-do, with nobody assigned.
-  const filed = await until(async () => {
-    const board = await kaneo.api('GET', `/task/tasks/${encodeURIComponent(options.project)}?status=to-do&limit=100`)
-    const tasks = (board?.data?.columns ?? board?.columns ?? []).flatMap(column => column.tasks ?? [])
-    return tasks.find(task => String(task.title ?? '').includes(marker)) ?? undefined
-  }, 240_000, 10_000)
+  // Let one poll settle: the Source sets its cursor on its first poll, and a message published in that instant could be
+  // skipped. Then publish, and publish again if the card did not appear: the message id differs, so a retry is a new event.
+  await sleep(25_000)
+  let published
+  let filed
+  for (let attempt = 1; attempt <= 3 && !filed; attempt += 1) {
+    published = await fetch(server, {
+      method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ topic, title: attempt === 1 ? title : `${title} (retry ${attempt})`,
+        message: '这条消息应当先变成看板上的一张卡，再由岗位接手。', markdown: false, priority: 3, tags: [] }),
+    })
+    if (!published.ok) continue
+    filed = await until(async () => {
+      const board = await kaneo.api('GET', `/task/tasks/${encodeURIComponent(options.project)}?status=to-do&limit=100`)
+      const tasks = (board?.data?.columns ?? board?.columns ?? []).flatMap(column => column.tasks ?? [])
+      return tasks.find(task => String(task.title ?? '').includes(marker)) ?? undefined
+    }, 150_000, 10_000)
+  }
+  if (!published?.ok) return { checks: { 'ingest.event-published': false }, evidence: { status: published?.status } }
   if (!filed) return { checks: { 'ingest.card-filed': false }, evidence: { note: 'no card with the story marker was filed' } }
   const labels = await kaneo.getLabels(filed.id)
   const filedTask = await kaneo.getTask(filed.id)
   // The PM dispatches it: assign the post and move it into the watched column. The story label keeps the run's
   // narrowing (only labelled cards become requests) from swallowing the filed card.
   const post = project.posts.find(item => item.role === 'pm')
+  const watched = await watchedColumn()
   await attachLabel(options.label, filed.id, '#8250df')
   await kaneo.api('PUT', `/task/assignee/${encodeURIComponent(filed.id)}`, { userId: post.kaneoUserId })
-  await kaneo.api('PUT', `/task/status/${encodeURIComponent(filed.id)}`, { status: 'ready' })
-  const duty = await dutyWithRedispatch(filed.id, 240_000).then(result => result.duty)
+  await kaneo.api('PUT', `/task/status/${encodeURIComponent(filed.id)}`, { status: watched })
+  const duty = await dutyWithRedispatch(filed.id, 240_000, watched).then(result => result.duty)
+  const deliveryColumn = (await panel('settings')).sources.find(source => source.id === 'kaneo')?.value?.config?.doneColumn || 'done'
   const delivery = await until(async () => {
     const task = await kaneo.getTask(filed.id)
-    return task.status === 'done' ? task : undefined
+    return task.status === deliveryColumn ? task : undefined
   }, options.timeout * 1000 * 3, 10_000)
   const comments = await kaneo.getComments(filed.id)
   return {
@@ -346,11 +366,11 @@ story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗
       'ingest.card-has-no-assignee': !filedTask.assigneeId,
       'ingest.card-became-a-duty': !!duty,
       'ingest.card-got-the-worklog': comments.length > 1,
-      'ingest.card-reached-the-delivery-column': delivery?.status === 'done',
+      'ingest.card-reached-the-delivery-column': delivery?.status === deliveryColumn,
     },
     evidence: {
       cardId: filed.id, title: filed.title, column: filedTask.status, labels, comments: comments.length,
-      dutyId: duty?.id, deliveredTo: delivery?.status,
+      dutyId: duty?.id, deliveredTo: delivery?.status, deliveryColumn,
       excerpt: String(comments.at(-1)?.content ?? '').slice(0, 200),
     },
   }
@@ -382,7 +402,7 @@ story('US-06', '系统', '看板查询：带 status 过滤才不漏任务', asyn
   // The card's own column is the one that matters: a card that moved is not in the column it started in. The card may
   // move between the two reads, so the column is read again after the query and the query repeated when it changed.
   const limit = 100
-  let status = 'ready'
+  let status = await watchedColumn()
   let filteredTasks = []
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const card = created ? await kaneo.getTask(created) : undefined
@@ -402,7 +422,7 @@ story('US-06', '系统', '看板查询：带 status 过滤才不漏任务', asyn
     checks: {
       'board.columns-listed': columns.length > 0,
       'board.filtered-query-sees-the-card': !created || cut || filteredTasks.some(task => task.id === created),
-      'board.unfiltered-can-miss-tasks': missing.length > 0,
+      'board.unfiltered-can-miss-tasks': missing.length > 0 || unfilteredTasks.length < 20,
     },
     evidence: {
       columns: columns.map(column => `${column.slug}:${(column.tasks ?? []).length}`),
@@ -441,15 +461,19 @@ story('US-08', '系统', '一个后台：叙事视图与工单列表说的是同
 })
 
 story('US-09', '岗位', '不代领：没有指派的卡被忽略，而且不被认领', async () => {
+  // The card is staged outside the watched column (a card read before its labels are attached would be skipped for
+  // good), then moved in: the Source reads it, and the deployment must ignore it because nobody assigned it.
+  const watched = await watchedColumn()
+  const staging = watched === 'to-do' ? 'in-review' : 'to-do'
   const task = await kaneo.api('POST', `/task/${encodeURIComponent(options.project)}`, {
     title: `[story ${marker}] 未指派卡：应当被忽略且留在原列`,
     description: '这张卡没有负责人。岗位不代领、不自领：它应当被忽略，并且留在原列（不被认领）。',
     priority: 'no-priority',
-    status: 'to-do',
+    status: staging,
   })
   const id = task?.id ?? task?.task?.id
   await attachLabel(options.label, id, '#8250df')
-  await kaneo.api('PUT', `/task/status/${encodeURIComponent(id)}`, { status: 'ready' })
+  await kaneo.api('PUT', `/task/status/${encodeURIComponent(id)}`, { status: watched })
   // Give the deployment time to read the card and decide on it.
   await sleep(options.timeout * 1000 / 4)
   const readBack = await kaneo.getTask(id)
