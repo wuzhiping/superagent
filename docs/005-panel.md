@@ -41,9 +41,9 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
   An upgrade that changes an overridden default marks it **Default updated** (默认内容已更新). The panel compares the old and new defaults above the team's text. If the old default was not recorded, it compares the team's text with the new default instead. Choose **Keep my text** or **Use the new default**. Overrides for removed parts are listed below the tab bar and dropped on the next save.
 - **Deployment:** startup problems with **Check again**, the state directory and machine limits. Saved limits apply without restart. The DeepSeek Harness Plugin Manager exposes the same page.
 
-### The PM seat and its rights
+### The PM seat and its rights (paused in the panel)
 
-The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The PM seat manages the board's flow, and that right lives in Kanban — only a workspace admin may change a project's columns. Before the reader takes the PM seat, the panel asks the host which account this Host uses; an account that may not manage the board is told so, and may still read the project. In the PM seat the posts page and the settings page carry a banner naming the account, its role, the missing right and the way out: another API key, or an admin who grants the right. The panel writes no board of its own — the board's columns are the server's — so nothing else is blocked. A post's seat is untouched: a post only needs an account to work its cards.
+The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The right the PM seat needs is real — only a workspace admin may change a project's columns — and the host still reports it through `GET capabilities`. The panel no longer acts on that answer, though: it asks nothing before a seat is taken and shows no rights banner, so both seats are open to every account (paused 2026-11-05; RD.md §4.1 keeps the design). The panel writes no board of its own — the board's columns are the server's — so nothing else was ever blocked.
 
 ### Choosing a project
 
