@@ -1,0 +1,40 @@
+{
+  "started": "2026-11-04T22:56:42.900Z",
+  "finished": "2026-11-04T23:08:05.199Z",
+  "marker": "us-20261104225642",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "created": null,
+  "stories": [
+    {
+      "id": "US-10",
+      "persona": "系统",
+      "title": "入库：其它来源的事件先落成卡，再由岗位接手",
+      "ok": true,
+      "failed": [],
+      "ms": 669566,
+      "checks": {
+        "ingest.card-filed": true,
+        "ingest.card-waits-in-todo": true,
+        "ingest.card-has-source-label": true,
+        "ingest.card-has-no-assignee": true,
+        "ingest.card-became-a-duty": true,
+        "ingest.card-got-the-worklog": true,
+        "ingest.card-reached-the-delivery-column": true
+      },
+      "evidence": {
+        "cardId": "egoa6810ooo5tuxe1amf5k6y",
+        "title": "[story us-20261104225642] 入库验证",
+        "column": "to-do",
+        "labels": [
+          "from:ntfy"
+        ],
+        "comments": 2,
+        "dutyId": "6877e8e4a9a1817ce71d4ab9402f28b9",
+        "deliveredTo": "done",
+        "excerpt": "入库验证通过：ntfy 主题 pub_superagent_story_1104225642 的这条消息已成为看板卡片 #515。卡片正文与原消息逐字一致，含 story us-20261104225642 与 Source URL；卡片当前在 ready 列，尚未被 PM 指派，符合「先成卡、再接手」的约定。核验依据为看板入库记录，ntfy 主题页本轮未直接抓取。\n\n<!-- dsh-super"
+      }
+    }
+  ],
+  "passed": 1,
+  "failed": 0
+}

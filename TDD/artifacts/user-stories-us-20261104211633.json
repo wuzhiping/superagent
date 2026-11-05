@@ -1,0 +1,42 @@
+{
+  "started": "2026-11-04T21:16:33.668Z",
+  "finished": "2026-11-04T21:42:01.109Z",
+  "marker": "us-20261104211633",
+  "project": "dgctny8ibgpn72ei2j8qj2hc",
+  "created": null,
+  "stories": [
+    {
+      "id": "US-10",
+      "persona": "系统",
+      "title": "入库：其它来源的事件先落成卡，再由岗位接手",
+      "ok": false,
+      "failed": [
+        "ingest.card-became-a-duty",
+        "ingest.card-got-the-worklog",
+        "ingest.card-reached-the-delivery-column"
+      ],
+      "ms": 1524184,
+      "checks": {
+        "ingest.card-filed": true,
+        "ingest.card-waits-in-todo": true,
+        "ingest.card-has-source-label": true,
+        "ingest.card-has-no-assignee": true,
+        "ingest.card-became-a-duty": false,
+        "ingest.card-got-the-worklog": false,
+        "ingest.card-reached-the-delivery-column": false
+      },
+      "evidence": {
+        "cardId": "kco7mt6062el3rs6q3h9uwa5",
+        "title": "[story us-20261104211633] 入库验证：这条消息应当先变成看板上的一张卡。",
+        "column": "to-do",
+        "labels": [
+          "from:ntfy"
+        ],
+        "comments": 0,
+        "excerpt": ""
+      }
+    }
+  ],
+  "passed": 0,
+  "failed": 1
+}

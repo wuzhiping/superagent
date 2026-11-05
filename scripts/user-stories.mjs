@@ -485,13 +485,20 @@ async function restore () {
     const settings = await panel('settings')
     const current = settings.sources.find(item => item.id === id)
     if (!current) continue
-    // A source save restarts the plugin; wait for it before the next one, and let a source that is not installed
-    // (its kind is off) stay as it is rather than failing the whole restore.
-    try {
-      await panel(`settings/source:${id}`, { method: 'PUT', body: { value: previous.value, revision: current.revision } })
-      await waitForService()
-    } catch (error) {
-      console.error(`could not restore the ${id} Source: ${error.message}`)
+    // A source save restarts the plugin, and the next save may land while the Source kinds are still registering;
+    // retry a few times before giving up on one source, so one failure does not leave the run narrowed.
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      try {
+        const fresh = await panel('settings')
+        const source = fresh.sources.find(item => item.id === id)
+        if (!source) break
+        await panel(`settings/source:${id}`, { method: 'PUT', body: { value: previous.value, revision: source.revision } })
+        await waitForService()
+        break
+      } catch (error) {
+        if (attempt === 4) console.error(`could not restore the ${id} Source: ${error.message}`)
+        else await waitForService()
+      }
     }
   }
   if (saved.eval) {
