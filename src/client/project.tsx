@@ -127,11 +127,12 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
   const posts = scoped ? project.posts.filter(post => post.postId === seat) : project.posts
-  // The project is picked from what the Kanban account can see; the choice also fills the name, the slug and, when the
-  // topic list is empty or still the previous project's default, the topic `pub_<chosen project id>`.
+  // The project is picked from what the Kanban account can see; the choice brings its own name, slug and, when the topic
+  // list is empty or still the previous project's default, the topic `pub_<chosen project id>` along with it.
   const pick = (id: string) => {
+    if (id === project.id) return
     const chosen = choices?.projects.find(item => item.id === id)
-    onChange({ ...project, id, ...(chosen ? { name: project.name || chosen.name, slug: project.slug || chosen.slug } : {}),
+    onChange({ ...project, id, ...(chosen ? { name: chosen.name, slug: chosen.slug } : {}),
       topics: topicsAfterPick(project.topics, project.id, id) })
   }
   return <div className="dt-archive-card">
