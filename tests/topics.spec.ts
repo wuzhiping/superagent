@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { defaultTopic, readArchive, topicsOfProject, withDefaultTopics, writeArchive } from '../src/app/narrative.ts'
+import { defaultTopic, readArchive, topicsAfterPick, topicsOfProject, withDefaultTopics, writeArchive } from '../src/app/narrative.ts'
 
 const state = () => mkdtempSync(join(tmpdir(), 'archive-topics-'))
 const project = (overrides: Record<string, unknown>) => ({
@@ -41,5 +41,27 @@ describe('project topics: an empty list means pub_<project id>', () => {
     writeArchive(dir, { version: 1, projects: [project({ id: 'p1' })] }, 0)
     const stored = JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8'))
     expect(stored.projects[0].topics).toEqual(['pub_p1'])
+  })
+})
+
+describe('project topics: choosing a project moves the default to the chosen one', () => {
+  it('fills the chosen project default when the list is empty', () => {
+    expect(topicsAfterPick([], '', 'at8xrho45bisco2umjzgl1xp')).toEqual(['pub_at8xrho45bisco2umjzgl1xp'])
+    expect(topicsAfterPick(undefined, 'p1', 'p2')).toEqual(['pub_p2'])
+  })
+
+  it('replaces the previous project default when another project is chosen', () => {
+    expect(topicsAfterPick(['pub_p1'], 'p1', 'p2')).toEqual(['pub_p2'])
+    // The same project selected again keeps its default.
+    expect(topicsAfterPick(['pub_p1'], 'p1', 'p1')).toEqual(['pub_p1'])
+  })
+
+  it('keeps topics somebody wrote', () => {
+    expect(topicsAfterPick(['pub_fdep_pm'], 'p1', 'p2')).toEqual(['pub_fdep_pm'])
+    expect(topicsAfterPick(['pub_p1', 'pub_extra'], 'p1', 'p2')).toEqual(['pub_p1', 'pub_extra'])
+  })
+
+  it('keeps the list when nothing is chosen', () => {
+    expect(topicsAfterPick(['pub_p1'], 'p1', '')).toEqual(['pub_p1'])
   })
 })

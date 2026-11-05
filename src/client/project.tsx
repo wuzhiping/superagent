@@ -6,6 +6,7 @@
  * themselves, which columns they take, and the charter the PM published. No secrets: passwords stay in the Source cards.
  */
 import { useEffect, useState } from 'react'
+import { topicsAfterPick } from '../app/narrative.ts'
 import { usePoll, type ProjectArchive, type ProjectChoices } from './api.ts'
 import { Button, Icon, Input } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
@@ -127,11 +128,11 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
   // In the post perspective the project belongs to the PM: it is shown, not edited.
   const posts = scoped ? project.posts.filter(post => post.postId === seat) : project.posts
   // The project is picked from what the Kanban account can see; the choice also fills the name, the slug and, when the
-  // PM has not named topics, the topic convention `pub_<project id>`.
+  // topic list is empty or still the previous project's default, the topic `pub_<chosen project id>`.
   const pick = (id: string) => {
     const chosen = choices?.projects.find(item => item.id === id)
     onChange({ ...project, id, ...(chosen ? { name: project.name || chosen.name, slug: project.slug || chosen.slug } : {}),
-      ...(id && project.topics.length === 0 ? { topics: [`pub_${id}`] } : {}) })
+      topics: topicsAfterPick(project.topics, project.id, id) })
   }
   return <div className="dt-archive-card">
     <div className="dt-grid">

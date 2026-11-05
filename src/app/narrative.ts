@@ -96,6 +96,21 @@ export const defaultTopic = (projectId: string): string => projectId ? `pub_${pr
 export const topicsOfProject = (topics: readonly string[] | undefined, projectId: string): string[] =>
   topics && topics.length > 0 ? [...topics] : projectId ? [defaultTopic(projectId)] : []
 
+/**
+ * The topics after choosing a project in the panel: a list that is empty, or that is only the previous project's
+ * default, becomes the chosen project's default. Topics somebody wrote stay as they are, because a custom topic is a
+ * decision, not a placeholder — but switching projects must not leave the old project's `pub_<id>` behind.
+ */
+export function topicsAfterPick (topics: readonly string[] | undefined, previousId: string, nextId: string): string[] {
+  const current = (topics ?? []).map(topic => topic.trim()).filter(Boolean)
+  if (!nextId) return current
+  if (current.length === 0) return [defaultTopic(nextId)]
+  if (previousId && previousId !== nextId && current.length === 1 && current[0] === defaultTopic(previousId)) {
+    return [defaultTopic(nextId)]
+  }
+  return current
+}
+
 /** Applies the topic convention to every project of an archive. */
 export function withDefaultTopics (archive: ProjectArchive): ProjectArchive {
   return {
