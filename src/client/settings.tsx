@@ -1,5 +1,6 @@
 /** Settings tab shell routing between stage settings (Sources, Eval, Execution), Prompts, and Deployment. */
 import type { StateView } from './api.ts'
+import { PermissionBanner } from './capabilities.tsx'
 import { DeploymentPage, type DeploymentForm } from './deployment.tsx'
 import { EvalSettings } from './eval.tsx'
 import { ExecutionSettings } from './execution.tsx'
@@ -37,6 +38,7 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
     </nav>
     <div className="dt-settings-body">
       <h2 className="dt-settings-title">{t(`settingsGroup.${group}`)}</h2>
+      <PermissionBanner />
       {content}
     </div>
   </div>

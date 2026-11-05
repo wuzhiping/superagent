@@ -4,7 +4,7 @@
 import { expect, it } from 'vitest'
 import { en, zh } from '../src/client/locales.ts'
 import { usePanel, mount, all, find, tab, click, text, settle } from './fixtures/panel.tsx'
-import { server } from './fixtures/panel-server.ts'
+import { memberCapabilities, server } from './fixtures/panel-server.ts'
 
 usePanel()
 
@@ -55,4 +55,29 @@ it('names the team in the overview summary when a project archive is configured'
   expect(server.requests.map(request => request.path)).toContain('narrative')
   expect(all('.dt-section-title').some(title => title.textContent?.startsWith('队伍'))).toBe(true)
   expect(text()).toContain('宪章')
+})
+
+it('shows the rights of the KanEO account on the posts page and the settings page when it may not manage the board', async () => {
+  server.capabilities = memberCapabilities()
+  await mount()
+  await click(tab(zh['tab.posts']))
+  const banner = document.querySelector('.dt-permission')
+  expect(banner?.textContent).toContain('sa-w1-fdep')
+  expect(banner?.textContent).toContain('member')
+  // The panel words the missing right itself: the account's role, and the admin it needs.
+  expect(banner?.textContent).toContain('workspace admin')
+  // The way out is named as well: another key, or an admin who grants the right.
+  expect(banner?.textContent).toContain(zh.permissionNext)
+  await click(tab(zh['tab.settings']))
+  expect(document.querySelector('.dt-permission')?.textContent).toContain('sa-w1-fdep')
+})
+
+it('leaves the post perspective alone: a post needs an account, not management rights', async () => {
+  server.capabilities = memberCapabilities()
+  await mount()
+  await click(find(zh['perspective.post'], '.dt-perspective-option'))
+  await click(tab(zh['tab.posts.post']))
+  expect(document.querySelector('.dt-permission')).toBeNull()
+  await click(tab(zh['tab.settings']))
+  expect(document.querySelector('.dt-permission')).toBeNull()
 })

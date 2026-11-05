@@ -41,6 +41,10 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
   An upgrade that changes an overridden default marks it **Default updated** (默认内容已更新). The panel compares the old and new defaults above the team's text. If the old default was not recorded, it compares the team's text with the new default instead. Choose **Keep my text** or **Use the new default**. Overrides for removed parts are listed below the tab bar and dropped on the next save.
 - **Deployment:** startup problems with **Check again**, the state directory and machine limits. Saved limits apply without restart. The DeepSeek Harness Plugin Manager exposes the same page.
 
+### The PM seat and its rights
+
+The header switches the perspective: the same deployment read from the PM's seat or from a post's seat. The PM seat manages the board's flow, and that right lives in KanEO — only a workspace admin may change a project's columns. Before the reader takes the PM seat, the panel asks the host which account this Host uses; an account that may not manage the board is told so, and may still read the project. In the PM seat the posts page and the settings page carry a banner naming the account, its role, the missing right and the way out: another API key, or an admin who grants the right. The panel writes no board of its own — the board's columns are the server's — so nothing else is blocked. A post's seat is untouched: a post only needs an account to work its cards.
+
 ## Search
 
 The header search finds Triggers by text, id, Feishu message id or a stored link, such as a GitHub comment URL. A Feishu link missing from the original message becomes searchable only after the host reads it during the current process lifetime.

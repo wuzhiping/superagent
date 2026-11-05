@@ -189,6 +189,18 @@
             name: '@deepseek-ai/dsh-skill-filesystem'
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
+          # The PM reads what the project needs: the board's cards, the documents behind them, the charter's history.
+          # The web tool only reads; writing stays with the duty's executor.
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          # The PM keeps its agenda in a list, the way it plans the week and hands work out.
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
           - id: compaction
             name: cordis:group
             group: true

@@ -22,6 +22,13 @@ declare const WorkspaceSchema: z.ZodObject<{
   id: z.ZodString;
   name: z.ZodDefault<z.ZodString>;
 }, z.core.$loose>;
+/** The account behind the API key: its id identifies the post on the board, its role says what it may manage. */
+declare const KaneoUserSchema: z.ZodObject<{
+  id: z.ZodString;
+  name: z.ZodDefault<z.ZodString>;
+  email: z.ZodDefault<z.ZodString>;
+  role: z.ZodDefault<z.ZodString>;
+}, z.core.$loose>;
 /** One Kaneo server; `request` is the only method that touches the network, so tests substitute `fetch` and the retry clock. */
 declare class KaneoClient {
   private readonly config;
@@ -62,6 +69,8 @@ declare class KaneoClient {
   attachLabel(labelId: string, taskId: string, options?: RequestOptions): Promise<void>;
   /** The workspaces the API key can read; labels belong to one of them. */
   workspaces(options?: RequestOptions): Promise<z.infer<typeof WorkspaceSchema>[]>;
+  /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. */
+  me(options?: RequestOptions): Promise<z.infer<typeof KaneoUserSchema>>;
 }
 //#endregion
 export { KaneoClient as t };

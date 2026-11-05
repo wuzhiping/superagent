@@ -4,7 +4,7 @@
 import { beforeEach, expect, it } from 'vitest'
 import { en, zh } from '../src/client/locales.ts'
 import { usePanel, mount, all, find, tab, click, text, settle } from './fixtures/panel.tsx'
-import { server } from './fixtures/panel-server.ts'
+import { memberCapabilities, server } from './fixtures/panel-server.ts'
 
 usePanel()
 
@@ -66,4 +66,31 @@ it('names the perspectives in English too', async () => {
   expect(all('.dt-perspective-option').map(item => item.textContent)).toEqual([en['perspective.pm'], en['perspective.post']])
   await click(find(en['perspective.post'], '.dt-perspective-option'))
   expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['Overview', 'My duties', 'My post', 'Source', 'Trigger', 'Settings'])
+})
+
+it('asks before it lets a reader whose account may not manage the board into the PM seat', async () => {
+  server.capabilities = memberCapabilities()
+  await mount()
+  await click(find(zh['perspective.post'], '.dt-perspective-option'))
+  await click(find(zh['perspective.pm'], '.dt-perspective-option'))
+  // The seat is not taken silently: the question names the account and the right it lacks.
+  const dialog = document.querySelector('.dt-modal')
+  expect(dialog?.textContent).toContain(zh.permissionSwitchConfirm)
+  expect(dialog?.textContent).toContain('sa-w1-fdep')
+  expect(dialog?.textContent).toContain('member')
+  expect(find(zh['perspective.post'], '.dt-perspective-option').getAttribute('aria-pressed')).toBe('true')
+  // The reader may refuse the seat, or take it knowing what is missing.
+  await click(zh.cancel)
+  expect(document.querySelector('.dt-modal')).toBeNull()
+  await click(find(zh['perspective.pm'], '.dt-perspective-option'))
+  await click(zh.permissionSwitchAnyway)
+  expect(find(zh['perspective.pm'], '.dt-perspective-option').getAttribute('aria-pressed')).toBe('true')
+})
+
+it('takes the PM seat without a question when the account may manage the board', async () => {
+  await mount()
+  await click(find(zh['perspective.post'], '.dt-perspective-option'))
+  await click(find(zh['perspective.pm'], '.dt-perspective-option'))
+  expect(document.querySelector('.dt-modal')).toBeNull()
+  expect(find(zh['perspective.pm'], '.dt-perspective-option').getAttribute('aria-pressed')).toBe('true')
 })
