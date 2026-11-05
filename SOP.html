@@ -112,6 +112,10 @@
   pre{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
     font-family:"SF Mono",Consolas,monospace;font-size:15px;line-height:1.65;color:var(--dim);overflow:hidden}
   pre b{color:var(--text)}
+  /* Inline commands and keys: monospace, and a long git URL breaks anywhere instead of pushing out of its card. */
+  code{font-family:"SF Mono",Consolas,monospace;font-size:14px;line-height:1.55;color:var(--text);
+    background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:1px 7px;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
 
   /* cover */
   .cover{justify-content:center;gap:8px}
@@ -267,12 +271,12 @@
       <div class="grid g3 fill">
         <div class="card k"><span class="bar"></span>
           <div class="num">STEP 01</div><h3>装好、连上</h3>
-          <p><b>npx @deepseek-ai/dsh-superagent@latest install</b></p>
-          <p>然后 <b>dsh-superagent status</b>，三个来源都要 ready。</p>
+          <p><code>npx.cmd @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"</code></p>
+          <p>Windows 用 <b>npx.cmd</b>（PowerShell 会拦 .ps1）；macOS / Linux 用 <b>npx</b>。装完重启 / 刷新，面板出现「超级智能体」，三个来源 ready。</p>
         </div>
         <div class="card g"><span class="bar"></span>
           <div class="num">STEP 02</div><h3>三个来源账号</h3>
-          <p>Kanban：地址 + API key + 项目 id + 监听列（slug）。</p>
+          <p>Kanban：地址 + API key（可留空）+ 项目（从列表选）+ 监听列（slug）。</p>
           <p>Gitea：地址 + 邮箱 + 密码 + 仓库（先测连再保存）。</p>
           <p>ntfy：地址 + topic（多实例＝多 topic）。</p>
         </div>

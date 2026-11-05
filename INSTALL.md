@@ -1,12 +1,20 @@
 # 从 Gitea 安装 SuperAgent（其他设备）
 
-本仓库（`git+https://git.feg.cn/shawoo/superagent`）本身是一个 **DSH bundle**。其他设备可以用**一条 npx 命令**把它装进自己的 DeepSeek Harness：
+本仓库（`git+https://git.feg.cn/shawoo/superagent`）本身是一个 **DSH bundle**，用 DSH 的插件命令装进目标 profile：
 
 ```powershell
-& "$bin\npx.cmd" --prefix (Join-Path $PWD "node\global") --cache (Join-Path $PWD "node\cache") -y git+https://git.feg.cn/shawoo/superagent install
+# Windows：用 npx.cmd（PowerShell 的执行策略会拦 npx.ps1）
+npx.cmd @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"
 ```
 
-> `$bin` / `$PWD` 按你的便携目录替换；核心是 `npx -y git+https://git.feg.cn/shawoo/superagent install`。
+```bash
+# macOS / Linux
+npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"
+```
+
+> 与 DSH「插件」页面安装 bundle 等价：把 `dsh-superagent` 写进 profile 的依赖与 `dsh.profile.bundles`。
+> `--profile` 换成目标 profile 名；需要固定版本用 `git+...#<tag 或 commit>`。
+> 仓库还带一个**便捷脚本**（会顺带写好 `stateDir`）：`npx -y git+https://git.feg.cn/shawoo/superagent install`，见 §2。
 
 ---
 
@@ -30,9 +38,9 @@
 
 ---
 
-## 2. 安装命令的行为
+## 2. 便捷脚本的行为（`npx -y … install`）
 
-`npx -y git+https://git.feg.cn/shawoo/superagent install` 会：
+便捷脚本 `npx -y git+https://git.feg.cn/shawoo/superagent install` 会（不想用它时，直接用 §intro 的插件命令即可）：
 
 1. 从 Gitea 拉取本仓库并安装其 bin（`dsh-superagent`）；只会下载运行时依赖（zod / proper-lockfile），**不会**下载 vitest 等开发工具链；
 2. 解析目标 DSH（PATH 上的 `dsh`，或便携目录里的 `node/global/node_modules/@deepseek-ai/dsh/lib/bin.js`）；
@@ -67,7 +75,7 @@ npx -y git+https://git.feg.cn/shawoo/superagent install --profile web --state-di
 
 1. **重启 / 刷新**：重启正在运行的 `dsh web`（或重启对应 profile 进程）；浏览器端刷新页面。
 2. 打开「**超级智能体**」面板 → **设置 → 来源**，逐个配置并「测试连接」：
-   - **Kanban**：服务器 + API key + 项目 id；
+   - **Kanban**：服务器 + API key（可留空：本机存储记录里有）+ 项目（从列表选）；
    - **Gitea**：服务器 + 邮箱 + 密码（或 token）+ `owner/name` 仓库（测试通过才可保存）；
    - **ntfy**：服务器 + topic + 认证方式（公开 `pub_` 选 none；私有 topic 选账号 + 密码）。
 3. 在 **Policy** 里配置各来源的 allowed 名单（谁能发起任务）；ntfy 公开 topic 按低信任处理。
@@ -76,7 +84,7 @@ npx -y git+https://git.feg.cn/shawoo/superagent install --profile web --state-di
 
 ---
 
-## 4. 手动等价方式（不用 npx）
+## 4. 只用 dsh 命令（不经过便捷脚本）
 
 ```powershell
 dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent#v0.1.1"

@@ -37,10 +37,22 @@
 
 ### 2.1 安装
 
-```bash
-npx @deepseek-ai/dsh-superagent@latest install     # 一条命令装好插件
-dsh-superagent status                              # 看三个来源是否 ready
+用 DSH 自己的插件命令把本仓库装进目标 profile。**Windows 用 `npx.cmd`**（PowerShell 的执行策略会拦 `npx.ps1`）：
+
+```powershell
+npx.cmd @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"
 ```
+
+macOS / Linux：
+
+```bash
+npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"
+```
+
+- `--profile web` 换成目标 profile 名；要固定版本就写 `#<tag 或 commit>`。
+- **更新**已有的安装：先 `... plugin --profile web remove dsh-superagent`，再执行上面的 add。
+- 装完重启 / 刷新 `dsh web` → 面板出现「超级智能体」→ **设置 → 来源**，三个来源 `ready` 即成功。
+- 仓库里已提交 `lib/`（构建产物），目标机器**不需要**编译；装完重启才生效。
 
 ### 2.2 来源的账号（都在面板「设置 → 来源」里填，密码留空即不修改已保存的密钥）
 
