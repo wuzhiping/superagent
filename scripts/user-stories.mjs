@@ -49,11 +49,25 @@ async function waitForService (timeoutMs = 90_000) {
       const state = await panel('state')
       const sources = Object.entries(state.health ?? {}).filter(([name]) => ['kaneo', 'gitea', 'ntfy'].includes(name))
       // A Source that is off is paused on purpose; one that is still starting is not ready yet.
-      if (sources.every(([, entry]) => entry.state === 'ready' || entry.state === 'paused')) return true
+      if (sources.every(([, entry]) => entry.state === 'ready' || entry.state === 'paused')) {
+        // The settings routes only accept a Source once its kind is registered, which happens a moment after the
+        // Sources start reporting; give the restarted plugin that moment before the next write.
+        await sleep(2000)
+        return true
+      }
     } catch { /* the host is restarting */ }
     await sleep(2000)
   }
   return false
+}
+
+/** Waits until a Source reports the state (and detail) the caller expects, or the timeout passes. */
+async function waitForSource (id, test, timeoutMs = 120_000) {
+  return until(async () => {
+    const state = await panel('state')
+    const entry = state.health?.[id]
+    return entry && test(entry) ? entry : undefined
+  }, timeoutMs, 3000)
 }
 
 /** Waits until `check` returns a value, or the timeout passes. */
@@ -292,6 +306,9 @@ story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗
     value: { ...ntfySource.value, enabled: true, config: { ...ntfySource.value.config, topic } },
     revision: ntfySource.revision } })
   await waitForService()
+  // The Source reports the new topic once it polls; publishing before that would put the message behind its cursor.
+  const polling = await waitForSource('ntfy', entry => entry.state === 'ready' && String(entry.detail ?? '').includes(topic))
+  if (!polling) return { checks: { 'ingest.source-polling': false }, evidence: { topic } }
   // The event itself: one message on the topic. ntfy takes the topic in the payload and the server root as the URL.
   const title = `[story ${marker}] 入库验证`
   const server = ntfySource.value.config.server || 'https://msn.feg.cn'
@@ -486,8 +503,8 @@ async function restore () {
     const current = settings.sources.find(item => item.id === id)
     if (!current) continue
     // A source save restarts the plugin, and the next save may land while the Source kinds are still registering;
-    // retry a few times before giving up on one source, so one failure does not leave the run narrowed.
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
+    // retry before giving up on one source, so one failure does not leave the run narrowed.
+    for (let attempt = 1; attempt <= 8; attempt += 1) {
       try {
         const fresh = await panel('settings')
         const source = fresh.sources.find(item => item.id === id)
@@ -496,8 +513,8 @@ async function restore () {
         await waitForService()
         break
       } catch (error) {
-        if (attempt === 4) console.error(`could not restore the ${id} Source: ${error.message}`)
-        else await waitForService()
+        if (attempt === 8) console.error(`could not restore the ${id} Source: ${error.message}`)
+        else { await waitForService(); await sleep(3000) }
       }
     }
   }
