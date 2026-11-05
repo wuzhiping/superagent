@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { invalidateCharterCache, readCharter, readGiteaCharter, publishCharter, type CharterTarget } from '../src/app/charter.ts'
+import { giteaCharter, invalidateCharterCache, readCharter, readGiteaCharter, publishCharter, type CharterTarget } from '../src/app/charter.ts'
 import type { ArchiveProject } from '../src/app/narrative.ts'
 
 const README = [
@@ -111,5 +111,23 @@ describe('gitea charter: the repository README is the charter', () => {
     expect(published.carrier).toBe('kanban')
     expect(published.version).toBe(1)
     restore()
+  })
+})
+
+describe('the charter repository is separate from the event repository', () => {
+  const registry = (config: Record<string, unknown>) => ({
+    instances: () => [{ id: 'gitea', kind: 'gitea', enabled: true, config }],
+  }) as unknown as Parameters<typeof giteaCharter>[0]
+  it('reads the charter from charterRepository and never from the event repository', () => {
+    const target = giteaCharter(registry({ baseUrl: 'https://git.feg.cn', user: 'u', password: 'p', token: '',
+      repository: 'shawoo/PDP', charterRepository: 'shawoo/rsi_superagent', charterPath: 'README.md' }))
+    expect(target).toMatchObject({ repository: 'shawoo/rsi_superagent', path: 'README.md' })
+  })
+  it('has no Gitea charter when charterRepository is empty, even with an event repository', () => {
+    expect(giteaCharter(registry({ repository: 'shawoo/PDP', charterRepository: '' }))).toBeUndefined()
+  })
+  it('keeps its own path, so the charter file is not tied to the event repository', () => {
+    const target = giteaCharter(registry({ repository: 'shawoo/PDP', charterRepository: 'shawoo/rsi_superagent', charterPath: 'docs/charter.md' }))
+    expect(target?.path).toBe('docs/charter.md')
   })
 })

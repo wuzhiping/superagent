@@ -59,8 +59,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 | 来源 | 作用 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | **Kanban** | **唯一直接来源**：任务、看板、价值流 | 服务器地址、**API key**（可留空：本机存储记录里有）、**项目（从列表选）**、监听的列（slug） | API key 在 Kanban 用户设置里生成；**只要这一把钥匙就能跑起来** |
-| **Gitea** | 代码资产（可选） | 服务器地址、邮箱、密码、仓库 | 邮箱 + 密码走 HTTP Basic；先点「测试连接」再保存 |
-| **ntfy** | 消息通道（可选） | 服务器地址、topic（可多个实例＝多个 topic） | 公开 `pub_` topic 只当上下文，不构成授权 |
+| **Gitea** | 代码资产（可选）+ **宪章的家** | 服务器地址、邮箱、密码、**事件仓库**、**宪章仓库**、宪章文件 | 邮箱 + 密码走 HTTP Basic；先点「测试连接」再保存。**事件仓库与宪章仓库是两个字段、必须分开**：`repository` 的 Issue/PR/评论是任务来源，`charterRepository` 的 README.md 是项目宪章；留空宪章退回 Kanban 项目描述 |
+| **ntfy** | 消息通道（可选） | 服务器地址、topic（可多个实例＝多个 topic）、**入库过滤 tag** | 公开 `pub_` topic 只当上下文，不构成授权；**只有带过滤 tag 的消息才入库成卡**（留空=全部），宿主的回复 tag 是 `dsh-superagent`，设了过滤就不会被回收成卡 |
 
 > **Kanban 是唯一的直接来源** ✅：Gitea / ntfy 的事件**先入库成看板上的卡**（落在 `to-do`），再由 PM 指派、移进监听列，
 > 之后走**和 Kanban 卡完全一样**的调度流程 ✅（来源卡片上的「事件入库」开关可以关掉，回到"事件直接成为请求"的旧行为 ✅）。
@@ -223,7 +223,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 1. **宪章**：确认面板徽标显示宪章版本与载体（如 `shawoo/rsi_superagent/README.md`）；`GET narrative` 读回 `carrier=gitea`。
 2. **任务**：在 Kanban 项目里建一张带 `kind:doc`（或对应载体）标签的卡，指派给岗位账号，移进监听列；卡的描述里写清交付物与 key 规则。
-3. **实时沟通**：往项目 topic 发一条通知（如「任务已派，交付物在 MinIO」），确认它入库成卡（`from:ntfy`）且不被当作新任务（监听带标签过滤）。
+3. **实时沟通**：往项目 topic 发一条**带入库 tag**（当前 `dsh`）的通知（如「任务已派，交付物在 MinIO」），确认它入库成卡（`from:ntfy`）且不被当作新任务（监听带标签过滤）；再发一条不带 tag 的，确认它**不**入库。
 4. **交付**：等宿主派工 → 岗位执行 → 交付物进 MinIO → 卡片收到工作日志与 `bucket/key` → 卡片到达交付列。
 5. **验收**：按 key 读回对象（UTF-8 校验，中文不许有替换字符）；卡片评论里有载体引用；ntfy topic 里能看到宿主的进度回复。
 6. **复盘**：把这轮的时间线、卡点、改进写进 TDD 复盘文档；能落地的改进改 SOP/宪章，再按 §3.3 发布新版宪章（每周至多一版）。
@@ -280,8 +280,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 - **key 的规矩（唯一写法）**：`deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>`；修订**覆盖同一 key**，不要散落多份版本 ✅。
   宪章里不再有 `projects/<id>/<task>/<kind>/<name>@<version>` 这种并行写法——**交付物只用 deliverables/ 这一种**（2026-11-06 复盘结论）✅。
-- **实时沟通**：项目主题 `pub_<Kanban 项目 id>`（本部署 `pub_at8xrho45bisco2umjzgl1xp`）；ntfy 消息先入库为看板卡（标签 `from:ntfy`），
-  有阻塞在卡片评论或 topic 说明，宿主把进度回复发回同一 topic ✅。
+- **实时沟通**：项目主题 `pub_<Kanban 项目 id>`（本部署 `pub_at8xrho45bisco2umjzgl1xp`）；**只有带过滤 tag 的消息**才入库为看板卡（当前 tag `dsh`，标签 `from:ntfy`），
+  不带 tag 的消息留在 topic 里当聊天，不产生卡；宿主的回复 tag 是 `dsh-superagent`，不会被回收入库 ✅。有阻塞在卡片评论或 topic 说明。
 - **卡片上不放文件本体**：评论是状态通道，不是文件仓库；卡片只留「做了什么 + `bucket/key`」，人要看内容就按 key 取 ✅。
 - **看板由宿主写**：worker 报告 `ready` 后，宿主回写评论并搬卡；**worker 不要自己调用看板 API/CLI 搬卡**（会白耗步数）✅。
 

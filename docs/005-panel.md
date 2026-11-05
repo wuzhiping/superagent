@@ -45,9 +45,9 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
 
 The Sources page holds four cards, each with one job (2026-11-06):
 
-- **Gitea** — the **charter's home**: the repository named on the card, with `README.md` (path editable as `charterPath`) as the charter's entry point and body. Publishing the charter commits to that file; a refused write (no push right) falls back to the Kanban project description as the mirror.
+- **Gitea** — two separate repositories on one card: the **event repository** (`repository`) whose issues, pull requests and comments are the task source, and the **charter repository** (`charterRepository`) whose `README.md` (path editable as `charterPath`) is the charter's entry point and body. Publishing the charter commits to the charter file; a refused write (no push right) or an empty charter repository falls back to the Kanban project description as the mirror.
 - **Kanban** — the task source: the board's columns and cards are the requests the posts work.
-- **ntfy** — the realtime message channel the agent is addressed on.
+- **ntfy** — the realtime message channel. Only messages carrying one of the **ingest tags** (`ingestTags`) become cards or requests; an empty filter takes every message. The host's own replies carry `dsh-superagent`, so a filter set to `dsh` never files them back.
 - **MinIO / S3** — the supplemental carrier for a project's data assets (documents, plans, reports, exports). It produces no tasks: it is configured and reports whether its bucket is readable.
 
 Every card's credentials default to this Host's storage record (`/BDD/API/AI/dsh/storage/<service>`, read with the masked key) and may be overridden field by field; an empty field means "use the record", and a secret typed into a card stays in memory rather than the settings file.

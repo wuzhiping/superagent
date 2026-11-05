@@ -22,6 +22,16 @@ export const SOURCE = 'ntfy'
 const TOPIC_SWITCH_REWIND_SEC = 600
 const nowSec = (): number => Math.floor(Date.now() / 1000)
 const clamp = (text: string, limit = 4000): string => text.length <= limit ? text : `${text.slice(0, limit)}…`
+/** The tags a message must carry to be handled, lower-cased; empty means every message is handled. */
+export const ingestTagsOf = (config: Pick<NtfyConfig, 'ingestTags'>): string[] =>
+  config.ingestTags.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean)
+
+/** Whether a message passes the intake tag filter; a message without tags passes only when no filter is set. */
+export const messageWanted = (config: Pick<NtfyConfig, 'ingestTags'>, tags: readonly string[] | undefined): boolean => {
+  const wanted = ingestTagsOf(config)
+  if (wanted.length === 0) return true
+  return (tags ?? []).some(tag => wanted.includes(tag.toLowerCase()))
+}
 /** The title convention for a sender: `#name` or `@name`. */
 export const ntfySenderOf = (title: string): string | undefined => /^[#@]\s*([A-Za-z0-9_.-]{1,80})/.exec(title.trim())?.[1]
 const mentioned = (text: string, agent: string): boolean => !!agent && text.toLowerCase().includes(`@${agent.toLowerCase()}`)
@@ -75,6 +85,9 @@ export const ntfyKind: SourceKind<NtfyConfig> = {
     { key: 'sender', type: 'text', advanced: true, label: { zh: 'agent 消息的 title 约定', en: 'Title convention for the agent' } },
     { key: 'pollSeconds', type: 'number', advanced: true, min: 15, max: 3600, label: { zh: '轮询间隔 / 秒', en: 'Polling interval / seconds' } },
     { key: 'failuresBeforeError', type: 'number', advanced: true, min: 1, max: 20, label: { zh: '连续失败几次后报告异常', en: 'Failed polls before reporting an error' } },
+    { key: 'ingestTags', type: 'text', label: { zh: '入库过滤 tag（逗号分隔）', en: 'Ingest tag filter (comma separated)' },
+      hint: { zh: '只有带这些 tag 的消息才处理（入库成卡或成为请求）；留空=全部。宿主自己的回复带 `dsh-superagent`，设了过滤就不会被回收成卡。',
+        en: 'Only messages carrying one of these tags are handled (filed as a card or made a request); empty = every message. The host\'s own replies carry `dsh-superagent`, so a filter keeps them from coming back as cards.' } },
     { key: 'maxMessages', type: 'number', advanced: true, min: 1, max: 500, label: { zh: '每次最多读取消息数', en: 'Messages read per poll' } },
     { key: 'bootstrap', type: 'select', advanced: true, label: { zh: '首次读取', en: 'First read' },
       hint: { zh: '从当前时间开始 / 把保留的历史也入库成卡（会一次建很多张卡）。', en: 'Start from now / file the retained history as cards too (that creates many cards at once).' },
@@ -184,8 +197,12 @@ export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: 
   // Without a Kanban account the messages cannot be filed; the round fails instead of dropping them.
   if (ingest && !account) throw new Error('The Kanban Source has no API key: ntfy messages are filed as Kanban cards')
   const kaneo = account ? new KaneoClient(account) : undefined
+  const wanted = ingestTagsOf(config)
+  let skipped = 0
   for (const message of messages) {
     if (message.time <= cursor) continue
+    // The intake filter: a message without a wanted tag is not a card (and not a Trigger).
+    if (!messageWanted(config, message.tags)) { skipped += 1; continue }
     if (account && kaneo) {
       if (await fileEventOnce(ctx, account, messageEvent(message, config), message.id, { client: kaneo, signal })) filed += 1
       continue
@@ -198,7 +215,8 @@ export async function pollRound(ctx: SourceContext, config: NtfyConfig, client: 
   const detail = ingest
     ? `${filed} card(s) filed in Kanban from ${config.topic}`
     : `${received} new message(s) in ${config.topic}`
-  ctx.report('ntfy', { state: 'ready', detail: `${detail}${latest?.title ? `; latest: ${latest.title}` : ''}`, at: new Date().toISOString() })
+  const filter = wanted.length > 0 ? `; tag filter ${wanted.join(',')} (${skipped} skipped)` : ''
+  ctx.report('ntfy', { state: 'ready', detail: `${detail}${filter}${latest?.title ? `; latest: ${latest.title}` : ''}`, at: new Date().toISOString() })
   return config.pollSeconds
 }
 

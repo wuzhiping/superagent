@@ -22,6 +22,8 @@
 | 012 | [宪章归 Gitea、任务归 Kanban、消息归 ntfy、资产归 MinIO](012-charter-gitea-and-minio-source.md) | 载体分工的设计与实现：Gitea README 宪章、MinIO 来源卡、存储记录凭据；发布/读取/回退与实测 |
 | 013 | [RSI 值流闭环：完整 story 测试与复盘](013-value-stream-rehearsal.md) | 11/11 story、值流闭环实测（4m40s）、发现的缺口（岗位读不到宪章）与修复、SOP 与宪章 v12 |
 
+| 014 | [宪章仓库与事件仓库分开；ntfy 按 tag 过滤](014-charter-repo-and-ntfy-filter.md) | charterRepository 独立字段（事件仓/宪章仓必须分开）、ntfy ingestTags 入库过滤；单测 21 条与线上实测 |
+
 ## 方法论
 
 1. **先读后改**：解读上游领域模型与接口，再决定改动面；不改与目标无关的核心规则。

@@ -54,6 +54,7 @@ declare const GiteaAccountSchema: z.ZodObject<{
   password: z.ZodDefault<z.ZodString>;
   token: z.ZodDefault<z.ZodString>;
   repository: z.ZodDefault<z.ZodString>;
+  charterRepository: z.ZodDefault<z.ZodString>;
   charterPath: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 type GiteaAccount = z.infer<typeof GiteaAccountSchema>;
@@ -67,6 +68,7 @@ declare const GiteaConfigSchema: z.ZodObject<{
   password: z.ZodDefault<z.ZodString>;
   token: z.ZodDefault<z.ZodString>;
   repository: z.ZodDefault<z.ZodString>;
+  charterRepository: z.ZodDefault<z.ZodString>;
   charterPath: z.ZodDefault<z.ZodString>;
   listen: z.ZodDefault<z.ZodEnum<{
     notifications: "notifications";
@@ -105,6 +107,7 @@ declare const NtfyConfigSchema: z.ZodObject<{
   pollSeconds: z.ZodDefault<z.ZodNumber>;
   failuresBeforeError: z.ZodDefault<z.ZodNumber>;
   maxMessages: z.ZodDefault<z.ZodNumber>;
+  ingestTags: z.ZodDefault<z.ZodString>;
   bootstrap: z.ZodDefault<z.ZodEnum<{
     skip: "skip";
     history: "history";

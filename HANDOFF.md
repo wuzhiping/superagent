@@ -33,6 +33,13 @@
 
 ## ⚡ 2026-11-06：载体分工（Gitea 宪章 / Kanban 任务 / ntfy 消息 / MinIO 资产）
 
+
+### 载体修正（2026-11-06 深夜，TDD/014）
+
+- **宪章仓库与事件仓库分开**：Gitea 卡片新增 `charterRepository`（宪章的家，默认 `README.md`）；`repository` 只作事件来源。`giteaCharter()` 只读宪章仓库、空则退回 Kanban 镜像（不再借用事件仓库）。本部署：事件仓 `shawoo/PDP`，宪章仓 `shawoo/rsi_superagent`（README = 宪章 v12）。
+- **ntfy 入库按 tag 过滤**：新增 `ingestTags`（本部署 `dsh`）；只有带该 tag 的消息才入库成卡/成为请求，健康详情显示过滤与跳过数；宿主回复 tag 为 `dsh-superagent`，不会被回收成卡。实测：不带 tag 不入库、带 `dsh` 入库；验证卡已从看板清掉。
+- 文档：`TDD/014`、SOP §2.2/§3.6/§4.2、`docs/005` 来源分工、`docs/007` 配置行；单测 `tests/ntfy.spec.ts`（+3）与 `tests/charter-gitea.spec.ts`（+3），共 21 条通过。
+
 ### 完整 story 测试与值流闭环（2026-11-06 晚，TDD/013）
 
 - **完整 story 11/11 通过**（RSI 项目）：`node scripts/user-stories.mjs --project at8xrho45bisco2umjzgl1xp --timeout 600`，报告 `TDD/artifacts/user-stories-us-20261105220348.json`。harness 已改为板无关（监听列/交付列从设置读，不再写死 FDEP 的 `ready`）。

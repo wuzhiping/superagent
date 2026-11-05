@@ -33,7 +33,7 @@ export function kaneoAccount (sources: SourceRegistry): { baseUrl: string; apiKe
   return storedKaneoAccount(server)
 }
 
-/** The Gitea repository that holds the charter: its server, credentials, repository and the charter's path. */
+/** The Gitea repository that holds the charter: its server, credentials, **charter** repository and the charter's path. */
 export interface GiteaCharterTarget {
   baseUrl: string
   user: string
@@ -44,15 +44,16 @@ export interface GiteaCharterTarget {
 }
 
 /**
- * The Gitea repository the charter comes from: the repository named on the Gitea Source card, with the credentials the
- * card holds or the ones this Host's storage record carries. Reading works anonymously on a public repository; writing
- * needs an account with push rights, and without one the charter falls back to the Kanban project's description.
+ * The Gitea repository the charter comes from: the **charter repository** named on the Gitea Source card (`charterRepository`),
+ * with the credentials the card holds or the ones this Host's storage record carries. Reading works anonymously on a
+ * public repository; writing needs push rights, and without one the charter falls back to the Kanban project's description.
  */
 export function giteaCharter (sources: SourceRegistry): GiteaCharterTarget | undefined {
   for (const instance of sources.instances()) {
     if (instance.kind !== 'gitea') continue
     const config = instance.config as Record<string, unknown> | undefined
-    const repository = typeof config?.repository === 'string' ? config.repository.trim() : ''
+    // The charter repository is its own field: the events repository may be a different one (user decision 2026-11-06).
+    const repository = typeof config?.charterRepository === 'string' ? config.charterRepository.trim() : ''
     if (!repository) continue
     const server = typeof config?.baseUrl === 'string' && config.baseUrl.trim() ? config.baseUrl.trim() : DEFAULT_GITEA_URL
     const stored = storedGiteaAccount(server)

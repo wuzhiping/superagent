@@ -23,6 +23,8 @@ export const NtfyConfigSchema = z.object({
   pollSeconds: z.number().int().min(15).max(3600).default(60),
   failuresBeforeError: z.number().int().min(1).max(20).default(3),
   maxMessages: z.number().int().min(1).max(500).default(100),
+  /** Comma-separated tags; when set, only messages carrying one are handled (filed as cards or triggers). Empty = every message. */
+  ingestTags: z.string().trim().default(''),
   /** `skip`: the first read starts now; `history`: the first read files the retained history as cards. */
   bootstrap: z.enum(['skip', 'history']).default('skip'),
 }).strict()

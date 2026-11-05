@@ -111,8 +111,8 @@ export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
   title: { zh: 'Gitea 仓库', en: 'Gitea repository' },
   description: {
-    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn），也是**项目宪章的来源**：仓库根目录的 README.md 就是宪章的入口与主体。公开仓库只填服务器地址和仓库名即可匿名读取 Issue/PR/评论；私有仓库或 agent 通知模式才需要邮箱+密码（或 API token）。事件先在 Kanban 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
-    en: 'A self-hosted Gitea repository (default https://git.feg.cn), and the source of the project charter: the repository root README.md is the charter entry point and body. A public repository needs only the server address and the repository name and is read anonymously; a private repository or the agent notification mode needs the account e-mail and password (or an API token). Every event is filed as a card in the Kanban board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
+    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。**事件仓库**（`repository`）的 Issue/PR/评论是任务来源；**宪章仓库**（`charterRepository`）单独一个，它的 README.md 是项目宪章的入口与主体——两者必须分开。公开仓库只填服务器地址和仓库名即可匿名读取；私有仓库或 agent 通知模式才需要邮箱+密码（或 API token）。事件先在 Kanban 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
+    en: 'A self-hosted Gitea repository (default https://git.feg.cn). The **event repository** (`repository`) is the task source (its issues, pull requests and comments); the **charter repository** (`charterRepository`) is a repository of its own, whose README.md is the charter entry point and body — the two must stay separate. A public repository needs only the server address and the repository name; a private repository or the agent notification mode needs the account e-mail and password (or an API token). Every event is filed as a card in the Kanban board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
   },
   schema: GiteaConfigSchema,
   /** Settings-panel probe: read the entered repository with the entered account (or anonymously), without saving. */
@@ -123,6 +123,11 @@ export const giteaKind: SourceKind<GiteaConfig> = {
     const client = new GiteaClient(config)
     // An account, when supplied, must actually log in; without one the repository must be readable anonymously.
     if (giteaHasAuth(config)) await client.user()
+    // A named charter repository must exist and be readable with the same account; the charter file itself may not be
+    // published there yet, so only the repository is checked.
+    const charterRepo = repositoryOf(config.charterRepository)
+    if (config.charterRepository.trim() && !charterRepo) throw new Error('The charter repository must be owner/name')
+    if (charterRepo) await client.repository(charterRepo.owner, charterRepo.name)
     // Read one issue and one pull request: the streams the Source consumes, both readable anonymously when public.
     await client.issues(repo.owner, repo.name, { limit: 1 })
     // Gitea answers 404 for `/pulls` when pull requests are disabled on the repository: that is not unreadable.
@@ -135,6 +140,9 @@ export const giteaKind: SourceKind<GiteaConfig> = {
     { key: 'password', type: 'password', label: { zh: '密码（可选）', en: 'Password (optional)' }, hint: { zh: '公开仓库可留空（匿名读取）；私有仓库才需要，与邮箱配套（HTTP Basic）。留空表示不修改已保存的密码。', en: 'Empty for a public repository (anonymous reads); a private repository needs it with the e-mail (HTTP Basic). Leave it empty to keep the saved password.' } },
     { key: 'token', type: 'password', advanced: true, label: { zh: 'API token（可选）', en: 'API token (optional)' }, hint: { zh: '公开仓库不需要；私有仓库或用 notifications 模式时可代替邮箱+密码，设置后优先于邮箱密码。留空表示不修改。', en: 'Not needed for a public repository; for a private repository or the notifications mode it takes the place of the e-mail and password. Leave empty to keep it.' } },
     { key: 'repository', type: 'text', label: { zh: '仓库', en: 'Repository' }, hint: { zh: 'owner/name；留空则来源暂停。这个仓库同时是**宪章的家**：宪章从它的宪章文件读取，发布也提交到那里。', en: 'owner/name; empty keeps the Source paused. This repository is also the **charter\'s home**: the charter is read from its charter file and published by committing to it.' } },
+    { key: 'charterRepository', type: 'text', label: { zh: '宪章仓库（owner/name）', en: 'Charter repository (owner/name)' },
+      hint: { zh: '宪章的家，与上面的**事件仓库分开**（例如 `shawoo/rsi_superagent`）；留空则宪章退回 Kanban 项目描述。',
+        en: 'The charter\'s home, **separate from the event repository above** (such as `shawoo/rsi_superagent`); empty falls back to the Kanban project description.' } },
     { key: 'charterPath', type: 'text', label: { zh: '宪章文件（仓库内路径）', en: 'Charter file (path in the repository)' },
       hint: { zh: '默认 README.md：这个文件就是项目宪章的入口与主体；发布宪章会提交到这个文件上。',
         en: 'Defaults to README.md: that file is the project charter\'s entry point and body, and publishing the charter commits to it.' } },

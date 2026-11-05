@@ -6,7 +6,7 @@ import { key, type Trigger } from '../src/core/index.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { NtfyClient, NtfyError, ntfyAuthHeader, parseNtfyHistory, type NtfyFetch } from '../src/sources/ntfy-api.ts'
 import { NtfyConfigSchema, ntfyAccountOf, type NtfyConfig } from '../src/sources/ntfy-config.ts'
-import { ntfyKind, ntfySenderOf, ntfyTrigger, pollRound, SOURCE } from '../src/sources/ntfy.ts'
+import { ingestTagsOf, messageWanted, ntfyKind, ntfySenderOf, ntfyTrigger, pollRound, SOURCE } from '../src/sources/ntfy.ts'
 
 const config = (overrides: Partial<NtfyConfig> = {}): NtfyConfig => NtfyConfigSchema.parse({ topic: 'pub_test', ...overrides })
 const message = (id: string, time: number, title = '', body = '') => JSON.stringify({ id, time, event: 'message', topic: 'pub_test', title, message: body })
@@ -197,3 +197,40 @@ describe('ntfy thread context and client', () => {
   })
 })
 
+
+describe('ntfy intake tag filter', () => {
+  it('takes a tag list and ignores case and spaces', () => {
+    expect(ingestTagsOf(config({ ingestTags: ' DSH , intake ' }))).toEqual(['dsh', 'intake'])
+    expect(ingestTagsOf(config())).toEqual([])
+  })
+  it('lets a message through only when it carries a wanted tag', () => {
+    const filtered = config({ ingestTags: 'dsh' })
+    expect(messageWanted(filtered, ['dsh'])).toBe(true)
+    expect(messageWanted(filtered, ['Dsh', 'other'])).toBe(true)
+    expect(messageWanted(filtered, ['other'])).toBe(false)
+    expect(messageWanted(filtered, [])).toBe(false)
+    expect(messageWanted(filtered, undefined)).toBe(false)
+    // No filter means every message is handled, as before this change.
+    expect(messageWanted(config(), [])).toBe(true)
+  })
+  it('files only the tagged messages and says how many it skipped', async () => {
+    const cfg = config({ ingestTags: 'dsh' })
+    const { ctx, reports, state } = context(cfg)
+    const kaneo = kaneoRest()
+    kaneo.stub()
+    const now = Math.floor(Date.now() / 1000)
+    const client = new NtfyClient({ baseUrl: 'https://msn.feg.cn', topic: 'pub_test', sender: '#dsh-superagent', auth: { mode: 'none', user: '', password: '', token: '' } },
+      stubFetch(async () => history([
+        JSON.stringify({ id: 'plain', time: now, event: 'message', topic: 'pub_test', title: '#alice', message: '闲聊', tags: [] }),
+        JSON.stringify({ id: 'wanted', time: now + 1, event: 'message', topic: 'pub_test', title: '#bob', message: '请处理', tags: ['dsh'] }),
+      ])))
+    // The first round is the baseline; the second reads both messages from a window that contains them.
+    await pollRound(ctx, cfg, client)
+    state.set(KV.ntfy.since, Math.floor(Date.now() / 1000) - 60)
+    await pollRound(ctx, cfg, client)
+    const cards = kaneo.calls.filter(call => call.method === 'POST' && call.url.includes('/task/project-1'))
+    expect(cards).toHaveLength(1)
+    expect((cards[0]!.body as { title: string }).title).toBe('#bob')
+    expect(reports.at(-1)?.health.detail).toContain('tag filter dsh (1 skipped)')
+  })
+})

@@ -383,10 +383,10 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/kaneo-read.ts` | `kaneoThreadContext`: a task's description as the root and its comments as the thread, for assessments |
 | `src/sources/kaneo-inbox.ts` | The Kanban inbox: filing a Trigger as a card in the board's to-do column once, and the account such filing needs |
 | `src/sources/gitea.ts` | The Gitea kind and plugin entry, exported as `./gitea-watch`: polls notifications or repository increments, turns addressed issues/comments into Triggers, posts replies as issue comments |
-| `src/sources/gitea-config.ts` | The Gitea account fields, the kind's configuration schema, and `owner/name` parsing |
+| `src/sources/gitea-config.ts` | The Gitea account fields — including the event `repository` and the separate `charterRepository` + `charterPath` — the kind's configuration schema, and `owner/name` parsing |
 | `src/sources/gitea-api.ts` | The Gitea REST client: token header, zod-validated JSON, retries, timeouts, issue/comment reads, comment creation, and the contents API (`fileContents`/`putFile`) the charter is read from and published to |
 | `src/sources/ntfy.ts` | The ntfy kind and plugin entry, exported as `./ntfy-watch`: polls a topic for new messages, turns mentions into Triggers, publishes replies back |
-| `src/sources/ntfy-config.ts` | The ntfy configuration schema (server, topic, auth, identity, read mode) and account extraction |
+| `src/sources/ntfy-config.ts` | The ntfy configuration schema (server, topic, auth, identity, read mode, the `ingestTags` intake filter) and account extraction |
 | `src/sources/ntfy-api.ts` | The ntfy client: history parsing with tombstone removal, publish with header metadata, auth headers |
 | `src/sources/s3.ts` | The MinIO/S3 kind and plugin entry, exported as `./s3-watch`: produces no tasks; is configured (every empty field falls back to the storage record) and reports whether its bucket is readable |
 | `src/sources/s3-config.ts` | The object-store configuration schema, the storage-record merge (`s3AccountOf`) and the credentials note |

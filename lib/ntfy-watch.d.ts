@@ -1,6 +1,6 @@
-import { W as Trigger, ft as DEFAULT_NTFY_URL, pt as NtfyConfig } from "./intake-CBtZHnWx.js";
-import { n as SourceKind, r as SourceContext } from "./kind-CbQpNmXi.js";
-import { t as InboxEvent } from "./kaneo-inbox-ObvdIwaC.js";
+import { W as Trigger, ft as DEFAULT_NTFY_URL, pt as NtfyConfig } from "./intake-Bq2gEbT1.js";
+import { n as SourceKind, r as SourceContext } from "./kind-C-bR82Yw.js";
+import { t as InboxEvent } from "./kaneo-inbox-BH6z4DeR.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/ntfy-api.d.ts
@@ -58,6 +58,10 @@ declare class NtfyClient {
 //#endregion
 //#region src/sources/ntfy.d.ts
 declare const SOURCE = "ntfy";
+/** The tags a message must carry to be handled, lower-cased; empty means every message is handled. */
+declare const ingestTagsOf: (config: Pick<NtfyConfig, "ingestTags">) => string[];
+/** Whether a message passes the intake tag filter; a message without tags passes only when no filter is set. */
+declare const messageWanted: (config: Pick<NtfyConfig, "ingestTags">, tags: readonly string[] | undefined) => boolean;
 /** The title convention for a sender: `#name` or `@name`. */
 declare const ntfySenderOf: (title: string) => string | undefined;
 declare function ntfyTrigger(message: NtfyMessage, config: NtfyConfig, at?: string): Trigger;
@@ -75,4 +79,4 @@ declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_NTFY_URL, SOURCE, apply, inject, messageEvent, name, ntfyKind, ntfySenderOf, ntfyTrigger, pollRound };
+export { DEFAULT_NTFY_URL, SOURCE, apply, ingestTagsOf, inject, messageEvent, messageWanted, name, ntfyKind, ntfySenderOf, ntfyTrigger, pollRound };
