@@ -352,6 +352,11 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/app/views/sources.ts` | The Source status: each Source instance's state, its last day's counts, and what it filtered and dropped in that day |
 | `src/app/views/settings.ts` | The settings page's view: each block with its revision, each Source's settings with its kind's form, and the execution environment |
 | `src/app/views/overview.ts` | The overview: Tickets that need a person, problems, the last day's flow and the Executor's load |
+| `src/app/charter.ts` | The project charter and its carriers: the Gitea repository file (`readGiteaCharter`, `publishCharter`), the Kanban project description it falls back to, `publishWindow` (once a week), `stampCharter`, `kaneoAccount` and `giteaCharter` |
+| `src/app/capabilities.ts` | The Kanban account behind this Host and the rights it has (`GET capabilities`, paused in the panel) |
+| `src/app/narrative.ts` | The project archive: projects, posts and the charter copy the panel reads and writes, with the topic convention and the version history |
+| `src/app/projects.ts` | The project list the panel picks from (`GET projects`): the account's workspaces and their projects, cached briefly, with the problem when the read fails |
+| `src/app/views/narrative.ts` | The narrative view: projects with their posts, the charter, the value stream (board columns beside the flow the charter declares), the duties and the exceptions |
 | `src/executor/dsh.ts` | The DshExecutor, `WorkerSlots`, `ticketExecution`, `inputMessage` and `mandateInstructions` |
 | `src/executor/background.ts` | A worker's background work in DeepSeek Harness, the shell jobs its Session owns (`ctx.jobs`) and its subagents (`ctx.subagents`): `runningJobs`, `untilQuiet`, `killJobs`, `collectJobs`, `stopSubagents`, `stopBackground`, `until`, and `cancelled`, the workers whose turn a stop of their subagents cancelled |
 | `src/infra/commands.ts` | `Commands`, the CLI transport: `run`; `api` and `pages`, limited to the configured repository and validated; `lark` as the bot; `git`. `CliError` carries the code a command's output reports, such as a GitHub HTTP status, and a command that prints nothing fails with how it ended, never with its arguments; `validItems` skips and counts the malformed items of a list |
@@ -361,6 +366,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/infra/health.ts` | The `HealthBoard`, every part's health entry, each claimed by its one writer |
 | `src/sources/kind.ts` | The `SourceKind` protocol |
 | `src/sources/registry.ts` | `SourceRegistry` |
+| `src/sources/bdd-storage.ts` | The storage records this Host reads for its service credentials: the masked-key provider per service (kaneo, gitea, ntfy, s3), the ten-minute cache, and `storedKaneoAccount`/`storedGiteaAccount`/`storedNtfyAccount`/`storedS3Account` |
 | `src/sources/host.ts` | `SourceHost`, `SourceContext`, `Health`, `health` and the fixed health texts |
 | `src/sources/poll.ts` | What GitHub and Feishu polling share: `POLL_HORIZON_MS`, `polled`, `cursorAt`, and `pollThreads`, which keeps a failure on its Thread as `pollError` |
 | `src/sources/github.ts` | The GitHub kind and plugin entry, exported as `./github-watch`: a poll round of notifications, the pull requests of open Tickets with their CI, and subscribed Threads |
@@ -375,6 +381,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/kaneo-trigger.ts` | Kanban tasks as domain Triggers (one explicit request per task), the `kaneo:<taskId>` Thread, Channel addresses, and the required-label filter |
 | `src/sources/kaneo-channel.ts` | The Kanban Channel: a reply as a task comment carrying a marker so a retried send comments once |
 | `src/sources/kaneo-read.ts` | `kaneoThreadContext`: a task's description as the root and its comments as the thread, for assessments |
+| `src/sources/kaneo-inbox.ts` | The Kanban inbox: filing a Trigger as a card in the board's to-do column once, and the account such filing needs |
 | `src/sources/gitea.ts` | The Gitea kind and plugin entry, exported as `./gitea-watch`: polls notifications or repository increments, turns addressed issues/comments into Triggers, posts replies as issue comments |
 | `src/sources/gitea-config.ts` | The Gitea account fields, the kind's configuration schema, and `owner/name` parsing |
 | `src/sources/gitea-api.ts` | The Gitea REST client: token header, zod-validated JSON, retries, timeouts, issue/comment reads, comment creation, and the contents API (`fileContents`/`putFile`) the charter is read from and published to |
@@ -407,6 +414,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/draft.tsx` | Settings drafts: `draftReducer`, their states and their merge with a newer saved revision, `saveBarText`, the save bar's line, and the save bar |
 | `src/client/controls.tsx` | Local copies of DeepSeek Harness's controls, which follow its markup, keyboard behaviour and design tokens, since the bundle does not import `@deepseek-ai/dsh-client-ui-primitives`; they read no context |
 | `src/client/widgets.tsx` | The small components the pages share, which read the panel's context: sections, page heads, load states, times, links, confirmed actions, the setup check and Markdown |
+| `src/client/css.d.ts` | The `?raw` module declaration for the stylesheet the client imports
 | `src/client/rows.tsx` | The rows the pages share: a Ticket, a Thread and a Decision, a Thread's chip, and the folding of runs of automated messages |
 | `src/client/markdown.ts` | The Markdown subset of reports and questions, and the bare addresses in messages, as blocks and inline parts |
 | `src/client/text.ts` | Copy by key and the wording of domain values, reasons, senders and times |
@@ -434,6 +442,16 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/effects.spec.ts` | The effect queue: coalescing, limits, retries with backoff, health and shutdown |
 | `tests/maintenance.spec.ts` | The cleanup audit: only ended duties are listed, open duties block their directory, a huge workspace stops at its scan cap, and a removal path outside the executor root or at the state directory is refused |
 | `tests/panel-maintenance.spec.tsx` | The cleanup page: default selection, the confirmation, and the separate folder removal |
+| `tests/panel-perspective.spec.tsx` | The perspective switch: either seat is taken without asking (the gate is paused) |
+| `tests/panel-posts.spec.tsx` | The posts page: the charter badge and flow line, no rights banner, the board's columns and the drift |
+| `tests/panel-source.spec.tsx` | The Source settings: fields, the test probe, the save and the restart |
+| `tests/panel-trigger.spec.tsx` | The Trigger lists and the filters |
+| `tests/panel-execution.spec.tsx` | The Executor load and the Ticket page |
+| `tests/panel-eval.spec.tsx` | The Eval stage and its filters |
+| `tests/panel-prompts.spec.tsx` | The prompt settings and the deployment editor |
+| `tests/panel-deployment.spec.tsx` | The deployment card and its environment |
+| `tests/panel-panel.spec.tsx` | The panel itself: routes, search, glossary and the settings groups |
+| `tests/narrative.spec.ts` | The archive: projects, posts, the topic default, the charter text and the version history |
 | `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
 | `tests/charter-gitea.spec.ts` | The charter carrier: the README states the version/author/date, it wins over the Kanban mirror, publishing commits the stamped text, and a refused write falls back to the mirror |
 | `tests/s3.spec.ts` | The object-store card: SigV4 headers, listing/probe parsing, region auto-detection, and the storage-record fallback of empty fields |
