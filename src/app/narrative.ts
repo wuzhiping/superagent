@@ -88,6 +88,22 @@ export type ProjectArchive = z.infer<typeof ArchiveSchema>
 
 export const EMPTY_ARCHIVE: ProjectArchive = { version: 1, projects: [] }
 
+/**
+ * The topic convention: a project with no topics subscribed yet listens on `pub_<project id>`. An empty topic list is a
+ * missing choice, not a choice to listen to nothing, so both the read path and the write path apply it.
+ */
+export const defaultTopic = (projectId: string): string => projectId ? `pub_${projectId}` : ''
+export const topicsOfProject = (topics: readonly string[] | undefined, projectId: string): string[] =>
+  topics && topics.length > 0 ? [...topics] : projectId ? [defaultTopic(projectId)] : []
+
+/** Applies the topic convention to every project of an archive. */
+export function withDefaultTopics (archive: ProjectArchive): ProjectArchive {
+  return {
+    ...archive,
+    projects: archive.projects.map(project => ({ ...project, topics: topicsOfProject(project.topics, project.id) })),
+  }
+}
+
 /** Where the archive lives inside the runtime state directory. */
 export const archivePath = (stateDir: string): string => join(stateDir, 'projects.json')
 
@@ -95,7 +111,7 @@ export const archivePath = (stateDir: string): string => join(stateDir, 'project
 export function readArchive (stateDir: string): ProjectArchive {
   try {
     const parsed = ArchiveSchema.safeParse(JSON.parse(readFileSync(archivePath(stateDir), 'utf8')))
-    return parsed.success ? parsed.data : EMPTY_ARCHIVE
+    return parsed.success ? withDefaultTopics(parsed.data) : EMPTY_ARCHIVE
   } catch {
     return EMPTY_ARCHIVE
   }
@@ -115,7 +131,7 @@ export function archiveRevision (stateDir: string): number {
 
 /** Writes the archive after validating it; the caller supplies the revision it read to catch concurrent edits. */
 export function writeArchive (stateDir: string, value: unknown, expectedRevision: number): { revision: number } {
-  const archive = ArchiveSchema.parse(value)
+  const archive = withDefaultTopics(ArchiveSchema.parse(value))
   if (expectedRevision && archiveRevision(stateDir) !== expectedRevision) {
     throw new Error('The project archive changed since it was loaded; reload it and try again')
   }

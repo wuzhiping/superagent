@@ -432,6 +432,11 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/effects.spec.ts` | The effect queue: coalescing, limits, retries with backoff, health and shutdown |
 | `tests/maintenance.spec.ts` | The cleanup audit: only ended duties are listed, open duties block their directory, a huge workspace stops at its scan cap, and a removal path outside the executor root or at the state directory is refused |
 | `tests/panel-maintenance.spec.tsx` | The cleanup page: default selection, the confirmation, and the separate folder removal |
+| `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
+| `tests/charter-publish.spec.ts` | Publishing a charter: the version, author and date lines are stamped, and a project changes its charter at most once a week |
+| `tests/bdd-storage.spec.ts` | The storage-record lookup: the masked credential, the service fields, the cache, and the failures that are reported instead of thrown |
+| `tests/projects.spec.ts` | The project list the panel picks from: both lists, the cache, and the reason when the account cannot read them |
+| `tests/panel-projects.spec.tsx` | The project pickers: the archive offers the list, and a stored project stays selectable when the list is unreadable |
 | `tests/passes.spec.ts` | Passes: one at a time, the ones asked for during a pass run as one after it, and the runtime health a failed pass reports |
 | `tests/kaneo.spec.ts` | The Kanban Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, and the REST client's retries |
 | `tests/gitea.spec.ts` | The Gitea Source: config defaults, trigger mapping, first-poll baseline, increments, channel idempotence, thread context, retries and refusals |

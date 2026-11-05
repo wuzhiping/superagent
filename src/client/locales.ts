@@ -619,6 +619,8 @@ const TEXT = {
   projectPick: ['选择项目…', 'Choose a project…'],
   pickLoading: ['读取列表…', 'Reading the list…'],
   pickUnavailable: ['读不到可选项：{error}', 'The choices could not be read: {error}'],
+  projectTopicsHint: ['主题集留空时默认是 `pub_<项目 id>`；选中项目时会自动填好。多个主题用「、」或逗号分隔。',
+    'An empty topic list defaults to `pub_<project id>`, filled in when a project is picked. Separate several topics with a comma.'],
   projectCharter: ['宪章', 'Charter'],
   projectPosts: ['岗位', 'Posts'],
   projectAdd: ['新增项目', 'Add a project'],

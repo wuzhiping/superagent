@@ -72,7 +72,7 @@ dsh-superagent status                              # 看三个来源是否 ready
 | --- | --- | --- |
 | 项目 | **从列表里选**（面板读这台 Host 的 Kanban 账号能看到的项目：工作区 → 项目）；选中后 id / 名称 / slug 一起填好 | FDEP（FDE） |
 | 项目 id / 名称 / slug | 选择后自动填；名称与 slug 可再手改，看板仍以 id 为准 | `dgctny8ibgpn72ei2j8qj2hc` / FDEP / FDE |
-| 主题集 | 该项目订阅的 ntfy topic | `pub_fdep_pm` |
+| 主题集 | 该项目订阅的 ntfy topic；**留空默认 `pub_<项目 id>`**（选中项目时会自动填好） | `pub_fdep_pm` |
 | 岗位 id / 名称 / 角色 | 岗位标识与 PM/Worker | `w1-fdep` / SuperAgent Worker 1 (FDEP) / Worker |
 | **Kanban 用户 id** | 岗位在看板上的身份，**决定它领得到哪张卡** | `bsFdwgQX…` |
 | 监听列 | 该岗位领哪些列的卡（slug，逗号分隔） | `ready` |

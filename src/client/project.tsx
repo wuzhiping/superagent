@@ -126,10 +126,12 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
   const posts = scoped ? project.posts.filter(post => post.postId === seat) : project.posts
-  // The project is picked from what the Kanban account can see; the choice also fills the name and the slug.
+  // The project is picked from what the Kanban account can see; the choice also fills the name, the slug and, when the
+  // PM has not named topics, the topic convention `pub_<project id>`.
   const pick = (id: string) => {
     const chosen = choices?.projects.find(item => item.id === id)
-    onChange({ ...project, id, ...(chosen ? { name: project.name || chosen.name, slug: project.slug || chosen.slug } : {}) })
+    onChange({ ...project, id, ...(chosen ? { name: project.name || chosen.name, slug: project.slug || chosen.slug } : {}),
+      ...(id && project.topics.length === 0 ? { topics: [`pub_${id}`] } : {}) })
   }
   return <div className="dt-archive-card">
     <div className="dt-grid">
@@ -149,9 +151,11 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
         onChange={value => onChange({ ...project, name: value })} />
       <Field label={t('projectSlug')} value={project.slug} placeholder="FDE" readOnly={scoped}
         onChange={value => onChange({ ...project, slug: value })} />
-      <Field label={t('postsTopics')} value={project.topics.join('、')} placeholder="pub_fdep_pm" readOnly={scoped}
+      <Field label={t('postsTopics')} value={project.topics.join('、')} placeholder={project.id ? `pub_${project.id}` : 'pub_<project id>'}
+        readOnly={scoped}
         onChange={value => onChange({ ...project, topics: value.split(/[、,]/).map(item => item.trim()).filter(Boolean) })} />
     </div>
+    <p className="dt-hint">{t('projectTopicsHint')}</p>
     <div className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('projectCharter')}</span>
         <span className="dt-count">v{project.charter.version}</span></h3>
