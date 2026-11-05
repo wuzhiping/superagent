@@ -249,7 +249,7 @@
         <tr><td>项目 Project</td><td>一个 Kanban 项目 + 仓库集 + topic 集 + 岗位集</td><td>设置 → 项目与岗位</td></tr>
         <tr><td>岗位 post</td><td>一个 SuperAgent 实例扮演的角色（PM / Worker）</td><td>编队页的卡片</td></tr>
         <tr><td>岗位职责 duty</td><td>岗位正在执行的一张任务</td><td>编队页「在飞职责」</td></tr>
-        <tr><td>宪章 charter</td><td>PM 颁布的项目流程版本，不低于周频率</td><td>编队页「宪章 vN」徽标</td></tr>
+        <tr><td>宪章 charter</td><td><b>整个项目一份</b>、各岗位（含其它 Host）共同遵守的流程与价值流约定；<b>每周至多一版</b></td><td>编队页「宪章 vN」徽标</td></tr>
         <tr><td>WIP</td><td>一个岗位同时在飞的职责数上限</td><td>岗位卡片 n / limit</td></tr>
         <tr><td>租约 lease</td><td>认领时写在评论里的互斥标记</td><td>Kanban 任务评论</td></tr>
         <tr><td>异常 exception</td><td>等人回复 / 阻塞 / 失败 / 六小时无进展</td><td>编队页「异常队列」</td></tr>
@@ -297,18 +297,18 @@
       <div class="grid g3 fill">
         <div class="card k"><span class="bar"></span>
           <div class="num">STEP 01</div><h3>贴一把 API key</h3>
-          <p>设置 → 来源 → Kanban：服务器地址 + <b>API key</b> → 保存。</p>
+          <p>设置 → 来源 → Kanban：服务器地址 + <b>API key</b>（可留空：本机存储记录里就有）→ 保存。</p>
           <p>面板随即读出工作区、项目与<b>看板真实的列</b>。</p>
         </div>
         <div class="card g"><span class="bar"></span>
           <div class="num">STEP 02</div><h3>登记岗位</h3>
-          <p>项目 id + 每个岗位的 <b>Kanban 用户 id</b> + 领哪些列 + 并发上限。</p>
+          <p><b>从列表选项目</b>（id / 名称 / slug 自动填，主题集默认 <code>pub_&lt;项目 id&gt;</code>）+ 每个岗位的 <b>Kanban 用户 id</b> + 领哪些列 + 并发上限。</p>
           <p>Gitea / ntfy 身份可留空——不是编程任务就不需要。</p>
         </div>
         <div class="card n"><span class="bar"></span>
           <div class="num">STEP 03</div><h3>发布宪章</h3>
           <p>设置 → 项目与岗位 → 宪章：写当期流程与交付标准 → <b>发布</b>。</p>
-          <p>版本号 +1、记发布者、旧版进历史；工单钉在开工那版。</p>
+          <p>发布写到<b>项目上</b>（一份、全项目共享）；版本号 +1、记发布者、旧版进历史；<b>每周至多一版</b>；工单钉在开工那版。</p>
         </div>
       </div>
       <p class="small"><b>Kanban 是唯一的直接来源</b>：Gitea / ntfy 的事件先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责——之后与 Kanban 原生的卡走完全一样的流程。</p>
@@ -325,9 +325,9 @@
     <div class="content">
       <table class="tight">
         <tr><th>字段</th><th>含义</th><th>例子</th></tr>
-        <tr><td>项目 id / 名称 / slug</td><td>Kanban 项目标识与看板 slug</td><td>dgctny8ibgpn72ei2j8qj2hc · FDEP · FDE</td></tr>
-        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」</td><td>version: 2 · publishedBy: pm-fdep</td></tr>
-        <tr><td>主题集</td><td>该项目订阅的 ntfy topic</td><td>pub_fdep_pm</td></tr>
+        <tr><td>项目</td><td><b>从列表选</b>（这台 Host 的账号能看到的项目）；选中后 id / 名称 / slug 自动填</td><td>FDEP（FDE）· ATEAM</td></tr>
+        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」——写到<b>项目上</b>，一个项目只有一份，<b>每周至多一版</b></td><td>version: 2 · publishedBy: pm-fdep</td></tr>
+        <tr><td>主题集</td><td>该项目订阅的 ntfy topic；<b>留空默认所选项目的 <code>pub_&lt;项目 id&gt;</code></b></td><td>pub_fdep_pm</td></tr>
         <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 PM / Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
         <tr><td>Kanban 用户 id</td><td><b>决定它领得到哪张卡</b></td><td>bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG</td></tr>
         <tr><td>监听列</td><td>该岗位领哪些列的卡（slug）</td><td>ready</td></tr>
@@ -397,7 +397,7 @@
         <div class="tl"><div class="time">14:00</div><div class="rail"><i></i></div><div class="body">
           <h3>派工</h3><p>Kanban 建卡 → 指派给岗位账号 → 放进监听列；不指派＝不派工。</p></div></div>
         <div class="tl"><div class="time">18:00</div><div class="rail"><i></i></div><div class="body">
-          <h3>收工检查</h3><p>每张卡都回写了状态与日志才算交付；没回写的不要急着关。</p></div></div>
+          <h3>收工检查</h3><p>每张卡都回写了状态与日志才算交付；没回写的不要急着关。收工后到 <b>清理</b> 页把已结束职责的工作区集中清掉（有交付物的行要人确认）。</p></div></div>
       </div>
     </div>
   </section>
@@ -414,7 +414,7 @@
           <h3>周复盘 → 新流程</h3>
           <p>看板不是固定的任务表，而是<b>一条不断迭代的价值流</b>。</p>
           <p>看这一轮的工作日志 → 哪一列总堵、哪一步没意义 → <b>推荐新的状态</b> → 与岗位达成共识 → 确认。</p>
-          <p>确认后写进宪章新版本，并在面板 <b>设置 → 项目与岗位 → 流程</b> 同步列语义。</p>
+          <p>确认后先在 Kanban 里加/改列，再在面板 <b>设置 → 项目与岗位 → 宪章</b> 写新版并点「发布」：发布写到<b>项目上</b>，其它 Host 读到同一份。</p>
         </div>
         <pre>version: 5
 publishedBy: sa-pm-fdep
@@ -431,7 +431,7 @@ publishedBy: sa-pm-fdep
 - 回写规则：状态 + 工作日志 + 产出引用
 - 当前工作面集与 topic 集</pre>
       </div>
-      <p class="small">面板编队页会把<b>看板的列</b>与<b>宪章声明的列</b>并排显示：出现黄色「看板多出的列」＝ 流程长出来了，还没被确认。超过 7 天未更新 → 徽标变黄，提示 PM 补发。</p>
+      <p class="small">面板编队页会把<b>看板的列</b>与<b>宪章声明的列</b>并排显示：出现黄色「看板多出的列」＝ 流程长出来了，还没被确认。<b>每周至多一版</b>：7 天内再发会被拒并告知下次可发布时间；确需提前改，点「仍然发布（覆盖每周一次的限制）」。</p>
     </div>
   </section>
 
@@ -519,9 +519,38 @@ publishedBy: sa-pm-fdep
         <div class="card"><span class="bar"></span>
           <h3>边界</h3>
           <p>不跨工作目录交付；需求有歧义<b>不要猜</b>：在任务里提问并转 blocked，进入 PM 的异常队列。</p>
-          <p>MinIO 只有<b>执行会话</b>能写：文档由执行环节上传，岗位取回链接回写看板。</p>
+          <p>文档/方案<b>存 MinIO，不贴进评论</b>：<code>minio_write</code> 到 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code> → <code>minio_read</code> 回读确认 → 报告写 <code>bucket/key</code>；卡片只留进度与结果。</p><p><b>看板由宿主写</b>：岗位报告 ready，宿主把结果写成评论并把卡片推进交付列；岗位不要自己调用看板 API 搬卡。</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- 12b cleanup -->
+  <section class="slide airy">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CLEANUP</div>
+      <h2>收工之后：集中清理工作区</h2>
+      <p class="lead" style="font-size:18px">每个职责都会留下一个工作区和一条 Session；清理是 PM 的收尾动作。</p>
+    </div>
+    <div class="content">
+      <div class="grid g3 fill">
+        <div class="card k"><span class="bar"></span>
+          <div class="num">WHERE</div><h3>「清理」页（PM 视角）</h3>
+          <p>只列<b>已结束</b>职责留下的工作区：按大小排序，标出 Session 数、顶层文件、<b>是否有交付物</b>。</p>
+          <p>未结束的职责、被别的职责引用的目录，一律跳过。</p>
+        </div>
+        <div class="card g"><span class="bar"></span>
+          <div class="num">HOW</div><h3>先看，再勾，再确认</h3>
+          <p>默认只勾「已结束 + 可清 + 无交付物」；<b>有交付物的行必须人点</b>。</p>
+          <p>要连目录一起删，单独勾「同时删除工作区文件夹」并在弹窗里确认——不可恢复。</p>
+        </div>
+        <div class="card n"><span class="bar"></span>
+          <div class="num">WHAT STAYS</div><h3>Session 只解除登记</h3>
+          <p>没有受支持的 Session 删除 API：清理只<b>解除工作区登记</b>，日志保留可回放。</p>
+          <p>stateDir、执行根、盘根与指向执行根之外的符号链接都会被拒绝。</p>
+        </div>
+      </div>
+      <p class="small">这就是「工作区列表膨胀」的解药：跑得越久，已结束的职责越多，定期清一次比到处找目录省事。</p>
     </div>
   </section>
 
@@ -555,8 +584,9 @@ publishedBy: sa-pm-fdep
         <tr><td>看板截断</td><td>不带 status 查询会按列截断，静默漏任务</td><td>永远带 ?status= 与 limit=100</td></tr>
         <tr><td>assignee 单值</td><td>一个人只能一个 assignee</td><td>多人合卡用评论标角色（agent:pm/ux/bi/api）</td></tr>
         <tr><td>账号只能 UI 建</td><td>Kanban 无建号/发 key API</td><td>在 Kanban 网页手工建号</td></tr>
-        <tr><td>MinIO 边界</td><td>岗位（host）访问不了 MinIO</td><td>执行会话上传，岗位取链接回写</td></tr>
-        <tr><td>宪章过期</td><td>超过 7 天未发布</td><td>PM 周更；岗位接单时记一条提醒</td></tr>
+        <tr><td>MinIO 边界</td><td>岗位（host）不直接写桶</td><td>执行会话用 <code>minio_*</code> 工具上传，key 固定为 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code></td></tr>
+        <tr><td>宪章过期 / 每周上限</td><td>超过 7 天没更新；或 7 天内想再发一版</td><td>周复盘后发；确需提前改，点「仍然发布（覆盖每周一次的限制）」并在正文说明理由</td></tr>
+        <tr><td>看板自动化抢跑</td><td>进入 ready 约 20 秒就被搬到 in-progress，60 秒轮询会漏</td><td>轮询间隔 ≤ 15 秒，或把 in-progress 也纳入监听列</td></tr>
       </table>
     </div>
   </section>
@@ -573,9 +603,9 @@ publishedBy: sa-pm-fdep
           <h3>PM 岗位</h3>
           <div class="check">
             <div><i>✓</i>三个来源 status 都 ready</div>
-            <div><i>✓</i>项目与岗位已登记（id / 宪章载体 / 监听列 / 仓库 / topic）</div>
+            <div><i>✓</i>项目从<b>列表</b>选好（主题集默认 <code>pub_&lt;项目 id&gt;</code>），岗位已登记（监听列 / Kanban 用户 id）</div>
             <div><i>✓</i>每个岗位的 Kanban 用户 id 已填写</div>
-            <div><i>✓</i>宪章 v1 已发布（描述里有 version: 1）</div>
+            <div><i>✓</i>宪章 v1 已<b>发布到项目上</b>（项目的 description 里有 version: 1）</div>
             <div><i>✓</i>派过一张卡，并看到它被领走</div>
             <div><i>✓</i>异常队列能正常显示</div>
           </div>
