@@ -8,7 +8,7 @@ declare const DEFAULT_PROJECT = "dgctny8ibgpn72ei2j8qj2hc";
 declare const DEFAULT_BASE_URL = "https://pl.feg.cn";
 declare const DEFAULT_CLAIM_COLUMN = "in-progress";
 /**
- * The account fields deployment setup resolves and restarts for. `apiKey` empty means the Kaneo Source is not configured;
+ * The account fields deployment setup resolves and restarts for. `apiKey` empty means the Kanban Source is not configured;
  * `projectId` defaults to the FDEP board so a first save only needs the key; `workspaceId` names the workspace the
  * labels of the inbox live in (empty: the first workspace the API key can read).
  */
@@ -20,7 +20,7 @@ declare const KaneoAccountSchema: z.ZodObject<{
 }, z.core.$strip>;
 type KaneoAccount = z.infer<typeof KaneoAccountSchema>;
 /**
- * One Kaneo board as a Source. A task in `watchColumns` becomes a request; a reply goes back as a task comment and, when
+ * One Kanban board as a Source. A task in `watchColumns` becomes a request; a reply goes back as a task comment and, when
  * `claimColumn` is set, the task is moved there once the request is recorded. `bootstrap` decides what the first poll does
  * with tasks already in the watched columns: `skip` records them without a request, `trigger` treats them as requests.
  */
@@ -147,7 +147,7 @@ interface Machine {
   admissionContextTimeoutMs: Volatile<number>;
 }
 interface Deployment extends Machine {
-  /** The GitHub repository, or empty when this deployment works from Kaneo, Gitea or ntfy only. */
+  /** The GitHub repository, or empty when this deployment works from Kanban, Gitea or ntfy only. */
   repository: string;
   /** The agent GitHub account; its fields are empty when this deployment has no GitHub Source. */
   github: {
@@ -156,7 +156,7 @@ interface Deployment extends Machine {
     noreply: string;
   };
   feishu?: FeishuBot;
-  /** The Kaneo board this deployment works from, when the Kaneo Source is configured. */
+  /** The Kanban board this deployment works from, when the Kanban Source is configured. */
   kaneo?: KaneoAccount;
   /** The Gitea repository this deployment works from, when the Gitea Source is configured. */
   gitea?: GiteaAccount;

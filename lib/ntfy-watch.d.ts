@@ -1,6 +1,6 @@
-import { W as Trigger, ft as DEFAULT_NTFY_URL, pt as NtfyConfig } from "./intake-LzTuo899.js";
-import { n as SourceContext, t as SourceKind } from "./kind-DUtZFUu7.js";
-import { t as InboxEvent } from "./kaneo-inbox-LWshGjwT.js";
+import { W as Trigger, ft as DEFAULT_NTFY_URL, pt as NtfyConfig } from "./intake-CTRyXM8C.js";
+import { n as SourceContext, t as SourceKind } from "./kind-Bdmm1MiD.js";
+import { t as InboxEvent } from "./kaneo-inbox-DM_fEjB6.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/ntfy-api.d.ts
@@ -65,8 +65,8 @@ declare function ntfyTrigger(message: NtfyMessage, config: NtfyConfig, at?: stri
 declare function messageEvent(message: NtfyMessage, config: NtfyConfig): InboxEvent;
 declare const ntfyKind: SourceKind<NtfyConfig>;
 /**
- * One polling round: baseline on first read, then every newer message is filed as a card in the KanEO board. KanEO is
- * the only direct source, so a message does not become a request here (unless the KanEO Source switched its inbox off);
+ * One polling round: baseline on first read, then every newer message is filed as a card in the Kanban board. Kanban is
+ * the only direct source, so a message does not become a request here (unless the Kanban Source switched its inbox off);
  * it becomes a card in the `to-do` pool, and the board schedules it from there.
  */
 declare function pollRound(ctx: SourceContext, config: NtfyConfig, client: NtfyClient, signal?: AbortSignal): Promise<number>;

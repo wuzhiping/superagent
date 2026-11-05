@@ -1,4 +1,4 @@
-import { B as Ticket, I as Thread, L as ThreadFact, S as ChannelRef, W as Trigger, h as SourceScope, l as OutboundMessage, m as ScopeResult, t as ReceiveResult, ut as Deployment, v as AdmissionCell, z as ThreadRef } from "./intake-LzTuo899.js";
+import { B as Ticket, I as Thread, L as ThreadFact, S as ChannelRef, W as Trigger, h as SourceScope, l as OutboundMessage, m as ScopeResult, t as ReceiveResult, ut as Deployment, v as AdmissionCell, z as ThreadRef } from "./intake-CTRyXM8C.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 import { DatabaseSync } from "node:sqlite";
@@ -504,7 +504,7 @@ declare const SETUP_PROBLEMS: {
   readonly foreignFile: readonly ["deployment", "{file} was not written by dsh-superagent; move it, or choose another state directory."];
   readonly gitTooOld: readonly ["deployment", "git does not read the github.com credential configuration dsh-superagent writes; dsh-superagent needs git 2.32 or later."];
   readonly environmentFailed: readonly ["deployment", "Preparing the agent environment failed."];
-  readonly sourceUnset: readonly ["deployment", "No Source is configured: set the Kaneo card (server, API key, project id) or the GitHub card."];
+  readonly sourceUnset: readonly ["deployment", "No Source is configured: set the Kanban card (server, API key, project id) or the GitHub card."];
   readonly repositoryUnset: readonly ["github", "The GitHub Source names no repository."];
   readonly agentCliUnset: readonly ["github", "The agent GitHub CLI is not set."];
   readonly agentCliMissing: readonly ["github", "The agent GitHub CLI was not found."];
@@ -518,10 +518,10 @@ declare const SETUP_PROBLEMS: {
   readonly feishuBotNotReady: readonly ["feishu", "The bot identity of app {app} is {status}; configure the app secret with lark-cli."];
   readonly feishuUserIdentity: readonly ["feishu", "The bot lark-cli allows user identities (strict mode {mode}); give the bot its own lark-cli configuration in strict mode bot, as docs/006-deployment.md describes."];
   readonly feishuNoBot: readonly ["feishu", "The Feishu bot API did not return the bot's open_id."];
-  readonly kaneoKeyUnset: readonly ["kaneo", "The Kaneo Source is on and its API key is not set."];
-  readonly kaneoKeyRefused: readonly ["kaneo", "The Kaneo API refused the API key: {output}"];
-  readonly kaneoProjectUnreadable: readonly ["kaneo", "The Kaneo API could not read project {projectId}: {output}"];
-  readonly kaneoUnreachable: readonly ["kaneo", "The Kaneo API did not answer: {output}"];
+  readonly kaneoKeyUnset: readonly ["kaneo", "The Kanban Source is on and its API key is not set."];
+  readonly kaneoKeyRefused: readonly ["kaneo", "The Kanban API refused the API key: {output}"];
+  readonly kaneoProjectUnreadable: readonly ["kaneo", "The Kanban API could not read project {projectId}: {output}"];
+  readonly kaneoUnreachable: readonly ["kaneo", "The Kanban API did not answer: {output}"];
   readonly giteaKeyRefused: readonly ["gitea", "The Gitea API refused the token or account password: {output}"];
   readonly giteaCredentialsUnset: readonly ["gitea", "The Gitea Source has no account password or API token."];
   readonly giteaRepositoryUnreadable: readonly ["gitea", "The Gitea repository {repository} is not readable: {output}"];
@@ -768,7 +768,8 @@ interface FieldBase {
 }
 /**
  * Configuration field specification; `rows` edits a list of records keyed by its first column, `choose` picks from
- * resolved source labels, and `fact` displays a read-only value from `facts`.
+ * resolved source labels, `pick` chooses one of the connected service's own records (a project, a workspace), and
+ * `fact` displays a read-only value from `facts`.
  */
 type FieldSpec = FieldBase & {
   type: 'switch';
@@ -792,6 +793,9 @@ type FieldSpec = FieldBase & {
 } | FieldBase & {
   type: 'fact';
   settings?: 'deployment';
+} | FieldBase & {
+  type: 'pick';
+  from: 'projects' | 'workspaces';
 } | FieldBase & {
   type: 'rows';
   columns: ({

@@ -1,6 +1,6 @@
-import { W as Trigger, ht as GiteaConfig, mt as DEFAULT_GITEA_URL } from "./intake-LzTuo899.js";
-import { n as SourceContext, t as SourceKind } from "./kind-DUtZFUu7.js";
-import { t as InboxEvent } from "./kaneo-inbox-LWshGjwT.js";
+import { W as Trigger, ht as GiteaConfig, mt as DEFAULT_GITEA_URL } from "./intake-CTRyXM8C.js";
+import { n as SourceContext, t as SourceKind } from "./kind-Bdmm1MiD.js";
+import { t as InboxEvent } from "./kaneo-inbox-DM_fEjB6.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/gitea-api.d.ts
@@ -178,7 +178,7 @@ declare function notificationEvent(notification: GiteaNotification, issue?: Gite
 declare const giteaKind: SourceKind<GiteaConfig>;
 /**
  * One polling round: baseline on first poll, then issue/comment/notification increments are filed as cards in the
- * KanEO board. KanEO is the only direct source, so the events do not become requests here (unless the KanEO Source
+ * Kanban board. Kanban is the only direct source, so the events do not become requests here (unless the Kanban Source
  * switched its inbox off); they become cards in the `to-do` pool, and the board schedules them from there.
  */
 declare function pollRound(ctx: SourceContext, config: GiteaConfig, client: GiteaClient, signal?: AbortSignal): Promise<number>;
