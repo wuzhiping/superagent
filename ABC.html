@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABC · 快速把运行环境准备好</title>
+<style>
+  :root{
+    --bg0:#070b16; --bg1:#0c1224; --panel:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.12); --text:#eef2ff; --dim:#a6b1cc; --faint:#7c87a3;
+    --kaneo:#7c8cff; --gitea:#41c98a; --ntfy:#f5a524; --accent:#8b7bff; --danger:#ff6b7a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1400px 900px at 82% -10%, rgba(124,140,255,.20), transparent 60%),
+      radial-gradient(1200px 800px at -10% 110%, rgba(65,201,138,.13), transparent 55%),
+      radial-gradient(1000px 700px at 50% 120%, rgba(245,165,36,.10), transparent 55%),
+      linear-gradient(160deg,var(--bg0),var(--bg1));
+    color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",system-ui,sans-serif;
+    overflow:hidden;
+  }
+  .viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  /* Fixed 1280x720 design canvas, scaled to the viewport, so every proportion and font size stays PPT-like. */
+  .stage{width:1280px;height:720px;flex:none;position:relative;transform-origin:center center}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:46px 64px 40px;
+    border-radius:20px;overflow:hidden;
+    background:linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.028) 45%, rgba(255,255,255,.05));
+    border:1px solid var(--line);
+    box-shadow:0 40px 90px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 100% 0%, rgba(139,123,255,.14), transparent 55%)}
+  .slide.active{display:flex;animation:in .45s cubic-bezier(.2,.7,.2,1)}
+  @keyframes in{from{opacity:0;transform:translateY(14px) scale(.995)}to{opacity:1;transform:none}}
+
+  .head{flex:none;position:relative;z-index:1}
+  .content{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px;justify-content:center;position:relative;z-index:1;margin-top:16px}
+  .slide.airy .content{margin-top:34px}
+
+  .kicker{display:flex;align-items:center;gap:10px;font-size:14px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;font-weight:700}
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  h1{font-size:74px;line-height:1.05;letter-spacing:-.025em;font-weight:800}
+  h2{font-size:42px;line-height:1.12;letter-spacing:-.015em;font-weight:800;margin-top:14px}
+  h3{font-size:22px;font-weight:700;line-height:1.25}
+  p.lead{font-size:20px;line-height:1.5;color:var(--dim);margin-top:12px}
+  .accent{background:linear-gradient(100deg,#a99bff,#7c8cff 45%,#41c98a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .small{font-size:16px;color:var(--faint);line-height:1.5}
+  .tag{display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:999px;font-size:15px;
+    border:1px solid var(--line);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap}
+  .tag.kaneo{color:#c9cfff;border-color:rgba(124,140,255,.45);background:rgba(124,140,255,.13)}
+  .tag.gitea{color:#b6f5d4;border-color:rgba(65,201,138,.42);background:rgba(65,201,138,.12)}
+  .tag.ntfy{color:#ffdfaa;border-color:rgba(245,165,36,.42);background:rgba(245,165,36,.12)}
+  .tag.pm{color:#ffd9a1;border-color:rgba(245,165,36,.5);background:rgba(245,165,36,.14)}
+  .tag.worker{color:#c9cfff;border-color:rgba(124,140,255,.5);background:rgba(124,140,255,.14)}
+
+  .grid{display:grid;gap:18px}
+  .grid.fill{flex:1;min-height:0;grid-auto-rows:minmax(0,1fr);align-content:stretch}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+  .card h3{margin-bottom:8px}
+  .card .num{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--faint);letter-spacing:.14em;margin-bottom:10px}
+  .card p{color:var(--dim);font-size:18px;line-height:1.5}
+  .card p + p{margin-top:6px}
+  .card .bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+  .card.k .bar{background:var(--kaneo)} .card.g .bar{background:var(--gitea)} .card.n .bar{background:var(--ntfy)}
+  .card.pm .bar{background:var(--ntfy)} .card.w .bar{background:var(--kaneo)}
+
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+  .step{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:14px 10px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+  .step b{display:block;font-size:17px;font-weight:700;line-height:1.25}
+  .step span{display:block;font-size:13px;color:var(--faint);margin-top:5px;letter-spacing:.02em}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:20px;padding:0 2px}
+
+  .timeline{display:flex;flex-direction:column;justify-content:space-evenly;flex:1;min-height:0}
+  .tl{display:grid;grid-template-columns:96px 26px 1fr;gap:16px;align-items:start}
+  .tl .time{font-family:"SF Mono",Consolas,monospace;font-size:18px;color:var(--kaneo);font-weight:700;padding-top:2px;text-align:right}
+  .tl .rail{position:relative;display:flex;justify-content:center;align-self:stretch}
+  .tl .rail::before{content:"";position:absolute;top:0;bottom:-20px;width:2px;background:linear-gradient(var(--line),transparent)}
+  .tl .rail i{width:11px;height:11px;border-radius:50%;background:var(--kaneo);margin-top:5px;box-shadow:0 0 0 4px rgba(124,140,255,.16);z-index:1}
+  .tl:last-child .rail::before{display:none}
+  .tl .body h3{font-size:20px}
+  .tl .body p{font-size:17px;color:var(--dim);line-height:1.5;margin-top:3px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .chip{font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--dim);font-family:"SF Mono",Consolas,monospace}
+
+  table{width:100%;border-collapse:collapse;font-size:17px}
+  th{text-align:left;color:var(--faint);font-weight:700;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.07);color:var(--dim);vertical-align:top;line-height:1.4}
+  td:first-child{color:var(--text);font-weight:700;white-space:nowrap}
+  table.tight td, table.tight th{padding:6px 9px;font-size:16px}
+
+  .list{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+  .li{display:flex;gap:10px;align-items:flex-start;font-size:18px;color:var(--dim);line-height:1.45}
+  .li b{color:var(--text);font-weight:700}
+  .li .mk{flex:none;width:24px;text-align:center;font-weight:800}
+  .mk.ok{color:var(--gitea)} .mk.no{color:var(--danger)} .mk.dot{color:var(--accent)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+  .cols .card{padding:26px 28px}
+  /* Checklist: the same green check as the other lists, aligned to the first line of every item. */
+  .check{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .check div{display:flex;gap:10px;align-items:flex-start;font-size:16.5px;color:var(--dim);line-height:1.45}
+  .check i{flex:none;width:16px;text-align:center;font-style:normal;font-size:15px;font-weight:800;color:var(--gitea);line-height:1.45}
+  pre{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    font-family:"SF Mono",Consolas,monospace;font-size:15px;line-height:1.65;color:var(--dim);overflow:hidden}
+  pre b{color:var(--text)}
+  /* Inline commands and keys: monospace, and a long git URL breaks anywhere instead of pushing out of its card. */
+  code{font-family:"SF Mono",Consolas,monospace;font-size:14px;line-height:1.55;color:var(--text);
+    background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:1px 7px;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+
+  /* cover */
+  .cover{justify-content:center;gap:8px}
+  .cover .glow{position:absolute;right:-6%;top:-22%;width:55%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(139,123,255,.34),transparent 62%);filter:blur(6px)}
+  .cover .ghost{position:absolute;right:60px;bottom:30px;font-size:150px;font-weight:900;letter-spacing:-.05em;
+    color:rgba(255,255,255,.035);line-height:1;user-select:none;white-space:nowrap;z-index:0}
+  .cover h1{max-width:15em;margin-top:10px}
+  .cover .sub{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .cover .meta{margin-top:40px;display:flex;gap:56px;flex-wrap:wrap;padding-top:20px;border-top:1px solid var(--line);width:100%}
+  .cover .meta div{font-size:14px;color:var(--faint)}
+  .cover .meta b{display:block;color:var(--text);font-size:18px;margin-top:6px;font-weight:700}
+  .cover .head,.cover .content{position:relative;z-index:2}
+
+  /* chrome */
+  .nav{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.06);z-index:20}
+  .nav .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#41c98a);transition:width .3s ease;box-shadow:0 0 14px rgba(139,123,255,.7)}
+  .hint{position:fixed;right:16px;bottom:16px;font-size:13px;color:var(--faint);background:rgba(0,0,0,.35);
+    border:1px solid var(--line);border-radius:999px;padding:8px 14px;z-index:21;transition:opacity .5s;backdrop-filter:blur(8px)}
+  .hint.hide{opacity:0}
+  .ctrls{position:fixed;left:16px;bottom:14px;display:flex;gap:8px;z-index:21;opacity:.55}
+  .ctrls button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);
+    color:var(--dim);font-size:18px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s}
+  .ctrls button:hover{color:#fff;border-color:rgba(255,255,255,.4);transform:translateY(-1px)}
+  .dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:21}
+  .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:.25s;display:block}
+  .dots i.on{background:var(--accent);box-shadow:0 0 10px var(--accent);transform:scale(1.3)}
+  .pageno{position:absolute;right:64px;bottom:22px;font-family:"SF Mono",Consolas,monospace;font-size:13px;color:var(--faint);z-index:2}
+  .brand{position:absolute;left:64px;bottom:22px;font-size:12px;letter-spacing:.2em;color:var(--faint);text-transform:uppercase;z-index:2}
+
+  @media print{
+    html,body{height:auto;background:#0b1020;overflow:visible;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .viewport{position:static;display:block}
+    /* One 16:9 slide per page: the page itself is exactly the 1280x720 design canvas, so nothing is rescaled or clipped. */
+    .stage{width:1280px;height:auto;transform:none!important}
+    .slide{position:relative!important;display:flex!important;width:1280px;height:720px;margin:0;border-radius:0;
+      border:none;box-shadow:none;break-after:page;page-break-after:always;animation:none}
+    .slide:last-child{break-after:auto;page-break-after:auto}
+    .nav,.hint,.ctrls,.dots{display:none}
+    @page{size:1280px 720px;margin:0}
+  }
+  /* Dense slides: the same look with less vertical growth, so nothing runs into the footer. */
+  .slide.dense .content{gap:12px}
+  .slide.dense table.tight td, .slide.dense table.tight th{padding:5px 8px;font-size:15px}
+  .slide.dense .card p{font-size:15.5px;line-height:1.45}
+  .slide.dense .card p + p{margin-top:4px}
+  .slide.dense .check div{font-size:15px;line-height:1.4}
+  .slide.dense .small{font-size:14.5px;line-height:1.5}
+  /* Timeline rows keep their height instead of shrinking and overlapping; their type is a little smaller. */
+  .timeline{justify-content:flex-start;gap:18px}
+  .timeline .tl{flex:none}
+  .tl .time{font-size:16px;padding-top:1px}
+  .tl .body h3{font-size:19px;line-height:1.3}
+  .tl .body p{font-size:16px;line-height:1.45;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="viewport"><div class="stage" id="stage">
+  <!-- 1 cover -->
+  <section class="slide cover active">
+
+    <div class="glow"></div><div class="ghost">ABC</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>QUICK START · 设置篇 · 只做准备与确认</div>
+      <h1>快速把<span class="accent">运行环境准备好</span></h1>
+      <p class="lead" style="max-width:46em">4 个设置 tab · 9 个动作 · 约 15 个必填字段 · 8 项就绪自检。<br>配好、看懂、有掌控感——不跑任务，不讲怎么干活。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
+        <span class="tag pm">PM · 15–20 分钟</span>
+        <span class="tag worker">Worker · 3 分钟只读确认</span>
+        <span class="tag kaneo">来源</span>
+        <span class="tag gitea">项目与岗位</span>
+        <span class="tag ntfy">评估 · 执行</span>
+      </div>
+      <div class="meta">
+        <div>目标<b>运行环境就绪，且知道为什么就绪</b></div>
+        <div>不做<b>不跑任务、不派工、不讲日常操作</b></div>
+        <div>配套文档<b>ABC.md · SOP.md · AIOS.md</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 goal -->
+  <section class="slide airy">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>GOAL</div>
+      <h2>这次只做三件事</h2>
+    </div>
+    <div class="content">
+      <div class="grid g3 fill">
+        <div class="card k"><span class="bar"></span><div class="num">01</div><h3>配好</h3><p>把四个"家"接上、登记项目与岗位、发布宪章与职责说明。</p><p class="small">动作：4 个 tab、9 步。</p></div>
+        <div class="card w"><span class="bar"></span><div class="num">02</div><h3>看懂</h3><p>每一步都有"看到什么算 OK"：ready、已映射、v1、自动接单。</p><p class="small">结果可验证，不靠感觉。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">03</div><h3>有掌控感</h3><p>一份状态字典：每个状态说明含义与下一步动作。</p><p class="small">出问题知道回哪个 tab 改。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 map -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>THE MAP · 只动 4 个 tab</div>
+      <h2>设置页的六个 tab，你只用前四个</h2>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step"><b>① 来源</b><span>四个家：4 张卡</span></div><div class="arrow">→</div>
+        <div class="step"><b>② 项目与岗位</b><span>项目 · 2 个岗位 · 宪章 · 职责说明</span></div><div class="arrow">→</div>
+        <div class="step"><b>③ 评估</b><span>自动接单 · 模型</span></div><div class="arrow">→</div>
+        <div class="step"><b>④ 执行</b><span>执行模型 · 并行数</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>保持默认的 tab</h3><p><b>提示词</b>、<b>部署</b>：第一次配置不用动，只在自检里确认能打开。</p></div>
+        <div class="card"><span class="bar"></span><h3>入口</h3><p>DSH → 左侧 <b>超级智能体</b> → <b>Team 视角</b> → <b>设置</b>。按钮文字随界面语言（简/繁）变化，按同名找。</p></div>
+      </div>
+      <p class="small">九个动作：来源 ×4、项目+岗位 ×1、宪章 ×1、职责说明 ×1、评估 ×1、执行 ×1。</p>
+    </div>
+  </section>
+
+  <!-- 4 minimum -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>MINIMUM · 必填很少</div>
+      <h2>只有 ★ 字段要填，其余全默认</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>Tab</th><th>★ 必填</th><th>其余（保持默认）</th></tr>
+        <tr><td>来源 · Kanban</td><td>服务器、API key、项目（下拉选）、监听列 ready</td><td>认领列/交付列/首次轮询/标签过滤</td></tr>
+        <tr><td>来源 · Gitea</td><td>服务器、账号/密码、宪章仓库 owner/name</td><td>宪章文件默认 README.md</td></tr>
+        <tr><td>来源 · ntfy</td><td>服务器、topic</td><td>入库 tag 建议 dsh；认证按服务端</td></tr>
+        <tr><td>来源 · MinIO</td><td>服务地址、桶</td><td>密钥可留空（用本机存储记录）</td></tr>
+        <tr><td>项目与岗位</td><td>项目、每个岗位的 id / 角色 / 登录邮箱</td><td>监听列 ready、WIP 默认、Gitea/ntfy 身份</td></tr>
+        <tr><td>宪章</td><td>正文（5 行模板）</td><td>发布者、历史自动记录</td></tr>
+        <tr><td>职责说明</td><td>正文（1 段模板，承接岗位写 Worker）</td><td>其余职责字段按模板</td></tr>
+        <tr><td>评估 / 执行</td><td>接单模式=自动接单；模型可用</td><td>时限、并行数、执行目录</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5 sources -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>TAB 1 · 来源</div>
+      <h2>四张卡 = 四个家：任务 / 规则 / 文件 / 通知</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>卡片</th><th>填什么（★）</th><th>保存后看到</th></tr>
+        <tr><td>Kanban 看板</td><td>服务器、API key、项目、监听列</td><td>测试连接通过；项目可选</td></tr>
+        <tr><td>Gitea（宪章仓库）</td><td>服务器、账号、宪章仓库、README.md</td><td>连接通过，可读写宪章</td></tr>
+        <tr><td>ntfy 主题</td><td>服务器、topic、入库 tag</td><td>topic 可订阅</td></tr>
+        <tr><td>MinIO 对象存储</td><td>服务地址、桶、密钥（可留空）</td><td>桶可读</td></tr>
+      </table>
+      <div class="grid g2">
+        <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>四张卡无红色报错；编队页来源状态正常。</p></div>
+        <div class="card n"><span class="bar"></span><h3>小提示</h3><p>保存来源后可能提示"正在重启/重连"几秒，正常，等恢复即可。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 project-posts -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>TAB 2 · 项目与岗位</div>
+      <h2>选项目、加两个岗位（只填 ★ 三项）</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><h3>项目</h3><p>下拉里<b>选</b>项目，名称与 slug 自动带出；主题集可留空。</p><p class="small">别手抄项目 id。</p></div>
+        <div class="card"><span class="bar"></span><h3>两个岗位</h3><p><b>PM 岗位</b>：id <code>pm-&lt;项目&gt;</code>、角色 PM、登录邮箱。</p><p><b>Worker 岗位</b>：id <code>w1-&lt;项目&gt;</code>、角色 Worker、登录邮箱。</p><p class="small">监听列 ready、WIP 默认；页面底部保存档案。</p></div>
+      </div>
+      <p class="small">OK 的样子：每张岗位卡下方出现「已映射到 Kanban 使用者 id：…」。</p>
+    </div>
+  </section>
+
+  <!-- 7 charter -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>TAB 2 · 宪章</div>
+      <h2>发布团队公约：复制 5 行就能用</h2>
+    </div>
+    <div class="content">
+      <pre>目标：&lt;这一期为客户创造什么&gt;
+流程：ready → in-progress → in-review → done
+岗位：PM 派工、审进度、处理异常；Worker 执行与交付
+交付：文档/方案放 MinIO；代码开 PR；卡片回写结果
+异常：卡住 → 评论提问并转 blocked，进 PM 异常队列</pre>
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>动作</h3><p>写正文 → 点<b>发布宪章</b>。</p></div>
+        <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>版本号 <b>≥ v1</b>，有发布时间与发布者；每周最多发布一版。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 duties -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>TAB 2 · 职责说明</div>
+      <h2>发布任务说明书：1 段模板起步</h2>
+    </div>
+    <div class="content">
+      <pre>### doc · 文档交付
+- 承接岗位：w1-&lt;项目&gt;
+- 目标：按卡片要求产出一份文档
+- 完成：文件已上传并可回读，卡片回写文件位置
+- 载体：MinIO 对象（deliverables/&lt;项目&gt;/&lt;工单&gt;/&lt;文件&gt;）
+- 步骤：读宪章 → 读卡片 → 写文档 → 上传回读 → 报告</pre>
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>动作</h3><p>编辑 → 点<b>发布职责说明</b>（提交到宪章仓库的 duties.md）。</p></div>
+        <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>职责列表出现、条数正确；<b>承接岗位写 Worker</b>，不要写 PM。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 evaluation -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>TAB 3 · 评估</div>
+      <h2>让系统自己接单：只动两个地方</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>设置</th><th>怎么选</th><th>含义</th></tr>
+        <tr><td>接单模式</td><td><b>自动接单</b></td><td>系统会自己评估并接单；"仅观察"只记录不接</td></tr>
+        <tr><td>研判模型</td><td>默认可就不动；不可用则选一个</td><td>系统判断"这单接不接"用的模型</td></tr>
+      </table>
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>还要看一眼</h3><p>「在各来源上」的发起人名单里有团队账号（Kanban/Gitea/ntfy）。</p></div>
+        <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>保存成功；接单模式显示<b>自动接单</b>；模型可用。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 execution -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>TAB 4 · 执行</div>
+      <h2>确认谁来干、并行多少</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>设置</th><th>建议</th><th>说明</th></tr>
+        <tr><td>执行器模型</td><td>可用即可；不可用则选一个</td><td>真正干活用的模型</td></tr>
+        <tr><td>并行工单数</td><td>1–2</td><td>同时最多干几个活</td></tr>
+        <tr><td>执行目录 / 环境</td><td>留空用默认</td><td>无需手改</td></tr>
+      </table>
+      <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>保存成功；「编队」页/岗位视角显示执行器运行中、无红色报错。</p></div>
+    </div>
+  </section>
+
+  <!-- 11 checklist -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>READINESS · 8 项自检</div>
+      <h2>全打勾 = 运行环境就绪</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>连接与登记</h3>
+          <div class="check">
+            <div><i>✓</i>看板已连接，项目可选</div>
+            <div><i>✓</i>宪章仓库已连接</div>
+            <div><i>✓</i>文件柜、通知正常</div>
+            <div><i>✓</i>项目已登记</div>
+          </div>
+        </div>
+        <div class="card"><span class="bar"></span><h3>就绪状态</h3>
+          <div class="check">
+            <div><i>✓</i>两个岗位都有"已映射到 …"</div>
+            <div><i>✓</i>宪章 ≥ v1</div>
+            <div><i>✓</i>职责说明已发布</div>
+            <div><i>✓</i>自动接单 + 模型可用</div>
+          </div>
+        </div>
+      </div>
+      <p class="small">到这里为止就是"环境准备好"；派工、接单、交付属于工作方式，交给 SOP / STORY。</p>
+    </div>
+  </section>
+
+  <!-- 12 state-dictionary -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CONTROL · 看到什么就是什么</div>
+      <h2>状态字典：随时知道"现在怎样、要不要动手"</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>你看到的</th><th>含义</th><th>你要做什么</th></tr>
+        <tr><td>来源 正常 / ready</td><td>这条路通了</td><td>不用管</td></tr>
+        <tr><td>来源 暂停 / paused</td><td>被关掉或还没配</td><td>想用就打开并保存</td></tr>
+        <tr><td>来源 错误 / error</td><td>地址、凭据或权限不对</td><td>按提示改，再测一次</td></tr>
+        <tr><td>已映射到 Kanban 使用者 id：…</td><td>系统知道卡派给谁</td><td>不用管</td></tr>
+        <tr><td>宪章 v1 / v2…</td><td>团队公约已生效</td><td>每周复盘后最多改一版</td></tr>
+        <tr><td>职责说明 1 条 / N 条</td><td>系统认得这几类活</td><td>新增活法时再来加</td></tr>
+        <tr><td>接单模式 自动接单</td><td>会自己接单开工</td><td>不用管；观察演练可改"仅观察"</td></tr>
+        <tr><td>执行器 0 / 1，排队 0</td><td>当前没有在跑的活</td><td>不用管；有活时会动</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 13 worker -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>WORKER · 3 分钟只读确认</div>
+      <h2>不改设置，只确认三处</h2>
+    </div>
+    <div class="content">
+      <div class="grid g3 fill">
+        <div class="card w"><span class="bar"></span><div class="num">01</div><h3>我的岗位</h3><p>岗位 id、角色 Worker、监听列、WIP 与 PM 登记一致。</p></div>
+        <div class="card"><span class="bar"></span><div class="num">02</div><h3>来源</h3><p>四张卡是只读的，没有红色报错。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">03</div><h3>无异常提示</h3><p>面板没有"未设置岗位"之类提示；不对就找 PM 回对应 tab 修。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 problems -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>SETUP TROUBLES · 按 tab 定位</div>
+      <h2>设置阶段最常见的问题</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>现象</th><th>多半在</th><th>怎么办</th></tr>
+        <tr><td>来源连不上</td><td>来源</td><td>检查地址/凭据；密钥可留空用本机存储记录</td></tr>
+        <tr><td>项目下拉是空的</td><td>来源 · 看板</td><td>API key 无该工作区权限，或地址错</td></tr>
+        <tr><td>邮箱不在工作区成员里</td><td>项目与岗位 · 岗位</td><td>让同事先加入 Kanban 工作区</td></tr>
+        <tr><td>发布宪章失败</td><td>项目与岗位 · 宪章</td><td>Gitea 仓库无写权限，或仓库/文件名填错</td></tr>
+        <tr><td>模型显示"默认不可用"</td><td>评估 / 执行</td><td>选一个可用的服务商与模型</td></tr>
+        <tr><td>保存时提示冲突</td><td>项目与岗位</td><td>重新载入后再保存</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 15 closing -->
+  <section class="slide cover">
+
+    <div class="glow" style="left:-10%;right:auto"></div><div class="ghost">OK</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DONE · 环境就绪</div>
+      <h1>4 个 tab、9 个动作、<br><span class="accent">8 项自检</span></h1>
+      <p class="lead" style="max-width:44em">全打勾 = 运行环境准备好，而且你知道每个状态的含义。<br>接下来派一张卡、看它被接走——那是工作方式，交给 SOP / STORY。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
+        <span class="tag">ABC.md · 完整说明</span>
+        <span class="tag">SOP.md · 日常操作</span>
+        <span class="tag">STORY.md · 一个完整故事</span>
+        <span class="tag">AIOS.md · 为什么这样设计</span>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+
+<div class="nav"><div class="bar" id="bar"></div></div>
+<div class="dots" id="dots"></div>
+<div class="ctrls"><button id="prev" title="上一页">‹</button><button id="next" title="下一页">›</button></div>
+<div class="hint" id="hint">← → 翻页 · F 全屏</div>
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var index = 0, dots = document.getElementById('dots'), bar = document.getElementById('bar');
+  var hint = document.getElementById('hint');
+
+  // Fit the fixed 1280x720 canvas into the viewport without breaking any proportion.
+  function fit(){
+    var scale = Math.min((window.innerWidth - 28) / 1280, (window.innerHeight - 28) / 720);
+    stage.style.transform = 'scale(' + scale + ')';
+  }
+  window.addEventListener('resize', fit);
+
+  // Page number and brand for every slide.
+  slides.forEach(function(slide, i){
+    var p = document.createElement('span'); p.className = 'pageno'; p.textContent = (i+1) + ' / ' + slides.length;
+    var b = document.createElement('span'); b.className = 'brand'; b.textContent = 'SuperAgent · ABC';
+    slide.appendChild(b); slide.appendChild(p);
+  });
+
+  slides.forEach(function(_, i){
+    var el = document.createElement('i');
+    el.title = '第 ' + (i+1) + ' 页';
+    el.addEventListener('click', function(){ go(i); });
+    dots.appendChild(el);
+  });
+  var marks = Array.prototype.slice.call(dots.children);
+
+  function go(i){
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, n){ s.classList.toggle('active', n === index); });
+    marks.forEach(function(m, n){ m.classList.toggle('on', n === index); });
+    bar.style.width = ((index + 1) / slides.length * 100) + '%';
+    location.hash = 'slide-' + (index + 1);
+  }
+  function next(){ if(index < slides.length - 1) go(index + 1); }
+  function prev(){ if(index > 0) go(index - 1); }
+
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if(k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter'){ e.preventDefault(); next(); }
+    else if(k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace'){ e.preventDefault(); prev(); }
+    else if(k === 'Home'){ e.preventDefault(); go(0); }
+    else if(k === 'End'){ e.preventDefault(); go(slides.length - 1); }
+    else if(k === 'f' || k === 'F'){ toggleFullscreen(); }
+    hint.classList.add('hide');
+  });
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  function toggleFullscreen(){
+    if(document.fullscreenElement) document.exitFullscreen();
+    else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  }
+
+  var x0 = null, y0 = null;
+  document.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? next() : prev();
+    x0 = y0 = null;
+  }, {passive:true});
+
+  fit();
+  var start = (location.hash.match(/slide-(\d+)/) || [])[1];
+  go(start ? Number(start) - 1 : 0);
+  setTimeout(function(){ hint.classList.add('hide'); }, 6000);
+})();
+</script>
+</body>
+</html>
