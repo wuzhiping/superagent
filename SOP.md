@@ -239,6 +239,16 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 ---
 
+### 3.7 职责说明（duties.md）
+
+职责说明和宪章放在**同一个 Gitea 仓库**（宪章文件同目录的 duties.md），是项目治理内容：**每台 Host 不需要任何职责设置**，所有 Host 读到同一份。
+
+- 编辑：Team 视角 → 设置 → 项目与岗位 → 「职责说明」→ 写完点「发布」，即向 Gitea 提交一次（commit 历史即版本历史）。
+- 格式：### <职责 id> · <名称>，下面用 - 字段：值 写 承接岗位、目标、完成、载体、宪章关注、知识、资源、工具、技能、接单、步骤、常见坑。
+- 卡片用 duty:<职责 id> 标签声明职责；承接岗位 列出能接这个职责的岗位 id。
+- 闸门：职责未定义 → 拒绝（dutyUndefined）；职责由别的岗位承接 → 拒绝（dutyUnsupported）；都不会建工单。
+- 岗位开工时派工说明里带 **Duty brief**，并可 orchestrator_read duty 读完整规格。
+
 ## 4. 岗位（Worker）的日常 SOP
 
 ### 4.1 接单

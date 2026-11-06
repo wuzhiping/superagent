@@ -35,6 +35,13 @@
 
 
 
+### 职责规格（2026-11-06，TDD/016）
+
+- **没有职责目录、没有每台 Host 的职责设置**：职责说明是与宪章同仓的 `duties.md`（路径由宪章文件推导），`GET/POST duties` 读写，面板「职责说明」编辑并发布（一次 commit）。
+- 卡片标签 `duty:<id>`；`duties.md` 的「承接岗位」按岗位 id 绑定。宿主在接受时校验：未定义 → `dutyUndefined`，岗位不承接 → `dutyUnsupported`，两条接受路径（评估 / 显式派工）都拒绝且不建工单。
+- 通过闸门后把职责简报注入派工说明（含目标/完成/载体/宪章关注/接单/步骤/常见坑/工具/技能/技能），岗位可 `orchestrator_read duty` 读完整规格；简报随工单快照固定。
+- 线上闭环试运行：`POST duties` 发布 2 个职责到 `shawoo/rsi_superagent/duties.md` → `duty:doc` 卡 #19 被接受为工单 `0272751b…`，岗位报告确认收到 Duty brief（职责 id/名称/载体/宪章 v12）→ MinIO 交付 `deliverables/…/duty-trial.md`（3443 字节，回读校验）→ 卡片 done；`duty:no-such-duty` 卡被拒（`dutyUndefined` 决策，01:08:20）且无工单，卡已删。产物 `TDD/artifacts/duty-gate-20261106010704.json`。
+- 测试：`tests/duties.spec.ts` 9 条；相关 62 条通过。
 ### Team 视角与开工闸门（2026-11-06 深夜，TDD/015）
 
 - **「PM 视角」改名「Team 视角」**（内部标识仍是 `pm`，旧存储的选择继续有效）。

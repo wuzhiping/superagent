@@ -27,6 +27,7 @@ export const RESOURCES: readonly { name: string; holds: string; executor?: true 
   { name: 'threads', holds: 'subscribed threads, newest activity first, with their labels, tickets, current assessment and polling errors' },
   { name: 'thread/<key>', holds: 'one thread: its label and link, its tickets and latest decisions, and its triggers, newest first', executor: true },
   { name: 'charter', holds: 'the project charter the ticket works under: its version, its carrier and its text (read-only; every post works under it)', executor: true },
+  { name: 'duty', holds: 'the duty this ticket names: its spec, the brief the worker reads, the posts that take it and the charter version it works under', executor: true },
   { name: 'decisions', holds: 'decisions, newest first' },
   { name: 'decision/<id>', holds: 'one decision with its audit' },
   { name: 'ticket/<id>', holds: 'a ticket\'s card, the trigger, decision and threads it is tied to, its latest assignments with the start of each '
@@ -67,6 +68,8 @@ export interface ResourceHost {
   promptVersion(sessionId: string): PromptVersion
   /** The project's charter as its carrier holds it, for `charter`: the version, where it lives and its text. */
   charter(projectId: string): Promise<{ version: number, carrier: string, carrierRef?: string, publishedAt: string, text: string } | undefined>
+  /** The duty the ticket names, for `duty`: the spec, its brief and the charter version it works under. */
+  duty(ticketId: string): Promise<Record<string, unknown> | undefined>
   /** Whether a Session may read `revision` (the revision it currently runs under or any revision it ran under previously). */
   mayRead(sessionId: string, revision: number): boolean
   feishuPageSize(): number
@@ -219,6 +222,13 @@ const ROUTES: readonly Route[] = [
     if (!charter) throw new Error('No charter is published for this project')
     return { version: charter.version, carrier: charter.carrier, ...charter.carrierRef ? { carrier_ref: charter.carrierRef } : {},
       published_at: charter.publishedAt, ...text(read, charter.text) }
+  }],
+  ['duty', async read => {
+    // It is a worker resource: the duty of the ticket's own project, never another's.
+    if (!read.ticketId) throw new Error('The duty is read from a worker ticket')
+    const duty = await read.host.duty(read.ticketId)
+    if (!duty) throw new Error('This ticket names no duty (or its project has no duties document yet)')
+    return text(read, JSON.stringify(duty, null, 2))
   }],
   ['trigger/', async read => {
     const { host, rest, ticketId, offset, signal } = read

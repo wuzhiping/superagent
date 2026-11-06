@@ -15,6 +15,7 @@ function host (charter: Awaited<ReturnType<ResourceHost['charter']>>): ResourceH
     feishuPageSize: () => 20,
     sourceLink: async () => ({}),
     charter: async projectId => projectId === 'p1' ? charter : undefined,
+    duty: async () => undefined,
   }
 }
 

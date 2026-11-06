@@ -253,6 +253,8 @@ export function hasCharterDraft (charter: ArchiveCharter): boolean {
 export interface DutyRow {
   ticketId: string
   title: string
+  /** The duty id the card names, when it names one. */
+  duty?: string
   postId: string
   projectId: string
   state: string
@@ -280,6 +282,7 @@ export function dutyRows (store: Store, archive: ProjectArchive): DutyRow[] {
     rows.push({
       ticketId: ticket.id,
       title: ticket.title,
+      ...(ticket.duty ? { duty: ticket.duty } : {}),
       postId: post?.postId ?? ticket.postId ?? '',
       projectId: project?.id ?? ticket.projectId ?? '',
       state: liveTicket(ticket) ? 'running' : 'queued',
@@ -344,6 +347,8 @@ export function enrichTicket (store: Store, archive: ProjectArchive, ticket: Tic
   // The repositories a duty touches are named by the task itself (`repo:owner/name`), not by the project.
   const repos = (meta?.labels ?? []).map(label => label.toLowerCase()).filter(label => label.startsWith('repo:'))
     .map(label => label.slice(5).trim()).filter(label => /^[^/\s]+\/[^/\s]+$/.test(label))
+  // The card names the duty it needs with a `duty:` label; it is the duty's id in the project's duties document.
+  const duty = (meta?.labels ?? []).map(label => label.toLowerCase()).find(label => label.startsWith('duty:'))?.slice(5).trim()
   const charterVersion = charterVersionOf(project?.id)
   return {
     ...ticket,
@@ -351,6 +356,7 @@ export function enrichTicket (store: Store, archive: ProjectArchive, ticket: Tic
     ...(project ? { projectId: project.id } : {}),
     ...(deliverableType ? { deliverableType } : {}),
     ...(repos.length ? { repos } : {}),
+    ...(duty ? { duty } : {}),
     ...(charterVersion ? { charterVersion } : {}),
   }
 }

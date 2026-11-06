@@ -14,6 +14,7 @@ import { relatedTickets } from './cards.ts'
 import { textPage } from './context.ts'
 import { AcknowledgementSchema } from './tools/tool.ts'
 import type { Effects } from './effects.ts'
+import type { DutyGate } from './duties.ts'
 
 /** Schema for a short lowercase kebab-case English ticket worktree name (1–4 words, at most 32 characters). */
 export const WorktreeNameSchema = z.string().max(32).regex(/^[a-z]+(?:-[a-z0-9]+){0,3}$/, 'Use 1–4 short English words in lowercase kebab-case, at most 32 characters').describe('Meaningful short English ticket name, e.g. fix-plan-color. Translate Chinese titles into English; no Chinese, pinyin or generic ticket names. 1–4 lowercase words in kebab-case, at most 32 characters.')
@@ -60,6 +61,8 @@ export interface AssessorHost {
   threadContext(trigger: Trigger): TriggerContext | undefined
   /** Whether the project of `trigger` has a published charter; no charter means no work may start (RD.md §4.1). */
   charterAllows?(trigger: Trigger): Promise<boolean>
+  /** The duty the card names: its brief, or why it may not start (TDD/016). */
+  duty?(trigger: Trigger): Promise<DutyGate>
   /** Delivers a candidate card to the main Session once per request ID, resolving after the Session receives it. */
   deliver(requestId: string, text: string): Promise<void>
   candidateCard(candidate: Candidate): Promise<Record<string, unknown>>
@@ -74,6 +77,17 @@ export async function gateOutcome (outcome: AssessmentOutcome, trigger: Trigger 
   if (outcome.kind !== 'accept' || !trigger || !allows) return outcome
   return await allows(trigger) ? outcome : { kind: 'ignore', reason: { code: 'noCharter' } }
 }
+/**
+ * 没有职责定义或岗位不承接时，接受变成带理由的忽略；有职责时把简报放进派工说明（TDD/016）。
+ */
+export async function dutyOutcome (outcome: AssessmentOutcome, trigger: Trigger | undefined,
+  gate?: (trigger: Trigger) => Promise<DutyGate>): Promise<AssessmentOutcome> {
+  if (outcome.kind !== 'accept' || !trigger || !gate) return outcome
+  const duty = await gate(trigger)
+  if (duty.refuse) return { kind: 'ignore', reason: { code: duty.refuse.code } }
+  return duty.brief ? { ...outcome, brief: duty.brief } : outcome
+}
+
 /** Schema for bounded context or repository read requests during an active evaluation (`orchestrator_eval_read`). */
 export const EvalReadSchema = z.object({
   trigger_id: z.string().min(1).describe('Original candidate ID returned by orchestrator_eval; every reference is scoped to this trigger.'),
@@ -288,6 +302,7 @@ export class MasterAssessor implements Assessor {
     // 没有宪章不可开工: an accept needs a published charter for its project, or the trigger is ignored with the reason.
     const trigger = candidate.triggers.find(item => item.id === triggerId) ?? candidate.triggers[0]
     outcome = await gateOutcome(outcome, trigger, this.host.charterAllows)
+    outcome = await dutyOutcome(outcome, trigger, this.host.duty)
     const decision = this.host.engine.decide(triggerId, { ...outcome, evalId: candidate.evalId })
     return { state: decision.kind, ...(decision.ticketId ? { ticket_id: decision.ticketId } : {}), reason: reasonText(decision.reason) }
   }

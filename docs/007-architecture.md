@@ -352,6 +352,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/app/views/sources.ts` | The Source status: each Source instance's state, its last day's counts, and what it filtered and dropped in that day |
 | `src/app/views/settings.ts` | The settings page's view: each block with its revision, each Source's settings with its kind's form, and the execution environment |
 | `src/app/views/overview.ts` | The overview: Tickets that need a person, problems, the last day's flow and the Executor's load |
+| `src/app/duties.ts` | The project's duties document (`duties.md` beside the charter, in Gitea): parsing, reading and publishing it, the `duty:` gate and the brief a worker reads |
 | `src/app/charter.ts` | The project charter and its carriers: the Gitea repository file (`readGiteaCharter`, `publishCharter`), the Kanban project description it falls back to, `publishWindow` (once a week), `stampCharter`, `kaneoAccount` and `giteaCharter` |
 | `src/app/capabilities.ts` | The Kanban account behind this Host and the rights it has (`GET capabilities`, paused in the panel) |
 | `src/app/narrative.ts` | The project archive: projects, posts and the charter copy the panel reads and writes, with the topic convention and the version history |
@@ -453,6 +454,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/panel-panel.spec.tsx` | The panel itself: routes, search, glossary and the settings groups |
 | `tests/narrative.spec.ts` | The archive: projects, posts, the topic default, the charter text and the version history |
 | `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
+| `tests/duties.spec.ts` | 职责说明的解析、岗位承接闸门、`dutyOutcome` 与简报 |
 | `tests/charter-gate.spec.ts` | 没有宪章不可开工: the charter gate per archived project, and `gateOutcome` turning an accept into an ignore with the reason |
 | `tests/resources-charter.spec.ts` | The `charter` resource: its version, carrier and text, its paging, its refusal without a charter or a ticket, and its place in the worker resource list |
 | `tests/charter-gitea.spec.ts` | The charter carrier: the README states the version/author/date, it wins over the Kanban mirror, publishing commits the stamped text, and a refused write falls back to the mirror |

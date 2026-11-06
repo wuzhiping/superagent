@@ -6,6 +6,7 @@ import { UserError, followupOwners, key, reasonText, type Decision, type Decisio
   from '../../core/index.ts'
 import { IM_WORDS, NOTE_WORDS, wordCount } from '../../infra/text.ts'
 import { AssessmentSchema, EvalReadSchema, WorktreeNameSchema, type MasterAssessor } from '../assessment.ts'
+import type { DutyGate } from '../duties.ts'
 import { ticketCard } from '../cards.ts'
 import { PromptConfigSchema, savePrompts, type Prompts } from '../prompts.ts'
 import { readResource, type MainResourceHost, type ResourceHost } from '../resources.ts'
@@ -28,6 +29,8 @@ export interface MainToolsHost {
   readonly resources: ResourceHost
   /** Whether the project of `trigger` has a published charter; no charter means no work may start (RD.md §4.1). */
   charterAllows?(trigger: Trigger): Promise<boolean>
+  /** The duty the card names: its brief, or why it may not start (TDD/016). */
+  duty?(trigger: Trigger): Promise<DutyGate>
   /** Schedules a pass to carry out work queued by an Engine command (such as an Eval or ticket resume). */
   requestPass(): void
   sendReplies(): Promise<void>
@@ -101,9 +104,15 @@ async function route(host: MainToolsHost, item: RouteItem, decided: ReadonlyMap<
         const refused = host.engine.decide(item.trigger_id, { kind: 'ignore', reason: { code: 'noCharter' } })
         return { refused: `Ticket was not created: ${reasonText(refused.reason)}` }
       }
+      // 没有职责定义或岗位不承接职责的卡不建工单；有职责时把简报随接受一起交给执行器。
+      const duty = trigger && host.duty ? await host.duty(trigger) : {}
+      if (duty.refuse) {
+        const refused = host.engine.decide(item.trigger_id, { kind: 'ignore', reason: { code: duty.refuse.code } })
+        return { refused: `Ticket was not created: ${reasonText(refused.reason)}` }
+      }
       const before = host.store.triggers.disposition(item.trigger_id)?.decisionId
       const decision = host.engine.decide(item.trigger_id, { kind: 'accept', title: item.title!, scope: item.title!, reason: { code: 'explicitRouted' },
-        acknowledgement: item.acknowledgement!, name: item.worktree_name!, ...note })
+        acknowledgement: item.acknowledgement!, name: item.worktree_name!, ...(duty.brief ? { brief: duty.brief } : {}), ...note })
       // A Decision that created no ticket is the item's refusal; one that existed before keeps what it was accepted with.
       if (decision.kind !== 'accept' || !decision.ticketId) return { refused: `Ticket was not created: ${reasonText(decision.reason)}` }
       if (decision.id === before) {

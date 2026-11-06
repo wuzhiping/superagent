@@ -291,6 +291,8 @@ export interface Ticket {
   deliverableType?: DeliverableType
   /** The repositories the task names, when the task says so: `owner/name` (RD.md §9). */
   repos?: string[]
+  /** The duty the card names with `duty:<id>`, when it names one (TDD/016). */
+  duty?: string
   /** The charter version the duty was started under, so later charter changes do not rewrite it (RD.md §8). */
   charterVersion?: number
   /** When, by whom, and how the ticket ended, with a person's or the host's reason beyond the outcome; an open ticket has none. */

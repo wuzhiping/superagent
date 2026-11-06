@@ -135,6 +135,9 @@ export interface PanelServer {
   capabilities: Capabilities
   /** The cleanup page's audit: ended duties and the workspace each one left behind. */
   maintenance: MaintenanceView
+  /** The duties document the panel reads; a test may set it, and publishing records what was written. */
+  duties?: { text?: string; duties?: import('../../src/app/duties.ts').DutySpec[]; detail?: string }
+  dutiesPublished?: { text: string; publishedBy?: string }
 }
 export let server: PanelServer
 
@@ -401,6 +404,13 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     server.archive = body.archive
     server.archiveRevision = (server.archiveRevision ?? 0) + 1
     return { revision: server.archiveRevision }
+  } },
+  'GET duties': { answer: (): ApiResponse<'GET duties'> => ({ path: 'duties.md', carrierRef: 'acme/charter/duties.md',
+    text: server.duties?.text ?? '', duties: server.duties?.duties ?? [],
+    ...server.duties?.detail ? { detail: server.duties.detail } : {} }) },
+  'POST duties': { body: true, answer: ({ body }) => {
+    server.dutiesPublished = body as { text: string; publishedBy?: string }
+    return { carrierRef: 'acme/charter/duties.md', path: 'duties.md' }
   } },
   'GET search': { query: ['q'], answer: async ({ query }) => {
     const q = query.q ?? ''

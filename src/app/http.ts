@@ -24,6 +24,7 @@ import type { Store } from './store.ts'
 import { writeArchive } from './narrative.ts'
 import { charterOfText } from './narrative.ts'
 import { charterTarget, kaneoAccount, publishCharter, publishWindow, readPrimaryCharter } from './charter.ts'
+import { dutiesPathOf, publishDuties, readDuties } from './duties.ts'
 import { readProjectChoices } from './projects.ts'
 import { readCapabilities } from './capabilities.ts'
 import { storedKaneoAccount } from '../sources/bdd-storage.ts'
@@ -243,6 +244,25 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
       writeArchive(stateDir, current.archive, current.revision)
       return { charter: charterOfText(published.text, published.publishedAt, project.charter.publishedBy),
         carrier: published.carrier, carrierRef: published.carrierRef }
+    },
+    // 职责说明：与宪章同仓的 duties.md。内容属于项目治理，所以 Host 不提供设置，面板只读 + 发布。
+    'GET duties': async () => {
+      const target = charterTarget(runtime.sources)
+      const doc = await readDuties(target)
+      return { path: dutiesPathOf(target.gitea?.path ?? 'README.md'), carrierRef: doc.carrierRef,
+        ...doc.sha ? { sha: doc.sha } : {}, text: doc.text, duties: doc.duties, ...doc.detail ? { detail: doc.detail } : {} }
+    },
+    'POST duties': async ({ body }) => {
+      const input = await body(64 * 1024) as { text?: unknown; publishedBy?: unknown }
+      const text = typeof input?.text === 'string' ? input.text : ''
+      if (!text.trim()) throw new RouteError(400, 'A duties document needs its text')
+      const publishedBy = typeof input?.publishedBy === 'string' ? input.publishedBy.trim() : ''
+      try {
+        const published = await publishDuties(charterTarget(runtime.sources), text, publishedBy)
+        return { ...published, path: dutiesPathOf(charterTarget(runtime.sources).gitea?.path ?? 'README.md') }
+      } catch (error) {
+        throw new RouteError(400, error instanceof Error ? error.message : String(error))
+      }
     },
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),

@@ -1,0 +1,45 @@
+{
+  "stamp": "20261106010704",
+  "verifiedAt": "2026-11-06T01:07:04.246Z",
+  "ticketId": "0272751b01f60ddae0cca01c1b7c9adb",
+  "ticket": {
+    "state": "ended",
+    "postId": "pm-rsi",
+    "projectId": "at8xrho45bisco2umjzgl1xp",
+    "charterVersion": 12
+  },
+  "report": {
+    "state": "ready",
+    "summary": "交付物：MinIO 桶 `ateam`，key `deliverables/at8xrho45bisco2umjzgl1xp/0272751b01f60ddae0cca01c1b7c9adb/duty-trial.md`（3443 字节，已用 minio_read 回读校验，内容可读且非空）。\n\n职责：duty id `doc` · 名称「文档交付」，carrier `doc`；卡片带 `duty:doc`，与派工说明中的 Duty brief 一致，intake 条件不触发。\n\n宪章版本：v12，载体 `shawoo/rsi_superagent/README.md`（职责卡 `shawoo/rsi_superagent/duties.md`，两者版号一致）。工作日志已按要求记录宪章版本与载体。\n\n内容摘要：一份记录本次试跑可观测步骤的 Markdown——开工读宪章、读卡与 Duty brief、核对 MinIO 桶与三段式交付 key、写入对象、回读确认、回写卡片评论共 6 步，另附链路观察事实与一条改进建议（在 Duty brief 后追加固定的「交付定位」小节，显式给出 duty id、charter version、charter carrier_ref 三个字段），并给出复现路径。\n\n检查：minio_bucket 确认 `ateam` 存在；minio_write 返回 etag f1a9fb93e919d33a6ad6f54fa606c874；minio_read 回读正文完整；minio_list 确认该前缀下仅此一个对象。文档约 900 余字，满足 ≥150 字要求。全程未改代码、未启动子代理；正文未贴入评论，仅报 bucket/key 与摘要。无 PR。"
+  },
+  "deliverableReferenced": true,
+  "briefConfirmedByWorker": true,
+  "deliverable": {
+    "prefix": "deliverables/at8xrho45bisco2umjzgl1xp/0272751b01f60ddae0cca01c1b7c9adb/",
+    "keys": [
+      "deliverables/at8xrho45bisco2umjzgl1xp/0272751b01f60ddae0cca01c1b7c9adb/duty-trial.md"
+    ]
+  },
+  "session": {
+    "file": null,
+    "briefInPrompt": false,
+    "dutyNamed": false,
+    "charterToolUsed": false
+  },
+  "gate": {
+    "cardId": "qi1n24buvazxaoqosqh9dgfy",
+    "title": "[duty-trial 20261106010704] 夜间例检：给这份文档做一次校对",
+    "decision": {
+      "id": "354ee2227a3e08538eceb255f1b022f4",
+      "outcome": "ignore",
+      "reason": [
+        "dutyUndefined"
+      ],
+      "at": "2026-11-06T01:08:20.156Z",
+      "threadTitle": "#21 [duty-trial 20261106010704] 夜间例检：给这份文档做一次校对"
+    },
+    "openTicketsBefore": 0,
+    "openTicketsAfter": 0,
+    "noTicketInThread": true
+  }
+}

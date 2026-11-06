@@ -201,6 +201,8 @@ declare const REASONS: {
   readonly directionUnsettled: "Implementation intent or target direction is not established, or a product/design decision is still required";
   readonly noRuleMatched: "No enabled admission rule matched";
   readonly noCharter: "The project has no published charter: publish one before work starts";
+  readonly dutyUndefined: "The card names a duty the project has not defined: write it in the duties document beside the charter";
+  readonly dutyUnsupported: "The duty is taken by other posts: assign the card to a post that takes it";
   readonly ignoredFromCard: "Ignored from its card, without a rule assessment";
   readonly observed: "Observe mode: would accept ({text})";
 };
@@ -578,6 +580,8 @@ interface Ticket {
   deliverableType?: DeliverableType;
   /** The repositories the task names, when the task says so: `owner/name` (RD.md §9). */
   repos?: string[];
+  /** The duty the card names with `duty:<id>`, when it names one (TDD/016). */
+  duty?: string;
   /** The charter version the duty was started under, so later charter changes do not rewrite it (RD.md §8). */
   charterVersion?: number;
   /** When, by whom, and how the ticket ended, with a person's or the host's reason beyond the outcome; an open ticket has none. */
@@ -725,7 +729,8 @@ type AssessmentOutcome = {
   rules?: string[];
   audit?: Record<string, unknown>;
   name?: string;
-  note?: string;
+  note?: string; /** The duty brief the worker reads before it starts, resolved at acceptance. */
+  brief?: string;
 } | {
   kind: 'stop';
   ticketId: string;

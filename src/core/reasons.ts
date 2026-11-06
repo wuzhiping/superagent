@@ -22,6 +22,8 @@ export const REASONS = {
   directionUnsettled: 'Implementation intent or target direction is not established, or a product/design decision is still required',
   noRuleMatched: 'No enabled admission rule matched',
   noCharter: 'The project has no published charter: publish one before work starts',
+  dutyUndefined: 'The card names a duty the project has not defined: write it in the duties document beside the charter',
+  dutyUnsupported: 'The duty is taken by other posts: assign the card to a post that takes it',
   ignoredFromCard: 'Ignored from its card, without a rule assessment',
   observed: 'Observe mode: would accept ({text})',
 } as const

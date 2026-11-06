@@ -104,9 +104,12 @@ export function ticketExecution(ticket: Ticket, outcome: Extract<AssessmentOutco
     .map(rule => `\n- ${rule.name} (${rule.id}): ${rule.instruction}`).join('')
   const precedence = rules ? `\nMatched rules; their procedure and communication instructions take precedence over the default acknowledgement and messaging policy for this ticket:${rules}` : ''
   // The origin trigger is delivered alongside the assignment, so `assignment` omits the trigger text.
+  // The duty brief is part of the assignment text, so the worker reads what this duty is before it starts, and the
+  // full text stays readable at `ticket/<id>/assignment` when the inline message truncates it.
+  const duty = outcome.brief ? `\n\nDuty brief:\n${outcome.brief}` : ''
   const assignment = ticket.mandate.strength === 'inferred' && ruleIds
-    ? `Proactively accepted under ${ruleIds.join(', ')}. Scope: ${outcome.scope}.${precedence}${note}`
-    : note.trim()
+    ? `Proactively accepted under ${ruleIds.join(', ')}. Scope: ${outcome.scope}.${precedence}${note}${duty}`
+    : `${note.trim()}${duty}`
   return { name, directory: join(executionRoot(settings, stateDir), name), assignment }
 }
 /** Character limits for inline assignment and trigger text in worker messages; longer text is read via its resource. */

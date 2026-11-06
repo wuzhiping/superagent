@@ -429,3 +429,5 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 
 .dt-pill-ref { margin-left: 6px; font-size: 11px; opacity: .72; }
 .dt-permission { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.dt-duties { display: flex; flex-direction: column; gap: 10px; }
+.dt-duty { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 12px; }

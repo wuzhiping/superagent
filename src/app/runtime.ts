@@ -48,6 +48,7 @@ import { mainTools, type MainToolsHost } from './tools/main.ts'
 import { executorTools, type ExecutorToolsHost } from './tools/executor.ts'
 import { enrichTicket, readArchive } from './narrative.ts'
 import { charterAllows as charterAllowsFor, charterTarget, readCharter } from './charter.ts'
+import { dutyBrief, dutyGate, readDuties } from './duties.ts'
 import { storedConnections } from '../sources/bdd-storage.ts'
 
 // Source plugins interact with dsh-superagent exclusively through the `SourceHost` service interface.
@@ -120,6 +121,22 @@ export class Runtime extends Service implements SourceHost {
       const environment = (ticket: Ticket) => this.ticketEnvironment(ticket)
       // 没有宪章不可开工: the project must have a published charter before a trigger becomes a ticket.
       const charterAllows = (trigger: Trigger) => charterAllowsFor(readArchive(machine.stateDir), charterTarget(sources), trigger)
+      // 职责说明与宪章同仓：卡片 duty:<id> 的校验与简报都从这里解析，Host 不需要配置职责内容。
+      const dutyOf = (trigger: Trigger) => dutyGate(charterTarget(sources), readArchive(machine.stateDir), trigger)
+      // `orchestrator_read duty`: the spec the worker's own ticket names, with the brief it was given.
+      const dutyOfTicket = async (ticketId: string) => {
+        const ticket = store.tickets.get(ticketId)
+        if (!ticket) return undefined
+        const enriched = enrichTicket(store, readArchive(machine.stateDir), ticket)
+        if (!enriched.duty || !enriched.projectId) return undefined
+        const doc = await readDuties(charterTarget(sources))
+        const spec = doc.duties.find(duty => duty.id.toLowerCase() === enriched.duty!.toLowerCase())
+        if (!spec) return undefined
+        const project = readArchive(machine.stateDir).projects.find(item => item.id === enriched.projectId)
+        const charter = project ? await readCharter(project, charterTarget(sources)) : undefined
+        return { ...spec, charter_version: charter?.version ?? 0, carrier_ref: doc.carrierRef,
+          brief: dutyBrief(spec, { version: charter?.version, carrierRef: doc.carrierRef }) }
+      }
       const charterOf = async (projectId: string) => {
         const project = readArchive(machine.stateDir).projects.find(item => item.id === projectId)
         if (!project) return undefined
@@ -127,7 +144,7 @@ export class Runtime extends Service implements SourceHost {
         return { version: info.version, carrier: info.carrier ?? 'archive', ...info.carrierRef ? { carrierRef: info.carrierRef } : {},
           publishedAt: info.publishedAt, text: info.text }
       }
-      const resources: ResourceHost = { store, pages: new TextCache(4_000_000), prompts, commands, masterId, context: ctx, charter: charterOf,
+      const resources: ResourceHost = { store, pages: new TextCache(4_000_000), prompts, commands, masterId, context: ctx, charter: charterOf, duty: dutyOfTicket,
         promptVersion: id => this.sessions.promptVersion(id), mayRead: (id, revision) => this.sessions.mayRead(id, revision),
         feishuPageSize: () => feishuSettings(sources).readPageSize, sourceLink: link }
       const sessions = this.sessions = new Sessions({ context: ctx, store, prompts, effects, health: board.claim('models'), masterId,
@@ -142,7 +159,7 @@ export class Runtime extends Service implements SourceHost {
         repliedTo: trigger => repliedTo({ store, sources }, trigger) })
       this.assessor = new MasterAssessor({ get engine() { return runtime.engine }, commands, get deployment() { return setup.deployment }, effects,
         settings: () => store.settings(), paused: () => this.paused(), threadContext: trigger => sources.threadContext(trigger),
-        charterAllows, deliver: (id, text) => sessions.prompt(masterId, id, text, 'steer'), candidateCard: candidate => candidateCard(links, candidate) })
+        charterAllows, duty: dutyOf, deliver: (id, text) => sessions.prompt(masterId, id, text, 'steer'), candidateCard: candidate => candidateCard(links, candidate) })
       const outbox = this.outbox = new Outbox({ store, effects, sources, commands, paused: () => this.paused() })
       const { assessor, executor } = this
       const policy = () => settingsPolicy(store.settings(), sources)
@@ -171,7 +188,7 @@ export class Runtime extends Service implements SourceHost {
       this.sourceDeps = { store, engine, outbox, commands, sources, get ready() { return runtime.ready },
         get deployment() { return setup.deployment }, configured: () => setup.configured(),
         get setupProblem() { return setup.problem }, get feishuProblem() { return setup.feishuProblem }, receive: trigger => passes.receive(trigger) }
-      this.toolHost = { context: ctx, engine, store, prompts, sessions, settings: this.settings, assessor, resources, charterAllows,
+      this.toolHost = { context: ctx, engine, store, prompts, sessions, settings: this.settings, assessor, resources, charterAllows, duty: dutyOf,
         get github() { return runtime.context({ kind: 'github', health: ['github'] }) },
         requestPass: () => { passes.request() }, sendReplies: () => outbox.sent(),
         quietly: run => { this.quiet++; try { return run() } finally { this.quiet-- } } }

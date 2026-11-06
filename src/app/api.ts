@@ -12,6 +12,7 @@ import type { MaintenanceCleanResult, MaintenanceView } from './maintenance.ts'
 import type { NarrativeView } from './views/narrative.ts'
 import type { ProjectArchive } from './narrative.ts'
 import type { CharterInfo } from './narrative.ts'
+import type { DutySpec } from './duties.ts'
 import type { Capabilities } from './capabilities.ts'
 import type { ProjectChoices } from './projects.ts'
 
@@ -35,6 +36,10 @@ export interface Api {
   /** Publishes a project's charter into the project itself: one document per project, at most once a week. */
   'POST narrative/charter': { body: { projectId: string; text: string; publishedBy: string; force?: boolean };
     response: { charter: CharterInfo; carrier?: 'gitea' | 'kanban'; carrierRef?: string } }
+  /** The project's duty descriptions, read from the Gitea repository that holds the charter (beside its file). */
+  'GET duties': { response: { path: string; carrierRef: string; sha?: string; text: string; duties: DutySpec[]; detail?: string } }
+  /** Publishes the duties document into that Gitea repository, as a commit; the Host configures nothing about duties. */
+  'POST duties': { body: { text: string; publishedBy?: string }; response: { sha?: string; carrierRef: string; path?: string } }
   'GET search': { query: { q: string }; response: SearchView }
   'GET sources': { response: SourceStatusView[] }
   'GET settings': { response: SettingsView }

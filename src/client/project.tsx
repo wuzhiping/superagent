@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react'
 import { topicsAfterPick } from '../app/narrative.ts'
+import type { ApiResponse } from '../app/api.ts'
 import { usePoll, type ProjectArchive, type ProjectChoices } from './api.ts'
 import { Button, Icon, Input } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
@@ -83,10 +84,11 @@ function CharterEditor({ charter, projectId, onChange, onPublished, readOnly }: 
   </div>
 }
 
-function PostEditor({ post, onChange, onRemove, readOnly }: {
-  post: Post; onChange: (post: Post) => void; onRemove: () => void; readOnly?: boolean
+function PostEditor({ post, onChange, onRemove, readOnly, duties }: {
+  post: Post; onChange: (post: Post) => void; onRemove: () => void; readOnly?: boolean; duties?: DutiesView['duties']
 }) {
   const { t } = usePanel()
+  const mine = (duties ?? []).filter(duty => duty.posts.includes(post.postId))
   return <div className="dt-archive-card dt-post-editor">
     <div className="dt-grid">
       <Field label={t('projectPostId')} value={post.postId} placeholder="w1-fdep" readOnly={readOnly}
@@ -117,13 +119,67 @@ function PostEditor({ post, onChange, onRemove, readOnly }: {
           onChange={event => onChange({ ...post, wipLimit: Math.max(1, Math.min(20, Number(event.target.value) || 1)) })} />
       </label>
     </div>
+    {post.postId && (mine.length > 0
+      ? <p className="dt-hint">{t('projectPostDuties', { duties: mine.map(duty => duty.name || duty.id).join('、') })}</p>
+      : <p className="dt-hint">{t('projectPostDutiesNone')}</p>)}
     {!readOnly && <Button variant="ghost" size="sm" icon={<Icon name="trash" size={14} />} onClick={onRemove}>{t('projectRemovePost')}</Button>}
   </div>
 }
 
-function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat, choices }: {
+type DutiesView = ApiResponse<'GET duties'>
+/**
+ * The duties document the project keeps beside its charter in Gitea: the panel shows the parsed duties and commits an edit
+ * as one file. It is project governance, not a Host setting, so no post configures duties locally.
+ */
+function DutiesEditor({ duties, onChanged, readOnly }: { duties?: DutiesView; onChanged: () => void; readOnly?: boolean }) {
+  const { t, call, notify } = usePanel()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [error, setError] = useState<string>()
+  const publish = async () => {
+    try {
+      await call('POST duties', { body: { text: draft } })
+      setEditing(false); setDraft(''); setError(undefined); notify(t('projectDutiesPublished')); onChanged()
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure))
+    }
+  }
+  const list = duties?.duties ?? []
+  return <div className="dt-duties">
+    <p className="dt-hint">{t('projectDutiesHint')}</p>
+    {duties?.carrierRef && <p className="dt-hint">{t('projectDutiesSource', { ref: duties.carrierRef })}</p>}
+    {duties?.detail && list.length === 0 && <p className="dt-hint">{t('projectDutiesUnavailable', { detail: duties.detail })}</p>}
+    {editing ? <>
+      <textarea className="dt-textarea" rows={14} value={draft} placeholder={t('projectDutiesPlaceholder')}
+        onChange={event => setDraft(event.target.value)} />
+      {error && <p className="dt-error" role="alert">{error}</p>}
+      <div className="dt-row">
+        <Button variant="primary" size="sm" onClick={() => { void publish() }}>{t('projectDutiesPublish')}</Button>
+        <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setDraft(''); setError(undefined) }}>{t('cancel')}</Button>
+      </div>
+    </> : <>
+      {list.length === 0
+        ? <p className="dt-hint">{t('projectDutiesEmpty')}</p>
+        : <ul className="dt-list">
+          {list.map(duty => <li key={duty.id} className="dt-duty">
+            <div className="dt-row">
+              <span className="dt-tag" data-tone="info">{duty.id}</span>
+              <b>{duty.name}</b>
+              {duty.carrier && <span className="dt-tag" data-tone="quiet">{duty.carrier}</span>}
+            </div>
+            {duty.posts.length > 0 && <p className="dt-hint">{t('projectDutiesPosts', { posts: duty.posts.join('、') })}</p>}
+            {duty.goal && <p className="dt-hint">{duty.goal}</p>}
+          </li>)}
+        </ul>}
+      {!readOnly && <Button variant="outline" size="sm"
+        onClick={() => { setEditing(true); setDraft(duties?.text ?? '') }}>{t('projectDutiesEdit')}</Button>}
+    </>}
+  </div>
+}
+
+function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat, choices, duties, onDutiesChanged }: {
   project: Project; onChange: (project: Project) => void; onRemove: () => void; onPublished?: () => void
-  scoped?: boolean; seat?: string; choices?: ProjectChoices
+  scoped?: boolean; seat?: string; choices?: ProjectChoices; duties?: DutiesView; onDutiesChanged?: () => void
 }) {
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
@@ -166,9 +222,14 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
         onChange={charter => onChange({ ...project, charter })} />
     </div>
     <div className="dt-section">
+      <h3 className="dt-section-title"><span className="dt-section-name">{t('projectDuties')}</span>
+        <span className="dt-count">{duties?.duties.length ?? 0}</span></h3>
+      <DutiesEditor duties={duties} onChanged={() => onDutiesChanged?.()} readOnly={scoped} />
+    </div>
+    <div className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{scoped ? t('settingsMyPost') : t('projectPosts')}</span>
         <span className="dt-count">{posts.length}</span></h3>
-      {posts.map((post, index) => <PostEditor key={post.postId || index} post={post}
+      {posts.map((post, index) => <PostEditor key={post.postId || index} post={post} duties={duties?.duties}
         onChange={next => onChange({ ...project, posts: project.posts.map(item => item.postId === post.postId ? next : item) })}
         onRemove={() => onChange({ ...project, posts: project.posts.filter(item => item.postId !== post.postId) })} />)}
       {!scoped && <Button variant="outline" size="sm" icon={<Icon name="plus" size={14} />}
@@ -186,6 +247,7 @@ export function ProjectSettings() {
   const [revision, setRevision] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string>()
+  const [duties, setDuties] = useState<DutiesView>()
   // The project is chosen from the list this Host's Kanban account can see, not typed from memory.
   const { data: choices } = usePoll(() => call('GET projects'), [])
 
@@ -199,6 +261,9 @@ export function ProjectSettings() {
     }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : String(failure)) })
     return () => { active = false }
   }, [call])
+
+  const loadDuties = () => { call('GET duties').then(setDuties).catch(() => {}) }
+  useEffect(() => { loadDuties() }, [call])
 
   const save = useAction(async () => {
     const result = await call('PUT project-archive', { body: { archive, revision } })
@@ -220,7 +285,7 @@ export function ProjectSettings() {
 
   return <div className="dt-project-settings">
     <Hint>{scoped ? t('projectHintPost') : t('projectHint')}</Hint>
-    {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId}
+    {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId} duties={duties} onDutiesChanged={loadDuties}
       onChange={next => update(index, next)} onPublished={() => { void save.run() }} choices={choices}
       onRemove={() => setArchive(current => ({ ...current, projects: current.projects.filter((_item, at) => at !== index) }))} />)}
     {!scoped && <div className="dt-row-buttons">
