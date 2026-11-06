@@ -166,20 +166,21 @@
   <section class="slide cover active">
     <div class="glow"></div><div class="ghost">SOP</div>
     <div class="head">
-      <div class="kicker"><span class="dot"></span>OPERATING PROCEDURE · 两个角色 · 面板操作</div>
+      <div class="kicker"><span class="dot"></span>OPERATING PROCEDURE · TEAM 视角 · 岗位 · 四个载体</div>
       <h1>超级智能体<span class="accent">上手作业指导书</span></h1>
-      <p class="lead" style="max-width:46em">PM 岗位怎么带项目，岗位怎么接活——<br>一份可以照着做的日常流程，配合面板「编队」页使用。</p>
+      <p class="lead" style="max-width:46em">Team 视角（PM 岗位）怎么带项目、岗位怎么接活——<br>一份照着做的日常流程：宪章 → 任务 → 消息 → 资产，配合面板「编队」页。</p>
     </div>
     <div class="content">
       <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
-        <span class="tag pm">PM 岗位 · 管流程</span>
+        <span class="tag pm">Team 视角 · 管流程</span>
         <span class="tag worker">岗位 · 干职责</span>
         <span class="tag kaneo">Kanban · 任务</span>
         <span class="tag gitea">Gitea · 代码</span>
         <span class="tag ntfy">ntfy · 消息</span>
+        <span class="tag">MinIO · 资产</span>
       </div>
       <div class="meta">
-        <div>读者<b>PM 岗位 / Worker 岗位的负责人</b></div>
+        <div>读者<b>Team 视角（PM 岗位）/ Worker 岗位的负责人</b></div>
         <div>配套文档<b>SOP.md · RD.md · STORY.md</b></div>
         <div>面板位置<b>编队 · 设置→项目与岗位</b></div>
       </div>
@@ -272,13 +273,13 @@
         <div class="card k"><span class="bar"></span>
           <div class="num">STEP 01</div><h3>装好、连上</h3>
           <p><code>npx.cmd @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"</code></p>
-          <p>Windows 用 <b>npx.cmd</b>（PowerShell 会拦 .ps1）；macOS / Linux 用 <b>npx</b>。装完重启 / 刷新，面板出现「超级智能体」，三个来源 ready。</p>
+          <p>Windows 用 <b>npx.cmd</b>（PowerShell 会拦 .ps1）；macOS / Linux 用 <b>npx</b>。装完重启 / 刷新，面板出现「超级智能体」，四个来源（Kanban / Gitea / ntfy / MinIO）ready。</p>
         </div>
         <div class="card g"><span class="bar"></span>
           <div class="num">STEP 02</div><h3>三个来源账号</h3>
-          <p>Kanban：地址 + API key（可留空）+ 项目（从列表选）+ 监听列（slug）。</p>
-          <p>Gitea：地址 + 邮箱 + 密码 + 仓库（先测连再保存）。</p>
-          <p>ntfy：地址 + topic（多实例＝多 topic）。</p>
+          <p>Kanban：地址 + API key（可留空）<b>+ 项目</b>（从列表选）+ 监听列（slug）。</p>
+          <p>Gitea：地址 + 邮箱 + 密码 + <b>事件仓库</b>（Issue/PR）+ <b>宪章仓库</b>（宪章的家，两个仓库分开）。</p>
+          <p>ntfy：地址 + topic + <b>入库过滤 tag</b>；MinIO：端点 + 桶。</p>
         </div>
         <div class="card n"><span class="bar"></span>
           <div class="num">STEP 03</div><h3>岗位账号</h3>
@@ -312,10 +313,10 @@
         <div class="card n"><span class="bar"></span>
           <div class="num">STEP 03</div><h3>发布宪章</h3>
           <p>设置 → 项目与岗位 → 宪章：写当期流程与交付标准 → <b>发布</b>。</p>
-          <p>发布写到<b>项目上</b>（一份、全项目共享）；版本号 +1、记发布者、旧版进历史；<b>每周至多一版</b>；工单钉在开工那版。</p>
+          <p>发布<b>提交到 Gitea 宪章仓库的 <code>README.md</code></b>（宪章的家，与事件仓库分开）；版本号 +1、记发布者、旧版进历史；<b>每周至多一版</b>；工单钉在开工那版。</p>
         </div>
       </div>
-      <p class="small"><b>Kanban 是唯一的直接来源</b>：Gitea / ntfy 的事件先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责——之后与 Kanban 原生的卡走完全一样的流程。</p>
+      <p class="small"><b>Kanban 是唯一的直接来源</b>：Gitea / ntfy 的事件先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责。<b>没有宪章不可开工</b>：项目在宪章发布前不接受任何任务。</p>
     </div>
   </section>
 
@@ -330,9 +331,11 @@
       <table class="tight">
         <tr><th>字段</th><th>含义</th><th>例子</th></tr>
         <tr><td>项目</td><td><b>从列表选</b>（这台 Host 的账号能看到的项目）；选中后 id / 名称 / slug 自动填</td><td>FDEP（FDE）· ATEAM</td></tr>
-        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」——写到<b>项目上</b>，一个项目只有一份，<b>每周至多一版</b></td><td>version: 2 · publishedBy: pm-fdep</td></tr>
-        <tr><td>主题集</td><td>该项目订阅的 ntfy topic；<b>留空默认所选项目的 <code>pub_&lt;项目 id&gt;</code></b></td><td>pub_fdep_pm</td></tr>
-        <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 PM / Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
+        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」——<b>提交到 Gitea 宪章仓库的 README.md</b>（与事件仓库分开），一个项目只有一份，<b>每周至多一版</b></td><td>version: 12 · publishedBy: pm-rsi</td></tr>
+        <tr><td>主题集</td><td>该项目订阅的 ntfy topic；<b>留空默认所选项目的 <code>pub_&lt;项目 id&gt;</code></b></td><td>pub_at8x…</td></tr>
+        <tr><td>Gitea 事件仓 / 宪章仓</td><td><b>两个字段、两个仓库</b>：事件仓的 Issue/PR 是任务来源；宪章仓的 <code>README.md</code> 是宪章的家（留空则宪章退回 Kanban 描述镜像）</td><td>shawoo/PDP · shawoo/rsi_superagent</td></tr>
+        <tr><td>ntfy 入库 tag</td><td>只有带这些 tag 的消息才入库成卡（留空=全部）；宿主回复的 tag 是 <code>dsh-superagent</code>，不会被回收成卡</td><td>dsh</td></tr>
+        <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 Team（PM）/ Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
         <tr><td>Kanban 用户 id</td><td><b>决定它领得到哪张卡</b></td><td>bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG</td></tr>
         <tr><td>监听列</td><td>该岗位领哪些列的卡（slug）</td><td>ready</td></tr>
         <tr><td>Gitea 账号 / ntfy sender / 实例</td><td>代码与消息身份、跑在哪台机器（都可留空）</td><td>sa-w1-fdep · #sa-w1-fdep · web</td></tr>
@@ -371,18 +374,19 @@
     <div class="head">
       <div class="kicker"><span class="dot"></span>TWO PERSPECTIVES</div>
       <h2>两种面板视角，一套后台</h2>
-      <p class="lead" style="font-size:18px">右上角切换：<b>PM 视角</b> / <b>岗位视角</b>。切换只改变"看到什么、从哪一页开始"——实例、来源、档案、工单队列都不变。</p>
+      <p class="lead" style="font-size:18px">右上角切换：<b>Team 视角</b>（原 PM 视角）/ <b>岗位视角</b>。切换只改变"看到什么、从哪一页开始"——实例、来源、档案、工单队列都不变。</p>
     </div>
     <div class="content">
       <table class="tight">
-        <tr><th></th><th>PM 视角</th><th>岗位视角</th></tr>
+        <tr><th></th><th>Team 视角（PM 岗位）</th><th>岗位视角</th></tr>
         <tr><td>页签</td><td>概览 · 编队 · 来源 · 触发 · 评估 · 执行 · 设置</td><td>概览 · <b>我的职责</b> · <b>我的岗位</b> · 来源 · 触发 · 设置（没有"评估"）</td></tr>
         <tr><td>编队页</td><td>全部项目与岗位 + 异常队列</td><td>只有你选的那个岗位 + 我的异常</td></tr>
         <tr><td>概览</td><td>队伍摘要（岗位 / 在飞职责 / 异常 / 宪章新鲜度）</td><td>我的战况（在飞职责 n/limit · 我的异常 · 我的身份 · 宪章）</td></tr>
-        <tr><td>设置</td><td>项目与岗位 · 来源 · 评估 · 执行 · 提示词 · 部署</td><td>项目与岗位（只显示并可改自己的岗位）· 来源 · 执行 · 提示词 · 部署</td></tr>
+        <tr><td>设置</td><td>项目与岗位 · 来源 · 评估 · 执行 · 提示词 · 部署</td><td><b>我的岗位设置</b>（只显示并可改自己的岗位）· 来源 · 执行 · 提示词 · 部署</td></tr>
+        <tr><td>权限</td><td>切成 Team 视角前验证 <code>canManageFlow</code>；缺权限先弹窗说明账号/角色/缺的权利，仍可切换</td><td>不需要管理权限：只干自己领到的活</td></tr>
         <tr><td>首页</td><td>概览</td><td>我的职责</td></tr>
       </table>
-      <p class="small">岗位第一次进入时，在「我的岗位」页选一次<b>你是哪个岗位</b>（记在这台设备上），之后概览、职责、设置都只围绕它展开。</p>
+      <p class="small">岗位第一次进入时，在「我的岗位」页选一次<b>你是哪个岗位</b>（记在这台设备上），之后概览、职责、设置都只围绕它展开。岗位视角里的「<b>我的岗位设置</b>」只改自己的岗位身份；项目、topic、宪章由 PM 在 Team 视角维护。<b>没有项目宪章时，团队页显示「没有宪章不可开工」。</b></p>
     </div>
   </section>
 
@@ -418,24 +422,24 @@
           <h3>周复盘 → 新流程</h3>
           <p>看板不是固定的任务表，而是<b>一条不断迭代的价值流</b>。</p>
           <p>看这一轮的工作日志 → 哪一列总堵、哪一步没意义 → <b>推荐新的状态</b> → 与岗位达成共识 → 确认。</p>
-          <p>确认后先在 Kanban 里加/改列，再在面板 <b>设置 → 项目与岗位 → 宪章</b> 写新版并点「发布」：发布写到<b>项目上</b>，其它 Host 读到同一份。</p>
+          <p>确认后先在 Kanban 里加/改列，再在面板 <b>设置 → 项目与岗位 → 宪章</b> 写新版并点「发布」：<b>提交到 Gitea 宪章仓库的 README.md</b>（commit 历史即版本历史），其它 Host 读到同一份。</p>
         </div>
-        <pre>version: 5
-publishedBy: sa-pm-fdep
+        <pre>version: 12
+publishedBy: pm-rsi
 
-<b># 宪章 v5</b>
+<b># 宪章 · RSI 项目</b>
 - 当期流程（列语义与流转）：
-  to-do 待辦池 → ready 待開工
-  → in-progress 進行中 → in-review 待評審
-  → done 完成
-- 角色与职责：PM 管流程与异常；Worker 领自己的卡
-- 交付标准：代码 → Gitea PR；文档/方案 → MinIO；
-  报价/合同/客诉 → 任务评论 + 状态推进
-- WIP 上限：每岗位 3
-- 回写规则：状态 + 工作日志 + 产出引用
-- 当前工作面集与 topic 集</pre>
+  to-do → in-progress → in-review
+  → done → qa-驗收
+- 角色与职责：PM 管流程与异常；Worker 开工先用
+  <b>orchestrator_read charter</b> 读当期宪章
+- 交付标准：代码 → Gitea PR；非代码 → MinIO
+  <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>
+- 实时沟通：项目 topic <code>pub_&lt;项目 id&gt;</code>；
+  只有带入库 tag 的消息才入库成卡
+- 复盘与改版：每轮闭环后复盘，宪章每周至多一版</pre>
       </div>
-      <p class="small">面板编队页会把<b>看板的列</b>与<b>宪章声明的列</b>并排显示：出现黄色「看板多出的列」＝ 流程长出来了，还没被确认。<b>每周至多一版</b>：7 天内再发会被拒并告知下次可发布时间；确需提前改，点「仍然发布（覆盖每周一次的限制）」。</p>
+      <p class="small">面板编队页会把<b>看板的列</b>与<b>宪章声明的列</b>并排显示：出现黄色「看板多出的列」＝ 流程长出来了，还没被确认。编队页的宪章徽标会显示<b>载体</b>（如 <code>shawoo/rsi_superagent/README.md</code>）。<b>每周至多一版</b>：7 天内再发会被拒并告知下次可发布时间；确需提前改，点「仍然发布（覆盖每周一次的限制）」。</p>
     </div>
   </section>
 
@@ -506,7 +510,7 @@ publishedBy: sa-pm-fdep
       <table class="tight">
         <tr><th>产出类型</th><th>权威载体</th><th>回写看板</th></tr>
         <tr><td>代码变更</td><td>Gitea PR（一仓一目录一 PR）</td><td>PR 链接 + 评审状态</td></tr>
-        <tr><td>文档 / 方案</td><td>MinIO 对象</td><td>对象键 + URL</td></tr>
+        <tr><td>文档 / 方案</td><td>MinIO 对象（「MinIO 对象存储」来源卡：端点/桶/凭据，默认取存储记录）</td><td>对象键 + URL</td></tr>
         <tr><td>memo / 决策</td><td>MinIO 对象（长）或任务评论（短）</td><td>摘要 + 结论</td></tr>
         <tr><td>工作日志</td><td>Kanban 任务评论（追加式）</td><td>即为看板内容</td></tr>
       </table>
@@ -522,8 +526,10 @@ publishedBy: sa-pm-fdep
         </div>
         <div class="card"><span class="bar"></span>
           <h3>边界</h3>
+          <p><b>开工第一步</b>：用 <code>orchestrator_read charter</code> 读当期宪章（返回版本与载体），不需要 shell/HTTP。</p>
           <p>不跨工作目录交付；需求有歧义<b>不要猜</b>：在任务里提问并转 blocked，进入 PM 的异常队列。</p>
           <p>文档/方案<b>存 MinIO，不贴进评论</b>：<code>minio_write</code> 到 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code> → <code>minio_read</code> 回读确认 → 报告写 <code>bucket/key</code>；卡片只留进度与结果。</p><p><b>看板由宿主写</b>：岗位报告 ready，宿主把结果写成评论并把卡片推进交付列；岗位不要自己调用看板 API 搬卡。</p>
+          <p><b>ntfy</b>：项目 topic 只有带入库 tag（如 <code>dsh</code>）的消息才入库成卡；没带的当聊天，不产生卡。</p>
         </div>
       </div>
     </div>
@@ -591,6 +597,9 @@ publishedBy: sa-pm-fdep
         <tr><td>MinIO 边界</td><td>岗位（host）不直接写桶</td><td>执行会话用 <code>minio_*</code> 工具上传，key 固定为 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code></td></tr>
         <tr><td>宪章过期 / 每周上限</td><td>超过 7 天没更新；或 7 天内想再发一版</td><td>周复盘后发；确需提前改，点「仍然发布（覆盖每周一次的限制）」并在正文说明理由</td></tr>
         <tr><td>看板自动化抢跑</td><td>进入 ready 约 20 秒就被搬到 in-progress，60 秒轮询会漏</td><td>轮询间隔 ≤ 15 秒，或把 in-progress 也纳入监听列</td></tr>
+        <tr><td>宿主重启打断工单</td><td>跑长任务时保存来源设置会重启插件，正在跑的工单被中断</td><td>工单会带「host restarted」输入自动续跑；长任务期间不要改设置</td></tr>
+        <tr><td>ntfy 换 topic</td><td>读游标跨 topic 保留，切换瞬间的消息可能被跳过</td><td>换 topic 自动回退游标 600 秒（入库标记去重）</td></tr>
+        <tr><td>宪章仓 / 事件仓</td><td>两者是 Gitea 卡片上的两个独立字段，不能共用一个仓库</td><td>宪章仓留空 = 退回 Kanban 描述镜像；事件仓只放 Issue/PR</td></tr>
       </table>
     </div>
   </section>
@@ -606,18 +615,19 @@ publishedBy: sa-pm-fdep
         <div class="card pm"><span class="bar"></span>
           <h3>PM 岗位</h3>
           <div class="check">
-            <div><i>✓</i>三个来源 status 都 ready</div>
+            <div><i>✓</i>四个来源 status 都 ready（Kanban / Gitea / ntfy / MinIO）</div>
             <div><i>✓</i>项目从<b>列表</b>选好（主题集默认 <code>pub_&lt;项目 id&gt;</code>），岗位已登记（监听列 / Kanban 用户 id）</div>
             <div><i>✓</i>每个岗位的 Kanban 用户 id 已填写</div>
-            <div><i>✓</i>宪章 v1 已<b>发布到项目上</b>（项目的 description 里有 version: 1）</div>
+            <div><i>✓</i>宪章 v1 已<b>提交到 Gitea 宪章仓库的 README.md</b>（编队页徽标显示 carrier=gitea）</div>
+            <div><i>✓</i>切到 Team 视角时权限自检通过（admin，或已知缺权限仍要切换）</div>
             <div><i>✓</i>派过一张卡，并看到它被领走</div>
-            <div><i>✓</i>异常队列能正常显示</div>
+            <div><i>✓</i>异常队列能正常显示；ntfy 入库 tag 已配置，MinIO 卡片桶可读</div>
           </div>
         </div>
         <div class="card w"><span class="bar"></span>
           <h3>岗位（Worker）</h3>
           <div class="check">
-            <div><i>✓</i>Kanban 账号已建，卡确实指派给自己</div>
+            <div><i>✓</i>Kanban 账号已建，卡确实指派给自己；开工先用 <code>orchestrator_read charter</code> 读宪章</div>
             <div><i>✓</i>Gitea 测试连接通过</div>
             <div><i>✓</i>ntfy topic / sender 已配置，允许名单里有自己</div>
             <div><i>✓</i>认领时做了读回 + 租约评论</div>
@@ -629,6 +639,76 @@ publishedBy: sa-pm-fdep
   </section>
 
   <!-- 15 close -->
+
+  <!-- CARRIERS · the four carriers and their defaults -->
+  <section class="slide airy">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CARRIERS · 2026-11-06</div>
+      <h2>载体分工：宪章 / 任务 / 消息 / 资产</h2>
+      <p class="lead" style="font-size:18px">一个载体一件事；凭据默认取本机存储记录（Masked Key），卡片可逐字段覆盖。</p>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
+        <tr><td><b>宪章</b></td><td>Gitea「<b>宪章仓库</b>」的 <code>README.md</code>，与事件仓库分开</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一的派工来源；看板列就是价值流</td></tr>
+        <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带<b>入库 tag</b>（如 <code>dsh</code>）的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
+        <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡（桶 <code>ateam</code>）</td><td>非代码交付物：<code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>
+      </table>
+      <p class="small">四张来源卡的凭据默认来自本机存储记录（<code>/BDD/API/AI/dsh/storage/&lt;service&gt;</code>）：<b>留空 = 记录值，填写 = 覆盖</b>；密钥只在宿主内存，不写进设置文件。</p>
+    </div>
+  </section>
+
+  <!-- CHARTER GATE · no charter, no work -->
+  <section class="slide">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CHARTER GATE</div>
+      <h2>没有宪章 <span style="color:var(--danger)">不可开工</span></h2>
+      <p class="lead" style="font-size:18px">项目档案里的项目，在宪章发布前（版本 0）不接受任何任务。</p>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card pm"><span class="bar"></span>
+          <h3>两道闸门都在主机侧</h3>
+          <div class="list">
+            <div class="li"><span class="mk ok">✓</span><div><b>评估接受</b>：accept 变成带 <code>noCharter</code> 理由的 ignore——不建工单。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div><b>主会话显式派工</b>（<code>orchestrator_route</code>）：同样拒绝，返回「Ticket was not created」。</div></div>
+            <div class="li"><span class="mk dot">•</span><div>不属于任何项目的事件不设闸门；面板团队页对缺宪章的项目显示红色提示。</div></div>
+          </div>
+        </div>
+        <div class="card w"><span class="bar"></span>
+          <h3>岗位怎么拿到宪章</h3>
+          <div class="list">
+            <div class="li"><span class="mk ok">✓</span><div>开工第一步：<code>orchestrator_read charter</code>，返回 <code>version</code> / <code>carrier</code> / 正文。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div>不需要 shell / HTTP，也不需要 Gitea 凭据：宿主读完再交给岗位。</div></div>
+            <div class="li"><span class="mk dot">•</span><div>没有宪章是 PM 要修的事（Team 视角 → 项目与岗位 → 发布宪章），不是岗位绕过的理由。</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VALUE STREAM · measured -->
+  <section class="slide airy">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>VALUE STREAM · MEASURED 2026-11-06</div>
+      <h2>一次值流闭环：<span class="accent">4 分 40 秒</span></h2>
+      <p class="lead" style="font-size:18px">宪章 v11（Gitea README）→ 卡进 RSI 项目 → ntfy 入库 → 工单 → MinIO 交付 → 卡片 done。</p>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>时刻</th><th>事件</th><th>证据</th></tr>
+        <tr><td>22:14:36</td><td>读宪章 v11</td><td><code>carrier=gitea · shawoo/rsi_superagent/README.md</code></td></tr>
+        <tr><td>22:14:37</td><td>派卡进 <code>to-do</code>，ntfy 通知发出</td><td>卡 #12，指派 PM 岗位账号</td></tr>
+        <tr><td>22:14:46</td><td>ntfy 通知入库成卡</td><td><b>9 秒</b>，标签 <code>from:ntfy</code></td></tr>
+        <tr><td>22:14:56</td><td>工单创建并派工</td><td><b>19 秒</b>，钉住 charter v11</td></tr>
+        <tr><td>22:17:17</td><td>MinIO 交付物出现</td><td><b>2 分 41 秒</b>，对象回读 UTF-8 干净</td></tr>
+        <tr><td>22:19:16</td><td>卡片到 <code>done</code></td><td><b>4 分 40 秒</b>，评论含 <code>bucket/key</code></td></tr>
+      </table>
+      <p class="small">复盘发现并修掉：① 岗位读不到 Gitea 宪章 → 新增 <code>orchestrator_read charter</code>；② ntfy 换 topic 可能跳过消息 → 游标回退 600 秒；③ 交付物 key 两种写法 → 只留 <code>deliverables/</code> 一种。→ 改进写进 SOP §3.6，宪章发布 v12。</p>
+    </div>
+  </section>
+
   <section class="slide cover">
     <div class="glow" style="left:-10%;right:auto"></div><div class="ghost">GO</div>
     <div class="head">

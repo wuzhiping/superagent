@@ -183,8 +183,8 @@
     <div class="content">
       <div class="grid g2 fill">
         <div class="card k"><div class="bar"></div><div class="num">01 · SCENE</div><h3>Kanban 看板任务</h3><p>拖进 ready 列之后，从 Trigger 到工单、到评论回写、再到看板推进的完整闭环。</p></div>
-        <div class="card g"><div class="bar"></div><div class="num">02 · SCENE</div><h3>Gitea Issue 里 @ 一句</h3><p>代码来源如何只消费增量、把提及变成请求，并以 Issue 评论回写结果。</p></div>
-        <div class="card n"><div class="bar"></div><div class="num">03 · SCENE</div><h3>ntfy 提醒（公开 topic 低信任 / 私有可账号密码）</h3><p>pub_ 公开 topic 任何人可发；私有 topic 可用账号+密码（Basic）或 token 保护。</p></div>
+        <div class="card g"><div class="bar"></div><div class="num">02 · SCENE</div><h3>Gitea：事件仓 + 宪章仓</h3><p>事件仓的 Issue/PR 只消费增量、把提及变成请求；<b>宪章仓的 README.md 是宪章的家</b>——两个仓库分开。</p></div>
+        <div class="card n"><div class="bar"></div><div class="num">03 · SCENE</div><h3>ntfy：带 tag 的消息才入库</h3><p>只有带<b>入库 tag</b>（如 <code>dsh</code>）的消息才变成看板卡；不带 tag 的只是聊天，宿主的回复也不会被回收。</p></div>
         <div class="card"><div class="bar" style="background:#8b7bff"></div><div class="num">04 · MODEL</div><h3>全生命周期与人类方向盘</h3><p>十个阶段一张表，加上人类可随时按下的暂停、停止、重试与测试按钮。</p></div>
       </div>
     </div>
@@ -200,14 +200,14 @@
     <div class="content">
       <div class="grid g3 fill">
         <div class="card k"><div class="bar"></div><div class="num">SOURCE · KANEO</div><h3>Kanban 看板</h3>
-          <p><b style="color:#c9cfff">pl.feg.cn</b> · FDEP 项目</p><p>监听 ready 列；任务 = Thread，回复 = 任务评论。</p>
+          <p><b style="color:#c9cfff">pl.feg.cn</b> · FDEP 项目</p><p>监听列可配（本部署 <b>to-do</b>）；任务 = Thread，回复 = 任务评论。</p>
           <div class="chips"><span class="chip">poll 60s</span><span class="chip">API key</span></div></div>
         <div class="card g"><div class="bar"></div><div class="num">SOURCE · GITEA</div><h3>Gitea 仓库</h3>
-          <p><b style="color:#b6f5d4">git.feg.cn</b> · owner/name</p><p>Issue / PR / 评论增量；回复 = Issue 评论。</p>
-          <div class="chips"><span class="chip">email + password</span><span class="chip">repo 增量</span></div></div>
+          <p><b style="color:#b6f5d4">git.feg.cn</b> · 事件仓 + 宪章仓</p><p>Issue / PR / 评论增量；回复 = Issue 评论。宪章仓的 <code>README.md</code> = 项目宪章。</p>
+          <div class="chips"><span class="chip">email + password</span><span class="chip">增量</span><span class="chip">宪章提交</span></div></div>
         <div class="card n"><div class="bar"></div><div class="num">SOURCE · NTFY</div><h3>ntfy 主题</h3>
-          <p><b style="color:#ffdfaa">msn.feg.cn</b> · topic</p><p>消息 = 事件；回复发布回同一 topic。</p>
-          <div class="chips"><span class="chip">pub_ 公开</span><span class="chip">私有可账号密码</span></div></div>
+          <p><b style="color:#ffdfaa">msn.feg.cn</b> · topic</p><p>只有带入库 tag 的消息入库成卡；回复发布回同一 topic。</p>
+          <div class="chips"><span class="chip">tag 过滤</span><span class="chip">pub_ 公开</span><span class="chip">私有可账号密码</span></div></div>
       </div>
       <p class="small" style="text-align:center">三类来源共享同一条流水线：<b style="color:var(--text)">Source → Trigger → Thread → Eval → Mandate → Ticket → Assignment → Executor → Channel → Outbox</b></p>
     </div>
@@ -274,6 +274,7 @@
             <div class="li"><span class="mk dot">•</span><div>Source 只读<b>增量</b>：issues / comments 各带游标，前移不重复。</div></div>
             <div class="li"><span class="mk ok">✓</span><div>提到 agent 登录名 → <b>addressed: mention</b>；作者在 allowed 名单 → explicit。</div></div>
             <div class="li"><span class="mk ok">✓</span><div>工单 → worker 排查 → 结果以 <b>Issue 评论</b> 写回。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div>宪章在<b>另一个仓库</b>：<b>shawoo/rsi_superagent</b> 的 <code>README.md</code> 就是项目宪章——发布 = 提交该文件，commit 历史即版本历史。</div></div>
           </div>
         </div>
         <div class="card"><div class="bar" style="background:#8b7bff"></div><div class="num">边界与细节</div>
@@ -282,6 +283,7 @@
             <div class="li"><span class="mk dot">•</span><div>同一 Thread 的追问 → 上下文续传给执行中的 Assignment。</div></div>
             <div class="li"><span class="mk dot">•</span><div>账号用<b>邮箱 + 密码（HTTP Basic）</b>；密码框掩码、接口不回显。</div></div>
             <div class="li"><span class="mk ok">✓</span><div>改完账号先点「测试连接」，通过才允许保存。</div></div>
+            <div class="li"><span class="mk dot">•</span><div><b>事件仓与宪章仓是两个字段、两个仓库</b>，必须分开；宪章仓留空则退回 Kanban 项目描述镜像。</div></div>
           </div>
         </div>
       </div>
@@ -291,6 +293,7 @@
         <div class="step"><b>工单</b><span>Ticket</span></div><div class="arrow">→</div>
         <div class="step"><b>评论回写</b><span>幂等</span></div>
       </div>
+      <p class="small" style="text-align:center">发布宪章 = 向宪章仓库 <code>README.md</code> 提交 <code>charter vN: &lt;发布者&gt;</code>；岗位开工先 <code>orchestrator_read charter</code> 读当期宪章。</p>
     </div>
   </section>
 
@@ -304,7 +307,7 @@
       <div class="grid g2">
         <div class="card n"><div class="bar"></div><div class="num">消息到达</div>
           <p style="color:var(--text)"><b>title：</b><span style="font-family:monospace;color:#ffdfaa">#wu.zhiping</span><br><b>body：</b><span style="font-size:18px">@dsh-superagent 线上告警：支付回调 500 突增，先看最近一次发布是否有异常。</span></p>
-          <div class="chips"><span class="chip">poll 30s</span><span class="chip">#name = 身份</span><span class="chip">@agent = addressed</span></div>
+          <div class="chips"><span class="chip">poll 30s</span><span class="chip">#name = 身份</span><span class="chip">@agent = addressed</span><span class="chip">tag 入库</span></div>
         </div>
         <div class="card"><div class="bar" style="background:#ff6b7a"></div><div class="num">信任边界</div>
           <p><code style="color:#ffdfaa">pub_</code> 公开 topic：<b>无认证</b>，title 里的身份可被冒用；私有 topic 可用<b>账号+密码（Basic）或 token</b> 保护，只有持凭据者能发布。</p>
@@ -316,9 +319,9 @@
         </div>
       </div>
       <div class="grid g3 fill">
-        <div class="card"><h3>回复也回到 topic</h3><p>标题 <span style="font-family:monospace;color:#ffdfaa">#dsh-superagent</span>，带幂等 marker。</p></div>
-        <div class="card"><h3>生产建议</h3><p>优先私有 topic + <b>账号密码（Basic）或 token</b>；公开 pub_ 仅测试/低风险提醒。</p></div>
-        <div class="card"><h3>定位</h3><p>公开 topic 的低信任来源不拥有最高授权；私有 topic 收紧“谁能发”，但“谁授权”仍靠名单。</p></div>
+        <div class="card"><h3>回复也回到 topic</h3><p>标题 <span style="font-family:monospace;color:#ffdfaa">#dsh-superagent</span>，带幂等 marker；它的 tag 不会被入库过滤收成卡。</p></div>
+        <div class="card"><h3>入库过滤 tag</h3><p>只有带<b>入库 tag</b>（本部署 <code>dsh</code>）的消息才入库成卡；不带 tag 的留在 topic 当聊天，看板不再被闲聊塞满。</p></div>
+        <div class="card"><h3>生产建议</h3><p>优先私有 topic + <b>账号密码（Basic）或 token</b>；公开 pub_ 仅测试/低风险提醒；公开 topic 的低信任来源不拥有最高授权。</p></div>
       </div>
     </div>
   </section>
@@ -440,21 +443,79 @@
     <div class="content">
       <div class="flow">
         <div class="step"><b>01 装 bundle</b><span>设置 stateDir</span></div><div class="arrow">→</div>
-        <div class="step"><b>02 配三来源</b><span>Kanban / Gitea / ntfy</span></div><div class="arrow">→</div>
-        <div class="step"><b>03 测试连接</b><span>通过才保存</span></div><div class="arrow">→</div>
+        <div class="step"><b>02 配四来源</b><span>+ MinIO 卡</span></div><div class="arrow">→</div>
+        <div class="step"><b>03 测试连接 + 发宪章</b><span>宪章仓 README</span></div><div class="arrow">→</div>
         <div class="step"><b>04 定 Policy</b><span>allowed + 信任策略</span></div><div class="arrow">→</div>
         <div class="step"><b>05 验收</b><span>health 全 ready</span></div>
       </div>
       <div class="grid g3 fill">
         <div class="card k"><div class="bar"></div><h3>Kanban</h3><p>服务器 + API key + 项目 id；保存前自动探测，也可点「测试连接」。</p></div>
-        <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ owner/name；<b>测试通过再保存</b>。</p></div>
+        <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ <b>事件仓 owner/name</b> + <b>宪章仓 + 宪章文件</b>；<b>测试通过再保存</b>。</p></div>
         <div class="card n"><div class="bar"></div><h3>ntfy</h3><p>服务器 + topic + 认证：公开 <code style="color:#ffdfaa">pub_</code> 选 none；私有 topic 用账号+密码（basic）或 token。</p></div>
       </div>
-      <p class="small" style="text-align:center">验收：<code style="color:#b6f5d4">/orchestrator/api/state</code> 中 runtime / kaneo / gitea / ntfy 全部 ready，再让一条真实消息走完全流程。</p>
+      <p class="small" style="text-align:center">验收：<code style="color:#b6f5d4">/orchestrator/api/state</code> 中 runtime / kaneo / gitea / ntfy / s3 全部 ready；<b>切到 Team 视角先过权限自检</b>；宪章未发布时项目不接受任务（没有宪章不可开工）；再让一条真实消息走完全流程。</p>
     </div>
   </section>
 
-  <!-- 14 closing -->
+  
+  <!-- NEW · carriers -->
+  <section class="slide airy">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>NEW · 2026-11-06</div>
+      <h2>宪章有自己的仓库，任务、消息、资产各有载体</h2>
+      <p class="lead">一个载体一件事；凭据默认取本机存储记录（Masked Key），卡片可逐字段覆盖。</p>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
+        <tr><td><b>宪章</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code>（与事件仓库分开）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一派工来源；没有宪章的项目不接受任务</td></tr>
+        <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带入库 tag 的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
+        <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡</td><td>非代码交付物 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>
+      </table>
+      <div class="grid g3 fill" style="margin-top:8px">
+        <div class="card"><h3>Team 视角要先验权限</h3><p>切到 Team（PM）视角前查 <code>canManageFlow</code>；缺权限先说明再让你决定。岗位视角的「我的岗位设置」只改自己的岗位。</p></div>
+        <div class="card"><h3>岗位自己读宪章</h3><p><code>orchestrator_read charter</code> 返回版本、载体与正文——不需要 shell/HTTP，也不给岗位 Gitea 凭据。</p></div>
+        <div class="card"><h3>没有宪章不可开工</h3><p>评估接受与显式派工都会被拦成带 <code>noCharter</code> 理由的忽略；团队页红色提示，没有工单被创建。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEW · charter to charter -->
+  <section class="slide">
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>FROM CHARTER TO CHARTER · 2026-11-06</div>
+      <h2>一次值流闭环：<span class="accent">4 分 40 秒</span>，然后改流程、发新宪章</h2>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step"><b>读宪章 v11</b><span>Gitea README</span></div><div class="arrow">→</div>
+        <div class="step"><b>派卡</b><span>RSI · to-do</span></div><div class="arrow">→</div>
+        <div class="step"><b>ntfy 入库</b><span>9 秒</span></div><div class="arrow">→</div>
+        <div class="step"><b>工单</b><span>19 秒</span></div><div class="arrow">→</div>
+        <div class="step"><b>MinIO 交付</b><span>2 分 41 秒</span></div><div class="arrow">→</div>
+        <div class="step"><b>卡片 done</b><span>4 分 40 秒</span></div>
+      </div>
+      <div class="grid g2 fill" style="margin-top:14px">
+        <div class="card g"><div class="bar"></div><div class="num">复盘 · 发现的缺口</div>
+          <div class="list">
+            <div class="li"><span class="mk no">✕</span><div>岗位读不到 Gitea 宪章（无 shell/HTTP、无 gitea 资源）→ 新增 <code>orchestrator_read charter</code>，第二张卡实测读回 v11。</div></div>
+            <div class="li"><span class="mk no">✕</span><div>ntfy 换 topic 时游标可能跳过刚发的消息 → 换 topic 回退 600 秒（入库标记去重）。</div></div>
+            <div class="li"><span class="mk no">✕</span><div>交付物 key 两种写法并存 → 只保留 <code>deliverables/</code> 一种。</div></div>
+          </div>
+        </div>
+        <div class="card"><div class="bar" style="background:#8b7bff"></div><div class="num">改进 · 写进哪里</div>
+          <div class="list">
+            <div class="li"><span class="mk ok">✓</span><div>流程改进 → <b>SOP</b>（§3.6 值流闭环演练 + §4.1 开工先读宪章）。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div>规则改进 → <b>宪章 v12</b>（提交到 <code>shawoo/rsi_superagent/README.md</code>，narrative 读回 <code>carrier=gitea</code>）。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div>能力改进 → <code>orchestrator_read charter</code> 与新来源卡（MinIO / ntfy tag / 宪章仓独立）。</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<!-- 14 closing -->
   <section class="slide">
     <div class="head">
       <div class="kicker"><span class="dot"></span>TAKEAWAY</div>
