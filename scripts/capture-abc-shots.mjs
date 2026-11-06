@@ -1,16 +1,16 @@
 /**
- * Captures the SuperAgent panel screenshots used by ABC.md.
+ * Captures the SuperAgent Settings screenshots used by ABC.md.
  *
- * It opens the panel in headless Chrome, switches to the Team/post perspective and navigates the pages the quick guide
- * walks through, saving cropped, 2x captures of the relevant cards so the small panel text stays readable in the doc.
- * Re-run it when the panel copy or layout changes; the images live in images/abc/.
+ * ABC.md is organised by the Settings tabs, so this script opens the panel, goes to 设置 and walks the six group
+ * links (项目与岗位 / 来源 / 评估 / 执行), saving cropped 2x captures of what each tab shows. Re-run after UI copy or
+ * layout changes; images live in images/abc/.
  */
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const port = 9397
+const port = 9405
 const outDir = 'images/abc'
 mkdirSync(outDir, { recursive: true })
 const profile = mkdtempSync(join(tmpdir(), 'cdp-abc-'))
@@ -56,16 +56,24 @@ const capture = async (name, clip, scale = 2) => {
   writeFileSync(path, Buffer.from(image.result.data, 'base64'))
   console.log('saved', path, `${Math.round(clip.width)}x${Math.round(clip.height)}@${scale}`)
 }
-const click = pattern => evaluate(`(async () => {
+/** Clicks the Settings group link whose text matches the pattern (NOT the top navigation with the same names). */
+const clickGroup = pattern => evaluate(`(async () => {
   const re = new RegExp(${JSON.stringify(pattern)})
-  const els = [...document.querySelectorAll('button, a, [role=tab], [role=menuitem], [role=button]')]
-  const el = els.find(item => re.test((item.innerText || '').trim()) && item.offsetParent !== null)
+  const el = [...document.querySelectorAll('.dt-settings-link')].find(item => re.test((item.innerText || '').trim()))
   if (!el) return false
   el.click()
   await new Promise(r => setTimeout(r, 2200))
   return true
 })()`)
-/** The page rect of the first visible element matching `pattern` (scrolled into view so the clip covers it). */
+const clickTab = pattern => evaluate(`(async () => {
+  const re = new RegExp(${JSON.stringify(pattern)})
+  const el = [...document.querySelectorAll('button')].find(item => re.test((item.innerText || '').trim()) && item.offsetParent !== null)
+  if (!el) return false
+  el.click()
+  await new Promise(r => setTimeout(r, 2200))
+  return true
+})()`)
+/** The page rect of the first visible element matching `pattern`, scrolled into view so the clip covers it. */
 const rectOf = (pattern, ancestor) => evaluate(`(() => {
   const re = new RegExp(${JSON.stringify(pattern)})
   const nodes = [...document.querySelectorAll('h1,h2,h3,h4,p,div,span,label,td')]
@@ -99,34 +107,48 @@ try {
     }
     return false
   })()`)
-
-  // A. Team perspective: the panel at a glance.
+  // Team perspective at a glance (orientation).
   await capture('a1-panel-team.png', { x: 280, y: 0, width: 1304, height: 905 }, 1.45)
 
-  // B. Settings -> project & posts: the exchange fields, the charter, the duties and the post card.
-  console.log('settings:', await click('^(設定|设置)$'))
-  console.log('project group:', await click('項目與崗位|项目与岗位'))
+  // Settings: the tab list, then the four tabs ABC.md walks through.
+  console.log('settings tab:', await clickTab('^(設定|设置)$'))
+  await sleep(1500)
+  const navRect = await evaluate(`(() => {
+    const first = document.querySelector('.dt-settings-link')
+    if (!first) return null
+    const box = first.closest('nav, aside, [class*=nav], [class*=group]') || first.parentElement
+    const r = box.getBoundingClientRect()
+    return JSON.stringify({ x: Math.max(0, r.x + window.scrollX - 8), y: Math.max(0, r.y + window.scrollY - 8),
+      width: Math.min(320, r.width + 16), height: Math.min(600, r.height + 16) })
+  })()`)
+  if (navRect) await capture('a0-settings-tabs.png', JSON.parse(navRect), 2)
+
+  console.log('project tab:', await clickGroup('項目與崗位|项目与岗位'))
   await sleep(1200)
   await capture('a2-project-fields.png', await clipFromText('選擇項目…|选择项目…', 360, '.dt-archive-card'))
   await capture('a3-charter.png', await clipFromText('憲章正文|宪章正文', 760, '.dt-section'))
   await capture('a4-duties.png', await clipFromText('職責說明|职责说明', 700, '.dt-section'))
   await capture('a5-posts.png', await clipFromText('Kanban 賬號（登入郵箱）|Kanban 账号（登录邮箱）', 720, '.dt-section'))
 
-  // C. Sources: the four system cards.
-  console.log('sources:', await click('^(來源|来源)$'))
-  await sleep(1500)
+  console.log('sources tab:', await clickGroup('^(來源|来源)$'))
+  await sleep(1200)
   await capture('a6-sources.png', { x: 280, y: 0, width: 1304, height: 905 }, 1.45)
 
-  // D. Post perspective: the worker's own seat.
-  console.log('post perspective:', await click('崗位視角|岗位视角'))
+  console.log('evaluation tab:', await clickGroup('^(評估|评估)$'))
+  await sleep(1200)
+  await capture('a7-evaluation.png', await clipFromText('接單模式|接单模式', 800, '.dt-page'))
+
+  console.log('execution tab:', await clickGroup('^(執行|执行)$'))
+  await sleep(1200)
+  await capture('a8-execution.png', await clipFromText('執行器模型|执行器模型', 760, '.dt-page'))
+
+  // Worker perspective: confirm the seat (read-only).
+  console.log('post perspective:', await clickTab('^(崗位視角|岗位视角)$'))
   await sleep(2500)
   await capture('b1-panel-post.png', { x: 280, y: 0, width: 1304, height: 905 }, 1.45)
-  console.log('my post:', await click('我的崗位|我的岗位'))
+  console.log('my post:', await clickTab('我的崗位|我的岗位'))
   await sleep(1500)
   await capture('b2-my-post.png', await clipFromText('監聽列|监听列', 620, '.dt-page'))
-  console.log('my duties:', await click('我的職責|我的职责'))
-  await sleep(1500)
-  await capture('b3-my-duties.png', { x: 280, y: 0, width: 1304, height: 905 }, 1.45)
 } finally {
   socket.close()
   child.kill()
