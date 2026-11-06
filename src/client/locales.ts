@@ -830,6 +830,8 @@ const TEXT = {
   'reason.noCharter': ['这个项目还没有发布宪章，不能开工', 'The project has no published charter; work cannot start'],
   'reason.dutyUndefined': ['卡片声明的职责在职责说明里没有定义', 'The card names a duty the duties document does not define'],
   'reason.dutyUnsupported': ['这个职责由别的岗位承接', 'This duty is taken by other posts'],
+  'reason.pmExecutionNotAllowed': ['PM 岗位默认不执行工人职责（除非宪章写明「PM 可执行职责」）',
+    'A PM post does not execute worker duties unless the charter allows it'],
   'reason.ignoredFromCard': ['仅凭候选卡片忽略，未经规则研判', 'Ignored from its card, without a rule assessment'],
   'reason.observed': ['观察模式：本会接单（{text}）', 'Observe mode: would accept ({text})'],
   'reason.explicitRouted': ['名单里的人明确请求，由主 Session 接单', 'Explicit request from someone on the list, accepted by the main Session'],

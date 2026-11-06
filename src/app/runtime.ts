@@ -49,6 +49,7 @@ import { executorTools, type ExecutorToolsHost } from './tools/executor.ts'
 import { enrichTicket, readArchive } from './narrative.ts'
 import { charterAllows as charterAllowsFor, charterTarget, readCharter } from './charter.ts'
 import { dutyBrief, dutyGate, readDuties } from './duties.ts'
+import { pmExecutionGate } from './pm-execution.ts'
 import { storedConnections } from '../sources/bdd-storage.ts'
 
 // Source plugins interact with dsh-superagent exclusively through the `SourceHost` service interface.
@@ -122,7 +123,18 @@ export class Runtime extends Service implements SourceHost {
       // 没有宪章不可开工: the project must have a published charter before a trigger becomes a ticket.
       const charterAllows = (trigger: Trigger) => charterAllowsFor(readArchive(machine.stateDir), charterTarget(sources), trigger)
       // 职责说明与宪章同仓：卡片 duty:<id> 的校验与简报都从这里解析，Host 不需要配置职责内容。
-      const dutyOf = (trigger: Trigger) => dutyGate(charterTarget(sources), readArchive(machine.stateDir), trigger)
+      // PM 岗位默认不执行工人职责：除非当期宪章写明「PM 可执行职责」，先由宪章放行再校验职责。
+      const dutyOf = async (trigger: Trigger) => {
+        const archive = readArchive(machine.stateDir)
+        const projectId = typeof trigger.meta?.projectId === 'string' ? trigger.meta.projectId : undefined
+        const project = projectId ? archive.projects.find(item => item.id === projectId) : undefined
+        if (project) {
+          const charter = await readCharter(project, charterTarget(sources))
+          const pm = pmExecutionGate(archive, charter.text, trigger)
+          if (pm.refuse) return pm
+        }
+        return dutyGate(charterTarget(sources), archive, trigger)
+      }
       // `orchestrator_read duty`: the spec the worker's own ticket names, with the brief it was given.
       const dutyOfTicket = async (ticketId: string) => {
         const ticket = store.tickets.get(ticketId)

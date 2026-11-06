@@ -24,6 +24,7 @@ export const REASONS = {
   noCharter: 'The project has no published charter: publish one before work starts',
   dutyUndefined: 'The card names a duty the project has not defined: write it in the duties document beside the charter',
   dutyUnsupported: 'The duty is taken by other posts: assign the card to a post that takes it',
+  pmExecutionNotAllowed: 'A PM post does not execute worker duties unless the published charter allows it (PM 可执行职责): assign the card to a worker post, or state the allowance in the charter',
   ignoredFromCard: 'Ignored from its card, without a rule assessment',
   observed: 'Observe mode: would accept ({text})',
 } as const

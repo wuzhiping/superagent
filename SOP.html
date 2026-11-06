@@ -691,6 +691,7 @@ publishedBy: pm-rsi
             <div class="li"><span class="mk ok">✓</span><div><b>主会话显式派工</b>（<code>orchestrator_route</code>）：同样拒绝，返回「Ticket was not created」。</div></div>
             <div class="li"><span class="mk dot">•</span><div>不属于任何项目的事件不设闸门；面板团队页对缺宪章的项目显示红色提示。</div></div>
             <div class="li"><span class="mk ok">✓</span><div><b>职责闸门</b>：<code>duty:&lt;id&gt;</code> 未定义 → 带 <code>dutyUndefined</code> 的忽略；岗位不承接 → <code>dutyUnsupported</code>；都不建工单。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div><b>PM 闸门</b>：卡片落在 PM 岗位时，除非宪章写明「PM 可执行职责」→ <code>pmExecutionNotAllowed</code>；PM 不给自己派活。</div></div>
           </div>
         </div>
         <div class="card w"><span class="bar"></span>

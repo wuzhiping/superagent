@@ -199,7 +199,7 @@ export async function publishDuties (target: CharterTarget, text: string, publis
 /** What the host decides about a card's duty before the card becomes a ticket. */
 export interface DutyGate {
   /** Set when the card must not start: an unknown duty, or a duty its post does not take. */
-  refuse?: { code: 'dutyUndefined' | 'dutyUnsupported'; detail: string }
+  refuse?: { code: 'dutyUndefined' | 'dutyUnsupported' | 'pmExecutionNotAllowed'; detail: string }
   /** The compact brief the worker reads before it starts. */
   brief?: string
   /** The spec itself, for the panel and `orchestrator_read duty`. */

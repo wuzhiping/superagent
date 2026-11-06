@@ -1,4 +1,4 @@
-import "./kind-Dfy9J4Q-.js";
+import "./kind-Bpsd_DUt.js";
 import "./kaneo-api-BvU5fGZP.js";
 //#region src/sources/kaneo-inbox.d.ts
 /** One event of another Source, as it is filed. */

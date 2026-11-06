@@ -70,3 +70,13 @@ interface DutySpec {
 - 工单需要代码仓库时，由 Kanban 卡片的 `repo:owner/name` 标签提供（`enrichTicket` 既有逻辑），不在 Gitea 来源卡上配置。
 - **岗位视角的来源设置只读**：来源由 PM 在 Team 视角配置；岗位视角里字段被禁用、没有保存按钮，只显示提示。
 - 线上验证：Gitea 健康 `charter repository shawoo/rsi_superagent readable; issues and pull requests are not watched`；岗位视角来源页 `disabledFieldsets=4`、无保存条、提示可见；Team 视角的 Gitea 卡片不再出现「事件仓库」。
+
+## 7. 2026-11-06 追加：PM 岗位默认不执行工人职责
+
+职责说明解决“这张卡归哪个岗位承接”，但没有回答“PM 岗位是不是工人”。按用户要求补一条更前置的规则：
+
+- 卡片指派的岗位是 `role: pm` 时，评估接受与主会话显式派工都先过 **PM 闸门**：只有**当期宪章**明确写 `PM 可执行职责：<职责 id 列表>`（或 `PM 可执行职责：*` / `pm-executes:`）才放行；否则拒绝（`pmExecutionNotAllowed`），不建工单。
+- 没有 `duty:` 标签的卡片在 PM 岗位下只允许 `*`；列出具体职责时，无标签卡一律拒绝。
+- 规则实现：`src/app/pm-execution.ts`（`pmAllowance` / `pmExecutionGate`），在 `src/app/runtime.ts` 的 `dutyOf` 里先于职责文档校验；宪章文本来自当期宪章的发布载体（缓存 30s）。
+- 演示与文档：SOP §3.7 与闸门、SOP deck 第 20 页；worker prompt 增加一句说明。
+- bug 修正：`DutyGate.refuse.code` 追加 `pmExecutionNotAllowed`；`src/core/reasons.ts` 与面板 locales 同步。

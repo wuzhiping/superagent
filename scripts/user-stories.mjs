@@ -136,7 +136,8 @@ story('US-02', 'PM', '派工：建卡、指派给岗位账号、放进监听列'
   const watched = await watchedColumn()
   const { projects } = await archive()
   const project = projects.find(item => item.id === options.project)
-  const post = project?.posts.find(item => item.role === 'pm')
+  const post = project?.posts.find(item => item.role === 'worker' && item.kaneoUserId)
+    ?? project?.posts.find(item => item.role === 'pm')
   if (!post?.kaneoUserId) return { checks: { 'dispatch.has-kaneo-identity': false }, evidence: { note: 'no KanEO identity for the PM post' } }
   // A card is dispatched in the order a PM works: it starts outside the watched column, gets its labels and its
   // assignee, and only then enters the column the posts watch — a card that enters first is read once and never again.
@@ -216,7 +217,8 @@ async function dutyWithRedispatch (taskId, timeoutMs, watched = 'ready') {
 story('US-03', '岗位', '接单：工单落到正确的岗位上', async () => {
   if (!created) return { checks: { 'claim.ticket-found': false }, evidence: { note: 'US-02 did not create a card' } }
   const { projects } = await archive()
-  const post = projects.find(item => item.id === options.project)?.posts.find(item => item.role === 'pm')
+  const post = projects.find(item => item.id === options.project)?.posts.find(item => item.role === 'worker' && item.kaneoUserId)
+    ?? projects.find(item => item.id === options.project)?.posts.find(item => item.role === 'pm')
   const watched = await watchedColumn()
   const { duty, attempts } = await dutyWithRedispatch(created, options.timeout * 1000, watched)
   if (!duty) {
@@ -348,7 +350,7 @@ story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗
   const filedTask = await kaneo.getTask(filed.id)
   // The PM dispatches it: assign the post and move it into the watched column. The story label keeps the run's
   // narrowing (only labelled cards become requests) from swallowing the filed card.
-  const post = project.posts.find(item => item.role === 'pm')
+  const post = project.posts.find(item => item.role === 'worker' && item.kaneoUserId) ?? project.posts.find(item => item.role === 'pm')
   const watched = await watchedColumn()
   await attachLabel(options.label, filed.id, '#8250df')
   await kaneo.api('PUT', `/task/assignee/${encodeURIComponent(filed.id)}`, { userId: post.kaneoUserId })
@@ -506,6 +508,9 @@ async function narrow () {
   saved.eval = { value: settings.blocks.eval.value, revision: settings.blocks.eval.revision }
   saved.sources = {}
   for (const source of settings.sources) saved.sources[source.id] = { value: source.value, revision: source.revision }
+  // The stories dispatch and deliver through a worker post; a PM seat must not execute worker duties (the host
+  // refuses those cards). Keep the archive so restore() removes the temporary post again.
+  saved.archive = await ensureStoryWorker()
   // The assessor acts on its own, so an explicit request becomes a duty.
   await panel('settings/eval', { method: 'PUT', body: { value: { ...saved.eval.value, mode: 'auto' }, revision: saved.eval.revision } })
   // Only the story card is a request; the other Sources stay quiet during the run.
@@ -520,6 +525,28 @@ async function narrow () {
       value: { ...source.value, enabled: false }, revision: source.revision } })
   }
   await waitForService()
+}
+
+/** Adds a temporary worker post when the project has no worker seat, so the stories do not dispatch to the PM. */
+async function ensureStoryWorker () {
+  const current = await panel('project-archive')
+  const savedArchive = { archive: current.archive, revision: current.revision }
+  const project = current.archive.projects.find(item => item.id === options.project)
+  if (!project) return savedArchive
+  if (project.posts.some(post => post.role === 'worker' && post.kaneoUserId)) return savedArchive
+  const members = await panel(`kaneo-users?projectId=${encodeURIComponent(options.project)}`)
+  const used = new Set(project.posts.map(post => post.kaneoUserId))
+  const member = (members.users ?? []).find(item => item.email && !used.has(item.id))
+  if (!member) { console.error('no free Kanban member for the story worker post'); return savedArchive }
+  const settings = await panel('settings')
+  const watchColumns = String(settings.sources.find(source => source.id === 'kaneo')?.value?.config?.watchColumns ?? 'ready')
+  const post = { postId: 'w-story', role: 'worker', name: 'SuperAgent Worker (story)', kaneoUser: member.email, kaneoUserId: '',
+    giteaUser: '', ntfySender: '', wipLimit: 3, instance: 'web', watchColumns }
+  const archive = { ...current.archive, projects: current.archive.projects.map(item =>
+    item.id === project.id ? { ...item, posts: [...item.posts, post] } : item) }
+  await panel('project-archive', { method: 'PUT', body: { archive, revision: current.revision } })
+  console.log(`added the temporary story worker post for ${member.email}`)
+  return savedArchive
 }
 
 /** Restores every setting the run changed. */
@@ -548,8 +575,25 @@ async function restore () {
     }
   }
   if (saved.eval) {
-    const settings = await panel('settings')
-    await panel('settings/eval', { method: 'PUT', body: { value: saved.eval.value, revision: settings.blocks.eval.revision } })
+    // A settings save restarts the plugin; retry until the saved eval value is really back.
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      try {
+        const fresh = await panel('settings')
+        await panel('settings/eval', { method: 'PUT', body: { value: saved.eval.value, revision: fresh.blocks.eval.revision } })
+        await waitForService()
+        const applied = await panel('settings')
+        if (String(applied.blocks.eval.value.mode) === String(saved.eval.value.mode)) break
+      } catch (error) {
+        if (attempt === 5) console.error(`could not restore the eval settings: ${error.message}`)
+        else await sleep(3000)
+      }
+    }
+  }
+  if (saved.archive) {
+    try {
+      const current = await panel('project-archive')
+      await panel('project-archive', { method: 'PUT', body: { archive: saved.archive.archive, revision: current.revision } })
+    } catch (error) { console.error(`could not restore the project archive: ${error.message}`) }
   }
   await waitForService()
 }

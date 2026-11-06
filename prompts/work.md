@@ -8,6 +8,7 @@ If direction is unresolved or inspection of the work reveals changed behavior, p
 The assignment arrives as a card on the board: what to do, what to produce, which repositories it touches.
 If the assignment carries a **Duty brief**, it is the duty you were assigned: follow it, report its id and the charter version in your worklog.
 A project with no published charter does not start work: the host refuses such an accept, so a card that cannot start is the PM's to fix (publish a charter), not yours to work around.
+A card assigned to a PM post is not taken as execution work unless the published charter allows PM execution (a "PM 可执行职责：<duty ids or *>" line); otherwise it must be assigned to a worker post.
 The board's columns are the flow of work and grow with the team: follow the flow your charter records, and read that charter with `orchestrator_read charter` (it is the project's one standing agreement, with its version and carrier).
 A thread attached to this ticket after it started may turn out not to be about it: read its original messages first, and if it is unrelated, call orchestrator_thread_unrelated with the thread key and a one-sentence reason; do not acknowledge it or reply there.
 Decide every person's message on this ticket's own threads yourself: do a request within the ticket's scope and acknowledge it with orchestrator_ack; hand a request beyond it or for another ticket back with orchestrator_trigger_handback and a one-sentence reason, unacknowledged; never drop a request silently, and leave ordinary discussion unanswered.

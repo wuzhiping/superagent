@@ -41,6 +41,13 @@
 - 修掉三类“测试债”：`model-surface` 的 delivery 段落引用了测试部署未注册的 `DSH_SUPERAGENT_KANEO_PROJECT`（改成通用的 `<project id>/<ticket id>` 键写法），并把两处过时的字符预算更新到功能增长后的真实大小（orchestrator 61.5k / worker 43.5k，保留回归用途）；`class-docs` 给 `NtfyError` 补 JSDoc；`docs.spec` 修 Windows 路径比较、模块表按行任意单元格识别路径，并补齐 007 模块表里缺的 8 个 client 文件。
 - 其余未绿套件是**环境限制**、不是本次改动：缺 `@deepseek-ai/cordis-plugin-include` / `dsh-http-proxy` 等包、Windows 无 `sh`/`sleep`/`fcntl`/`gh`/`lark-cli`、文件权限位与 bash 退出码语义差异、长超时用例在 Windows 上超时（runtime、runtime-concurrency、service-script、sources、commands、store、outbox、queue、bundle-patch、client、deployment、panel-deployment 等）。
 - **端到端 story 套件**（`scripts/user-stories.mjs`）：首跑 10/11，US-10 失败是因为它用空 tags 发 ntfy 消息，而 ntfy 入库按 tag 过滤——已改为用部署配置的 `ingestTags` 发布；随后两次中途跑出现执行器会话卡住（工单两次派工均无报告，已停止该工单并单跑 US-10 通过）与 US-06 的看板截断断言随看板变大而失效，把该断言改为不依赖看板大小；**最终跑 11/11 全部通过**（`TDD/artifacts/user-stories-us-20261106043545.json`）。
+### PM 岗位默认不执行工人职责（2026-11-06）
+
+- 新闸门：卡片指派的岗位 `role: pm` 时，除非**当期宪章**写明 `- PM 可执行职责：<职责 id, …>`（或 `*`），评估接受与显式派工都改成带 `pmExecutionNotAllowed` 理由的忽略，不建工单。没有 `duty:` 标签的卡只在 `*` 下放行。
+- 实现：`src/app/pm-execution.ts`（`pmAllowance` / `pmExecutionGate`），在 `src/app/runtime.ts` 的 `dutyOf` 里、职责文档校验之前执行；理由码与面板中英文案已加；worker prompt 增加一句。
+- 影响：只有 PM 岗位的项目将不能再让 PM 直接执行卡片——需要新建工人岗位（岗位身份填其 Kanban 登录邮箱），或在宪章里显式放行 PM 执行。story 套件已改为在 narrow 时临时补一个工人岗位（`w-story`），跑完 restore 删除。
+- 测试：`tests/pm-execution.spec.ts` 9 条；SOP/TDD 016 同步。
+
 ### 岗位 Kanban 账号填邮箱，宿主映射成使用者 id（2026-11-06）
 
 - 面板「项目与岗位设置」的岗位身份不再要求填 Kanban 使用者 id：填**登录邮箱**（下拉里是该工作区成员，带姓名与 id），存档时宿主用 `GET /workspace/<id>/members` 把它映射成 `kaneoUserId` 再写档案；旧档案只有 id 也继续有效（不填邮箱就不动 id）。

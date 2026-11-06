@@ -120,6 +120,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 - **凭据默认来自存储记录**：四张来源卡片的凭据都默认取本机存储记录（`/BDD/API/AI/dsh/storage/<service>`，Masked Key），留空即用记录值、填写即覆盖；密钥只在宿主内存里，不写进设置文件。
 - **权限自检 ✅**：宿主回答「这台 Host 的 Kanban 账号是谁、什么角色」（`GET capabilities`）；**切到 Team 视角前**会检查它有没有管理权限（`canManageFlow`），没有时弹窗说明账号、角色与缺的权利，Team 视角里常驻权限横幅。
 - **没有宪章不可开工 ✅**：项目在宪章发布前（版本 0）不接受任务——评估接受与主会话显式派工都会被改成带「没有宪章」理由的忽略；团队页会显示红色提示。
+- **PM 不给自己派活 ✅**：卡片指派的岗位若属于 **PM 岗位**，默认拒绝执行（`pmExecutionNotAllowed`，不建工单）——PM 管流程、派工和异常；确实要 PM 兼做时，必须在**宪章**里写明 `PM 可执行职责：doc, req-analysis`（或 `*` 表示全部）才放行。
   （member 账号不能改看板流程 ✅ ✅ —— 会明确提示 ✅ ✅ ✅）。
 
 > 一句话：**PM 那台用 admin key ✅ ✅，其余用 member key ✅ ✅** ✅ ✅ ✅。
@@ -248,7 +249,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 - 编辑：Team 视角 → 设置 → 项目与岗位 → 「职责说明」→ 写完点「发布」，即向 Gitea 提交一次（commit 历史即版本历史）。
 - 格式：### <职责 id> · <名称>，下面用 - 字段：值 写 承接岗位、目标、完成、载体、宪章关注、知识、资源、工具、技能、接单、步骤、常见坑。
 - 卡片用 duty:<职责 id> 标签声明职责；承接岗位 列出能接这个职责的岗位 id。
-- 闸门：职责未定义 → 拒绝（dutyUndefined）；职责由别的岗位承接 → 拒绝（dutyUnsupported）；都不会建工单。
+- 闸门：职责未定义 → 拒绝（dutyUndefined）；职责由别的岗位承接 → 拒绝（dutyUnsupported）；卡片落在 PM 岗位且宪章没有写明「PM 可执行职责」→ 拒绝（pmExecutionNotAllowed）；都不会建工单。
+- PM 岗位默认只做管理（宪章、派工、审进度、异常），**不执行工人职责**；要让 PM 兼做，在宪章里加一行 `- PM 可执行职责：<职责 id, …>`（`*` = 全部），再在职责说明里把该职责的「承接岗位」加上 PM 岗位 id。
 - 岗位开工时派工说明里带 **Duty brief**，并可 orchestrator_read duty 读完整规格。
 
 ## 4. 岗位（Worker）的日常 SOP

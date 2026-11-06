@@ -355,6 +355,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/app/duties.ts` | The project's duties document (`duties.md` beside the charter, in Gitea): parsing, reading and publishing it, the `duty:` gate and the brief a worker reads |
 | `src/app/charter.ts` | The project charter and its carriers: the Gitea repository file (`readGiteaCharter`, `publishCharter`), the Kanban project description it falls back to, `publishWindow` (once a week), `stampCharter`, `kaneoAccount` and `giteaCharter` |
 | `src/app/capabilities.ts` | The Kanban account behind this Host and the rights it has (`GET capabilities`, paused in the panel) |
+| `src/app/pm-execution.ts` | The PM execution rule: the charter line that allows a PM post to execute (`PM 可执行职责`), and the gate that refuses a card assigned to a PM post without it |
 | `src/app/narrative.ts` | The project archive: projects, posts and the charter copy the panel reads and writes, with the topic convention and the version history |
 | `src/app/kaneo-users.ts` | The friendly Kanban account on a post: matching an e-mail (or id) to the workspace member, and resolving every post's `kaneoUser` to its `kaneoUserId` when the archive is saved |
 | `src/app/projects.ts` | The project list the panel picks from (`GET projects`): the account's workspaces and their projects, cached briefly, with the problem when the read fails |
@@ -459,6 +460,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/panel-panel.spec.tsx` | The panel itself: routes, search, glossary and the settings groups |
 | `tests/narrative.spec.ts` | The archive: projects, posts, the topic default, the charter text and the version history |
 | `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
+| `tests/pm-execution.spec.ts` | PM 岗位执行闸门：宪章允许行的解析、按职责/通配放行、无宪章时拒绝 |
 | `tests/duties.spec.ts` | 职责说明的解析、岗位承接闸门、`dutyOutcome` 与简报 |
 | `tests/kaneo-users.spec.ts` | 岗位的 Kanban 邮箱映射：按邮箱/id 匹配成员、解析时补 `kaneoUserId`、未知邮箱报错 |
 | `tests/charter-gate.spec.ts` | 没有宪章不可开工: the charter gate per archived project, and `gateOutcome` turning an accept into an ignore with the reason |
