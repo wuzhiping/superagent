@@ -1,21 +1,21 @@
 ---
 name: kaneo-mcp
-description: 透過 Kanban（https://pl.feg.cn，MCP 38 個工具 + 底層 REST）查詢與操作工作區、專案、任務、評論、標籤、關聯、時間紀錄與通知，並設定專案工作流：看板欄位（新增／改名／排序／刪除）、自動化規則與自訂欄位。當使用者提到 Kanban、pl.feg.cn、專案管理、任務看板、pipeline、工作流、欄位、自動化、待辦、指派、工時時使用。
+description: 透過 Kaneo（https://pl.feg.cn，MCP 38 個工具 + 底層 REST）查詢與操作工作區、專案、任務、評論、標籤、關聯、時間紀錄與通知，並設定專案工作流：看板欄位（新增／改名／排序／刪除）、自動化規則與自訂欄位。當使用者提到 Kaneo、pl.feg.cn、專案管理、任務看板、pipeline、工作流、欄位、自動化、待辦、指派、工時時使用。
 ---
 
 # kaneo-mcp
 
-以 `scripts/kaneo_mcp.mjs` 呼叫 Kanban：MCP 端點 `https://pl.feg.cn/api/mcp`（38 個工具），
+以 `scripts/kaneo_mcp.mjs` 呼叫 Kaneo：MCP 端點 `https://pl.feg.cn/api/mcp`（38 個工具），
 以及 MCP 沒暴露的底層 REST API `https://pl.feg.cn/api`（工作流設定）。
 相對路徑以本 skill 的基礎目錄為準。
 
 > 38 個工具的中文逐項說明見 `references/tools.zh.md`；工作流 REST 端點見 `references/workflow-rest.zh.md`；
-> **Kanban 官方 OpenAPI 規格**（170 paths / 221 ops）見 `references/openapi.json`，中文導讀見 `references/openapi.zh.md`。
+> **Kaneo 官方 OpenAPI 規格**（170 paths / 221 ops）見 `references/openapi.json`，中文導讀見 `references/openapi.zh.md`。
 
-## 使用前：放入你自己的 Kanban API key
+## 使用前：放入你自己的 Kaneo API key
 
 本 skill **不含任何憑證**：分享包裡沒有 `.key`，也沒有 `.cache/`（token 快取）。憑證一律自備
-（Kanban 後台 → Settings → API keys 建立，到期日留空即永不過期）：
+（Kaneo 後台 → Settings → API keys 建立，到期日留空即永不過期）：
 
 ```powershell
 node .dsh\skills\kaneo-mcp\scripts\kaneo_mcp.mjs key <你的-kaneo-api-key>
@@ -43,8 +43,8 @@ node … kaneo_mcp.mjs key
 
 | 路徑 | 認證方式 | 狀態 |
 | --- | --- | --- |
-| `/api/mcp`（MCP 38 個工具） | `Authorization: Bearer <Kanban API key>` | ✅ 2026-10-16 重新部署後支援 |
-| `/api/*`（REST，工作流設定） | `x-api-key: <Kanban API key>` | ✅ |
+| `/api/mcp`（MCP 38 個工具） | `Authorization: Bearer <Kaneo API key>` | ✅ 2026-10-16 重新部署後支援 |
+| `/api/*`（REST，工作流設定） | `x-api-key: <Kaneo API key>` | ✅ |
 
 **不需要瀏覽器、不需要 OAuth、token 不會過期。** 腳本自動處理兩條路，優先用 API key。
 
@@ -106,8 +106,8 @@ node $S rest PATCH /task/bulk --args-file bulk.json   # {"taskIds":["..."],"oper
 node .dsh\skills\kaneo-mcp\scripts\kaneo_mcp.mjs login
 ```
 
-1. 在 `127.0.0.1` 隨機埠起回呼伺服器，自動開瀏覽器到 Kanban 授權頁
-2. 你在頁面上按「核准」（未登入會先要你登入 Kanban）
+1. 在 `127.0.0.1` 隨機埠起回呼伺服器，自動開瀏覽器到 Kaneo 授權頁
+2. 你在頁面上按「核准」（未登入會先要你登入 Kaneo）
 3. 瀏覽器導回本機回呼，程式自己接住 `code` → 換 30 天 token → 存進 `.cache/token.json`
 
 實測：監聽 `127.0.0.1:11993` → 核准 → 回呼 → token 到期 2026-11-15。此後 30 天內每次呼叫都會自動續期。
@@ -126,6 +126,7 @@ node scripts/kaneo_mcp.mjs tools --json          # JSON 格式
 node scripts/kaneo_mcp.mjs whoami                # 目前登入者
 node scripts/kaneo_mcp.mjs workspaces            # 工作區清單
 node scripts/kaneo_mcp.mjs token                 # 目前快取的 MCP token 到期時間
+node scripts/kaneo_mcp.mjs quota                 # 目前 API key 的限流額度（limit/remaining/reset）
 node scripts/kaneo_mcp.mjs token --refresh       # 立即續期（自我續期，不需瀏覽器）
 node scripts/kaneo_mcp.mjs call list_projects '{"workspaceId":"lDarCeUJYbUhFu3xotTtH5Q3QTWTcQ9o"}'
 node scripts/kaneo_mcp.mjs call get_task_by_ticket_id '{"ticketId":"FDE-59"}'
@@ -203,7 +204,7 @@ node $S tasks $pj --all --limit 50                 # 全專案（自動翻頁、
 
 ## 工作流設定（走 REST，MCP 做不到）
 
-Kanban 的「Workflow」設定頁有三塊：**Columns**、**Custom fields**、**Automations**。
+Kaneo 的「Workflow」設定頁有三塊：**Columns**、**Custom fields**、**Automations**。
 MCP 只提供 `list_project_columns`（唯讀），其餘要走底層 REST —— 腳本已內建並用 `.key` 直接認證
 （同一支 key 在 `/api/mcp` 會被拒，在 `/api/*` 可用，這是兩條不同的認證路徑）。
 
@@ -234,11 +235,74 @@ node $S columns reorder <projectId> --args-file order.json      # {"columns":[{"
   之前是 404）。這個 CLI 沒有專屬子命令，用 `rest` 操作即可，端點清單見 `references/workflow-rest.zh.md`。
 - 寫入需要 `project:update`；`wu.zhiping@feg.cn` 是 workspace owner，已實測可寫。
 
+## 429 速率限制（怎麼解、怎麼避）
+
+### 根因
+
+Kaneo 的 API key 有硬性限流：**100 次 / 60 秒 / 每把 key**（better-auth `rateLimitMax=100`,
+`rateLimitTimeWindow=60000`）。這個額度是**按 key 計**，所以任何共用同一把 key 的消費者都會互相搶：
+
+- 本 skill 的 CLI（每次 `board` = 1 + N 次請求；`tasks --all` = 分頁數）
+- DSH 的 **kaneo-web 面板**（用同一把 key 登入 iframe 裡的 Kaneo UI）
+- 瀏覽器上直接開的 Kaneo 頁面、其他 agent／腳本
+
+額度一耗盡，**下一個請求不論多輕都會 429**（例如截圖裡的
+`[429] GET /task/n27n0xn89mhaplnffnuriho`）——這不是那支端點壞了，是整個 key 的窗口被打爆。
+
+### CLI 現在的處理（v0.4 起）
+
+伺服器在**每個回應**都帶限流標頭，CLI 直接照著算，不再瞎猜：
+
+```
+x-ratelimit-limit: 100
+x-ratelimit-remaining: 98
+x-ratelimit-reset: 1793942651000   # 重置時刻
+Retry-After                          # 429 時也會帶
+```
+
+| 行為 | 說明 |
+| --- | --- |
+| **主動節流** | 每次請求後記住 `remaining`；剩 ≤ 3 時先睡到 `reset` 再發，**避免打進 429** |
+| **精確退避** | 真遇到 429 → 依 `Retry-After` 或 `x-ratelimit-reset` 等到窗口重置（可長達 60 秒），不用猜 3/6/9 秒 |
+| **重試上限** | 最多 6 次，單次等待上限 `KANEO_MCP_MAX_WAIT_MS`（預設 90000） |
+| **明確失敗** | 重試耗盡 → 印 `# 429 未解除（已重試 5 次）。可稍後再跑，或為不同用途各配一把 API key。`，結束碼 1 |
+| **欄位快取** | 同一行程內 `/column/{projectId}` 快取 60 秒（`board`／`tasks` 共用） |
+
+實測（mock 伺服器，不消耗真實配額）：連續兩次 429 後自動等到窗口重置並成功；持續 429 時 6 次後
+明確失敗；`remaining=1` 時下一請求會先等待。真實環境冒煙時實際遇到
+`# 配額剩 0/100，先等 61 秒至窗口重置` 並正常完成。
+
+### 操作建議（依效果排序）
+
+1. **每個消費者一把專用 key**（最有效）。Kaneo 後台可建多把 key，各自獨立計算 100/60s：
+   - `kaneo-mcp` → 給本 skill
+   - `kaneo-web` → 給 DSH 面板
+   - 其他自動化再各一把
+
+   這樣面板或 UI 爆量時，agent 不會被連坐。
+2. **不要並行跑多個 CLI**。同一把 key 上 `Promise.all` 或背景任務同時打，等於自相殘殺。
+3. **減少請求數**：
+   - `board` = N+1 次（8 欄 = 9 次）；只要總數就用 `GET /task/assigned?countOnly=true`
+   - 批次改多筆用 `rest PATCH /task/bulk`（一次取代 N 次 `update_task_status`）
+   - `tasks --all` 的頁數 = `ceil(total/limit)`，需要全部才用 `--all`
+4. **先看額度再跑批次**：`node kaneo_mcp.mjs quota`
+
+```powershell
+node .dsh\skills\kaneo-mcp\scripts\kaneo_mcp.mjs quota
+# { "limit": 100, "remaining": 98, "resetInSeconds": 60, "windowSeconds": 60 }
+```
+
+### 若 429 來自 kaneo-web 面板（不是本 skill）
+
+面板是 iframe 載入 Kaneo 網頁、用 `/api/auth/api-key/sign-in?key=...` 登入，它**不經過本 skill 的
+重試層**。解法同樣是給它一把獨立 key（或在面板設定裡改用它自己的 key），並避免讓面板與 agent
+共用同一把。
+
 ## 疑難排解
 
 | 現象 | 處理 |
 | --- | --- |
-| `401 invalid_token`（MCP 呼叫） | 先確認 API key 是否還有效（Kanban 後台 API keys）；腳本依序試 API key → 已存 OAuth session → 重新登入，全被拒才會要你 `login` |
+| `401 invalid_token`（MCP 呼叫） | 先確認 API key 是否還有效（Kaneo 後台 API keys）；腳本依序試 API key → 已存 OAuth session → 重新登入，全被拒才會要你 `login` |
 | `consent failed (… 401 {"error":"unauthorized"})` | 只在走 OAuth 備援時出現；session 已失效 → 再 `login` 一次 |
 | `whoami` 回 `null` | 正常：API key 沒有 better-auth session，改用 `node … whoami`（CLI 會轉用 REST）或看 `list_workspaces` |
 | `未取得授權碼（timeout）` | 瀏覽器那一步沒完成；state 已保留，可續用 `login --complete "<URL>"` |
@@ -248,4 +312,4 @@ node $S columns reorder <projectId> --args-file order.json      # {"columns":[{"
 | `Workspace ID could not be determined` | 這個 session 沒有 active workspace；REST 呼叫要帶 `projectId`，MCP 的 `search` 要帶 `workspaceId` |
 | 409 `Column still contains tasks` | 欄位內還有任務，先搬走再刪 |
 | 404 且回應是純文字 `404 Not Found` | 該站台沒有這條路由，不是參數錯（換版本升級後某些路由才會出現） |
-| 429 `Rate limit exceeded` | API key 每分鐘 100 次。CLI 會自動退避重試（最多 3 次，優先讀 `Retry-After`），仍失敗才報錯；跑批次時請放慢節奏 |
+| 429 `Rate limit exceeded` | **每把 API key 每 60 秒 100 次**，是所有使用同一把 key 的消費者（本 skill、kaneo-web 面板、瀏覽器上的 Kaneo UI、其他 agent）**共用**的額度。CLI 會依回應標頭精確等待並重試（見下節）；仍失敗就換一把專用 key 或降低併發 |

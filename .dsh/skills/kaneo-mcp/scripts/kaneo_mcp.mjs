@@ -29,19 +29,90 @@ const b64url = (b) => b.toString('base64url');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The Kaneo API key is rate limited (100 requests / 60s). A burst of CLI calls
- * trips 429 easily, so back off and retry instead of failing the command.
+ * Rate-limit state, learned from response headers. Kaneo (better-auth api-key)
+ * exposes: x-ratelimit-limit, x-ratelimit-remaining, x-ratelimit-reset (epoch s),
+ * and Retry-After on 429. Reading them lets us wait exactly as long as needed
+ * instead of guessing — a 429 mid-window needs up to 60s, not 3s.
+ */
+const rateLimit = { limit: null, remaining: null, resetAt: null };
+const MAX_WAIT_MS = Number(process.env.KANEO_MCP_MAX_WAIT_MS) || 90_000;
+
+function noteRateLimit(res) {
+  const limit = Number(res.headers.get('x-ratelimit-limit'));
+  const remaining = Number(res.headers.get('x-ratelimit-remaining'));
+  const reset = Number(res.headers.get('x-ratelimit-reset'));
+  if (Number.isFinite(limit) && limit > 0) rateLimit.limit = limit;
+  if (Number.isFinite(remaining) && remaining >= 0) rateLimit.remaining = remaining;
+  if (Number.isFinite(reset) && reset > 0) {
+    // Epoch seconds in practice; tolerate a relative value too.
+    rateLimit.resetAt = reset >= 1e9 ? reset * 1000 : Date.now() + reset * 1000;
+  }
+}
+
+/** Sleep before sending when the window is nearly exhausted, so we never burn into a 429. */
+async function respectBudget() {
+  if (rateLimit.remaining === null || rateLimit.resetAt === null) return;
+  if (Date.now() >= rateLimit.resetAt) {
+    rateLimit.remaining = null;
+    rateLimit.resetAt = null;
+    return;
+  }
+  if (rateLimit.remaining > 3) return;
+  const waitMs = Math.min(rateLimit.resetAt - Date.now() + 250, MAX_WAIT_MS);
+  if (waitMs <= 0) return;
+  console.error(`# 配額剩 ${rateLimit.remaining}/${rateLimit.limit ?? '?'}，先等 ${Math.ceil(waitMs / 1000)} 秒至窗口重置`);
+  await sleep(waitMs);
+  rateLimit.remaining = null;
+  rateLimit.resetAt = null;
+}
+
+function retryAfterMs(res) {
+  const header = res.headers.get('retry-after');
+  if (header) {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+    const at = Date.parse(header);
+    if (!Number.isNaN(at)) return at - Date.now();
+  }
+  if (rateLimit.resetAt) return rateLimit.resetAt - Date.now();
+  return null;
+}
+
+/**
+ * Fetch with 429 handling: proactive budget check, then header-driven backoff.
  * The response body is left unconsumed for the caller.
  */
-async function fetchWithRetry(makeRequest, attempts = 4) {
+async function fetchWithRetry(makeRequest, attempts = 6) {
   for (let attempt = 0; ; attempt++) {
+    await respectBudget();
     const res = await makeRequest();
-    if (res.status !== 429 || attempt >= attempts - 1) return res;
-    const retryAfter = Number(res.headers.get('retry-after'));
-    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 3000 * (attempt + 1);
-    console.error(`# 429 速率限制（每分鐘 100 次），${Math.round(waitMs / 1000)} 秒後重試（第 ${attempt + 1}/${attempts - 1} 次）`);
+    noteRateLimit(res);
+    if (res.status !== 429) return res;
+    if (attempt >= attempts - 1) {
+      console.error(`# 429 未解除（已重試 ${attempts - 1} 次）。可稍後再跑，或為不同用途各配一把 API key。`);
+      return res;
+    }
+    const fromHeaders = retryAfterMs(res);
+    const waitMs = Math.min(
+      fromHeaders && fromHeaders > 0 ? fromHeaders + 250 : Math.min(3000 * 2 ** attempt, 30_000),
+      MAX_WAIT_MS,
+    );
+    console.error(
+      `# 429 速率限制（${rateLimit.limit ?? 100} 次/分，剩 ${rateLimit.remaining ?? '?'}），` +
+        `等 ${Math.ceil(waitMs / 1000)} 秒重試（第 ${attempt + 1}/${attempts - 1} 次）`,
+    );
     await sleep(waitMs);
   }
+}
+
+/** Per-process column cache — board/tasks both need /column/{projectId}. */
+const columnCache = new Map();
+async function getColumns(projectId, ttlMs = 60_000) {
+  const hit = columnCache.get(projectId);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.columns;
+  const columns = (await restApi('GET', `/column/${projectId}`)) ?? [];
+  columnCache.set(projectId, { at: Date.now(), columns });
+  return columns;
 }
 
 /** Exit without letting undici's open sockets abort the process. */
@@ -360,6 +431,25 @@ async function identity() {
   return session?.user ?? session;
 }
 
+/** Current rate-limit budget for the API key (read from response headers). */
+async function quota() {
+  // /api/config is public and returns zeroed headers, so probe an authenticated,
+  // side-effect-free endpoint instead.
+  const res = await fetch(`${BASE}/api/auth/api-key/list`, { headers: { 'x-api-key': apiKey() } });
+  await res.text();
+  const limit = Number(res.headers.get('x-ratelimit-limit'));
+  const remaining = Number(res.headers.get('x-ratelimit-remaining'));
+  const reset = Number(res.headers.get('x-ratelimit-reset'));
+  const resetAt = Number.isFinite(reset) && reset > 0 ? (reset >= 1e9 ? reset * 1000 : Date.now() + reset * 1000) : null;
+  return {
+    limit: Number.isFinite(limit) ? limit : null,
+    remaining: Number.isFinite(remaining) ? remaining : null,
+    resetAt,
+    resetInSeconds: resetAt ? Math.max(0, Math.round((resetAt - Date.now()) / 1000)) : null,
+    windowSeconds: 60,
+  };
+}
+
 async function toolText(name, args = {}) {
   const result = await call('tools/call', { name, arguments: args }, name);
   return (result.content ?? [])
@@ -378,6 +468,7 @@ const HELP = `Kaneo CLI — MCP tools + the REST API behind them
 
 MCP (${MCP_URL})
   key [<api-key>]               show, or store and verify, your Kaneo API key
+  quota                         current rate-limit budget (limit/remaining/reset)
   tools [--json]                list available tools
   call <tool> [json]            call a tool (or --args-file <path>)
   whoami                        signed-in Kaneo user
@@ -530,6 +621,9 @@ async function main() {
       console.log(`REST: ${restSession?.user?.name ?? '(no session)'} / ${restSession?.user?.email ?? '?'}`);
       break;
     }
+    case 'quota':
+      print(await quota());
+      break;
     case 'whoami':
       console.log(JSON.stringify(await identity(), null, 2));
       break;
@@ -545,7 +639,7 @@ async function main() {
       // filter, so one cheap request per column gives an exact board overview.
       const [projectId] = rest;
       if (!projectId) die('usage: board <projectId> [--json]', 2);
-      const columns = (await restApi('GET', `/column/${projectId}`)) ?? [];
+      const columns = await getColumns(projectId);
       const rows = [];
       for (const column of columns) {
         const page = await toolText('list_tasks', { projectId, status: column.slug, limit: 1 });
@@ -568,7 +662,7 @@ async function main() {
       // an unknown value with a silent empty page, so resolve names here first.
       const [projectId] = rest;
       if (!projectId) die('usage: tasks <projectId> [--column <name|slug>] [--limit N] [--all] [--page N] [--json]', 2);
-      const columns = (await restApi('GET', `/column/${projectId}`)) ?? [];
+      const columns = await getColumns(projectId);
       let status;
       if (typeof flags.column === 'string') {
         const wanted = flags.column.trim().toLowerCase();

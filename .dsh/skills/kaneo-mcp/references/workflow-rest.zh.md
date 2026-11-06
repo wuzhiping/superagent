@@ -1,6 +1,6 @@
 # 專案工作流 REST API（中文說明）
 
-MCP 只把 Kanban REST 的一部分註冊成工具，**工作流設定完全不在裡面**，所以這一層直接打 REST：
+MCP 只把 Kaneo REST 的一部分註冊成工具，**工作流設定完全不在裡面**，所以這一層直接打 REST：
 `https://pl.feg.cn/api` + 標頭 `x-api-key: <本 skill 的 .key>`。
 （同一支 key 送到 `/api/mcp` 會是 `401 invalid_token`；那是 OAuth 保護的另一條入口。）
 

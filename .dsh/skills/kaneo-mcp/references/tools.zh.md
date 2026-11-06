@@ -1,4 +1,4 @@
-# Kanban MCP 工具清單（38 個，中文說明）
+# Kaneo MCP 工具清單（38 個，中文說明）
 
 端點：`https://pl.feg.cn/api/mcp`（現代協定 2026-07-28）。帳號：吳志平 / wu.zhiping@feg.cn。
 以下「必填」對應工具 schema 的 `required`；未標示者為選填。
