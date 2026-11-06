@@ -30,6 +30,8 @@ It asks one short question at a time, shows the full plan once, and then install
 
 Read the numbered documents in order; each builds only on the ones before it.
 
+- [AIOS](AIOS.md): the AI⁺ organization operating system — the narrative, the four-layer inheritance model, and how this prototype maps to it (implemented / partial / vision)
+
 - [INSTALL](INSTALL.md): install from the Gitea address on another device, and what it requires
 - [RD](RD.md): the collaboration narrative (Kanban as the only task source, PM + Worker posts, dynamic repos/topics, charter, deliverables)
 - [008 岗位账号](docs/009-post-accounts.md): unified Kanban bot accounts per post and how to wire each one into a SuperAgent instance
