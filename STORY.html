@@ -146,6 +146,19 @@
     .nav,.hint,.ctrls,.dots{display:none}
     @page{size:1280px 720px;margin:0}
   }
+  /* Dense slides: the same look with less vertical growth, so nothing runs into the footer. */
+  .slide.dense .content{gap:12px}
+  .slide.dense table.tight td, .slide.dense table.tight th{padding:5px 8px;font-size:15px}
+  .slide.dense .card p{font-size:15.5px;line-height:1.45}
+  .slide.dense .card p + p{margin-top:4px}
+  .slide.dense .check div{font-size:15px;line-height:1.4}
+  .slide.dense .small{font-size:14.5px;line-height:1.5}
+  /* Timeline rows keep their height instead of shrinking and overlapping; their type is a little smaller. */
+  .timeline{justify-content:flex-start;gap:18px}
+  .timeline .tl{flex:none}
+  .tl .time{font-size:16px;padding-top:1px}
+  .tl .body h3{font-size:19px;line-height:1.3}
+  .tl .body p{font-size:16px;line-height:1.45;margin-top:2px}
 </style>
 </head>
 <body>
@@ -459,7 +472,7 @@
 
   
   <!-- NEW · carriers -->
-  <section class="slide airy">
+  <section class="slide airy dense">
     <div class="head">
       <div class="kicker"><span class="dot"></span>NEW · 2026-11-06</div>
       <h2>宪章有自己的仓库，任务、消息、资产各有载体</h2>
@@ -468,15 +481,15 @@
     <div class="content">
       <table class="tight">
         <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
-        <tr><td><b>宪章 / 职责说明</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code> 与同目录 <code>duties.md</code></td><td>发布 = 提交文件；commit 历史 = 版本历史；职责规格（目标/完成/载体/知识/资源/工具/技能/接单/步骤）由 <code>duties.md</code> 给出，卡片 <code>duty:</code> 声明</td></tr>
+        <tr><td><b>宪章 / 职责说明</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code> 与同目录 <code>duties.md</code></td><td>发布 = 提交文件；commit 历史 = 版本历史；职责规格由 <code>duties.md</code> 给出，卡片 <code>duty:</code> 声明</td></tr>
         <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一派工来源；没有宪章的项目不接受任务</td></tr>
         <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带入库 tag 的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
         <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡</td><td>非代码交付物 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>
       </table>
       <div class="grid g3 fill" style="margin-top:8px">
-        <div class="card"><h3>Team 视角要先验权限</h3><p>切到 Team（PM）视角前查 <code>canManageFlow</code>；缺权限先说明再让你决定。岗位视角的「我的岗位设置」只改自己的岗位。</p></div>
-        <div class="card"><h3>岗位自己读宪章</h3><p><code>orchestrator_read charter</code> 返回版本、载体与正文；派工说明里带 <b>Duty brief</b>，<code>orchestrator_read duty</code> 可读完整职责规格——不需要 shell/HTTP，也不给岗位 Gitea 凭据。</p></div>
-        <div class="card"><h3>没有宪章 / 职责不可开工</h3><p>评估接受与显式派工都会被拦：没有宪章 → <code>noCharter</code>；职责未定义 → <code>dutyUndefined</code>；岗位不承接 → <code>dutyUnsupported</code>。都不建工单。</p></div>
+        <div class="card"><h3>Team 视角要先验权限</h3><p>切到 Team（PM）视角前查 <code>canManageFlow</code>，缺权限先说明再让你决定；岗位视角只改自己的岗位。</p></div>
+        <div class="card"><h3>岗位自己读宪章</h3><p><code>orchestrator_read charter</code> 返回版本与载体；派工说明带 <b>Duty brief</b>，<code>orchestrator_read duty</code> 读完整职责规格。</p></div>
+        <div class="card"><h3>没有宪章 / 职责不可开工</h3><p>评估接受与显式派工都会被拦：<code>noCharter</code> / <code>dutyUndefined</code> / <code>dutyUnsupported</code>，都不建工单。</p></div>
       </div>
     </div>
   </section>
