@@ -24,11 +24,11 @@ const emptyCharter = () => ({ version: 0, publishedAt: '', publishedBy: '', text
 const emptyProject = (): Project => ({ id: '', name: '', slug: '', charter: emptyCharter(), topics: [], posts: [] })
 
 /** A text field that keeps its own draft so typing does not rebuild the whole archive. */
-function Field({ label, value, onChange, placeholder, readOnly }: {
-  label: string; value: string; onChange: (value: string) => void; placeholder?: string; readOnly?: boolean
+function Field({ label, value, onChange, placeholder, readOnly, required }: {
+  label: string; value: string; onChange: (value: string) => void; placeholder?: string; readOnly?: boolean; required?: boolean
 }) {
   return <label className="dt-archive-field">
-    <span className="dt-field-label">{label}</span>
+    <span className={required ? 'dt-field-label dt-required' : 'dt-field-label'}>{label}</span>
     <Input value={value} placeholder={placeholder} readOnly={readOnly} onChange={event => onChange(event.target.value)} />
   </label>
 }
@@ -93,12 +93,12 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties, members }: {
   const mine = (duties ?? []).filter(duty => duty.posts.includes(post.postId))
   return <div className="dt-archive-card dt-post-editor">
     <div className="dt-grid">
-      <Field label={t('projectPostId')} value={post.postId} placeholder="w1-fdep" readOnly={readOnly}
+      <Field label={t('projectPostId')} value={post.postId} placeholder="w1-fdep" readOnly={readOnly} required
         onChange={value => onChange({ ...post, postId: value })} />
       <Field label={t('projectPostName')} value={post.name} placeholder="SuperAgent Worker 1 (FDEP)" readOnly={readOnly}
         onChange={value => onChange({ ...post, name: value })} />
       <label className="dt-field">
-        <span className="dt-field-label">{t('projectPostRole')}</span>
+        <span className="dt-field-label dt-required">{t('projectPostRole')}</span>
         <select className="dt-select" value={post.role} disabled={readOnly}
           onChange={event => onChange({ ...post, role: event.target.value as Post['role'] })}>
           <option value="worker">{t('postsRoleWorker')}</option>
@@ -106,7 +106,7 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties, members }: {
         </select>
       </label>
       <label className="dt-archive-field">
-        <span className="dt-field-label">{t('projectPostKanban')}</span>
+        <span className="dt-field-label dt-required">{t('projectPostKanban')}</span>
         <Input value={post.kaneoUser} list={`kaneo-users-${post.postId || 'new'}`} placeholder="name@example.com" readOnly={readOnly}
           onChange={event => onChange({ ...post, kaneoUser: event.target.value })} />
         <datalist id={`kaneo-users-${post.postId || 'new'}`}>
@@ -208,7 +208,7 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
   return <div className="dt-archive-card">
     <div className="dt-grid">
       <label className="dt-archive-field">
-        <span className="dt-field-label">{t('projectId')}</span>
+        <span className="dt-field-label dt-required">{t('projectId')}</span>
         <select className="dt-select" value={project.id} disabled={scoped} onChange={event => pick(event.target.value)}>
           <option value="">{t('projectPick')}</option>
           {project.id && !choices?.projects.some(item => item.id === project.id) &&
@@ -311,6 +311,7 @@ export function ProjectSettings() {
 
   return <div className="dt-project-settings">
     <Hint>{scoped ? t('projectHintPost') : t('projectHint')}</Hint>
+    {!scoped && <Hint>{t('projectMinimalHint')}</Hint>}
     {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId} duties={duties} onDutiesChanged={loadDuties} members={members[project.id]}
       onChange={next => update(index, next)} onPublished={() => { void save.run() }} choices={choices}
       onRemove={() => setArchive(current => ({ ...current, projects: current.projects.filter((_item, at) => at !== index) }))} />)}

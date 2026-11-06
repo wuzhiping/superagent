@@ -112,7 +112,12 @@ try {
 
   // Settings: the tab list, then the four tabs ABC.md walks through.
   console.log('settings tab:', await clickTab('^(設定|设置)$'))
-  await sleep(1500)
+  // The group links appear once the settings view has loaded; wait for them before clicking.
+  await evaluate(`(async () => {
+    for (let i = 0; i < 40; i += 1) { if (document.querySelector('.dt-settings-link')) return true; await new Promise(r => setTimeout(r, 500)) }
+    return false
+  })()`)
+  await sleep(500)
   const navRect = await evaluate(`(() => {
     const first = document.querySelector('.dt-settings-link')
     if (!first) return null
@@ -122,8 +127,12 @@ try {
       width: Math.min(320, r.width + 16), height: Math.min(600, r.height + 16) })
   })()`)
   if (navRect) await capture('a0-settings-tabs.png', JSON.parse(navRect), 2)
+  // The readiness card ABC.md calls the setup check (8 items, green when ready).
+  await capture('a9-readiness.png', { x: 280, y: 0, width: 1304, height: 905 }, 1.45)
 
-  console.log('project tab:', await clickGroup('項目與崗位|项目与岗位'))
+  let projectClick = await clickGroup('項目與崗位|项目与岗位')
+  if (!projectClick) { await sleep(1500); projectClick = await clickGroup('項目與崗位|项目与岗位') }
+  console.log('project tab:', projectClick)
   await sleep(1200)
   await capture('a2-project-fields.png', await clipFromText('選擇項目…|选择项目…', 360, '.dt-archive-card'))
   await capture('a3-charter.png', await clipFromText('憲章正文|宪章正文', 760, '.dt-section'))

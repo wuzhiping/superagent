@@ -192,32 +192,35 @@ slide('execution', 'dense', `
 
 slide('checklist', '', `
     <div class="head">
-      <div class="kicker"><span class="dot"></span>READINESS · 8 项自检</div>
-      <h2>全打勾 = 运行环境就绪</h2>
+      <div class="kicker"><span class="dot"></span>READINESS · 设置检查</div>
+      <h2>面板顶部就有 8 项是否就绪</h2>
     </div>
     <div class="content">
-      <div class="grid g2">
-        <div class="card"><span class="bar"></span><h3>连接与登记</h3>
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><h3>8 项自动检查</h3>
           <div class="check">
-            <div><i>✓</i>看板已连接，项目可选</div>
-            <div><i>✓</i>宪章仓库已连接</div>
-            <div><i>✓</i>文件柜、通知正常</div>
+            <div><i>✓</i>四个家已连接</div>
             <div><i>✓</i>项目已登记</div>
+            <div><i>✓</i>岗位身份已映射</div>
+            <div><i>✓</i>宪章已发布</div>
+            <div><i>✓</i>职责说明已发布</div>
+            <div><i>✓</i>接单模式已确认</div>
+            <div><i>✓</i>执行器已确认</div>
+            <div><i>✓</i>部署正常</div>
           </div>
         </div>
-        <div class="card"><span class="bar"></span><h3>就绪状态</h3>
-          <div class="check">
-            <div><i>✓</i>两个岗位都有"已映射到 …"</div>
-            <div><i>✓</i>宪章 ≥ v1</div>
-            <div><i>✓</i>职责说明已发布</div>
-            <div><i>✓</i>自动接单 + 模型可用</div>
+        <div class="card"><span class="bar"></span><h3>怎么看</h3>
+          <div class="list">
+            <div class="li"><span class="mk ok">●</span><div><b>绿</b> = 已就绪；<b>黄</b> = 还要处理；<b>红</b> = 有错误</div></div>
+            <div class="li"><span class="mk dot">•</span><div>点任意一项 → 直达对应设置 tab</div></div>
+            <div class="li"><span class="mk dot">•</span><div>右上「刷新检查」立即重查；卡片显示 <b>x/8 已就绪</b></div></div>
+            <div class="li"><span class="mk ok">✓</span><div>8 项全绿 = 运行环境就绪，不用再翻页核对</div></div>
           </div>
         </div>
       </div>
-      <p class="small">到这里为止就是"环境准备好"；派工、接单、交付属于工作方式，交给 SOP / STORY。</p>
     </div>`)
 
-slide('state-dictionary', 'dense', `
+  slide('state-dictionary', 'dense', `
     <div class="head">
       <div class="kicker"><span class="dot"></span>CONTROL · 看到什么就是什么</div>
       <h2>状态字典：随时知道"现在怎样、要不要动手"</h2>

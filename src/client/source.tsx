@@ -97,9 +97,11 @@ function SourceCard({ source, readOnly }: { source: SourceView; readOnly?: boole
 }
 
 export function SourceSettings({ focus, readOnly }: { focus?: string; readOnly?: boolean }) {
+  const { t } = usePanel()
   const { sources } = useSettings().settings
   useEffect(() => { if (focus) document.getElementById(`dt-source-${focus}`)?.scrollIntoView?.({ block: 'start' }) }, [focus])
   return <div className="dt-form">
+    <Hint>{t('sourceMinimalHint')}</Hint>
     {sources.map(source => <SourceCard key={source.id} source={source} readOnly={readOnly} />)}
     <ConfigHistory blocks={['source:']} />
   </div>

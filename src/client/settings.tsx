@@ -10,6 +10,7 @@ import { usePanel } from './provider.tsx'
 import { usePerspective } from './perspective.tsx'
 import { SETTINGS_GROUPS_BY_PERSPECTIVE, settingsRoute, type SettingsGroup } from './route.ts'
 import { SettingsProvider } from './settings-kit.tsx'
+import { SettingsReadiness } from './readiness.tsx'
 import { SourceSettings } from './source.tsx'
 
 const STAGE_GROUPS: readonly SettingsGroup[] = ['source', 'eval', 'execution']
@@ -22,12 +23,14 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
   // In the post perspective the project group is the post's own settings, not the project's.
   const groupLabel = (value: SettingsGroup): string => perspective === 'post' && value === 'project'
     ? t('settingsMyPost') : t(`settingsGroup.${value}`)
+  // Each tab opens with one line saying what the tab is for; the project tab in the post perspective is the seat's own settings.
+  const groupHint = perspective === 'post' && group === 'project' ? t('settingsGroupHint.myPost') : t(`settingsGroupHint.${group}`)
   const content = (() => {
     switch (group) {
       case 'project': return <ProjectSettings />
-      case 'source': return <SettingsProvider><SourceSettings {...query.source ? { focus: query.source } : {}} readOnly={perspective === 'post'} /></SettingsProvider>
-      case 'eval': return <SettingsProvider><EvalSettings version={query.version} /></SettingsProvider>
-      case 'execution': return <SettingsProvider><ExecutionSettings /></SettingsProvider>
+      case 'source': return <SourceSettings {...query.source ? { focus: query.source } : {}} readOnly={perspective === 'post'} />
+      case 'eval': return <EvalSettings version={query.version} />
+      case 'execution': return <ExecutionSettings />
       case 'prompts': return <PromptsPage />
       case 'deployment': return <DeploymentPage setup={state.setup} form={deploymentForm} />
     }
@@ -41,8 +44,12 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
     </nav>
     <div className="dt-settings-body">
       <h2 className="dt-settings-title">{groupLabel(group)}</h2>
-      <PermissionBanner />
-      {content}
+      <p className="dt-settings-subtitle">{groupHint}</p>
+      <SettingsProvider>
+        <SettingsReadiness state={state} compact={perspective === 'post'} />
+        <PermissionBanner />
+        {content}
+      </SettingsProvider>
     </div>
   </div>
 }
