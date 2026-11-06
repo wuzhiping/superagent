@@ -18,6 +18,8 @@ export const ArchivePostSchema = z.object({
   postId: z.string().min(1),
   role: z.enum(['pm', 'worker']),
   name: z.string().min(1),
+  /** The friendly Kanban account of this post (an e-mail); the host maps it to `kaneoUserId` when the archive is saved. */
+  kaneoUser: z.string().default(''),
   /** The Kanban user id that identifies this post on the board; it is the task's `assignee`. */
   kaneoUserId: z.string().default(''),
   giteaUser: z.string().default(''),

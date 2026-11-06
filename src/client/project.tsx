@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import { topicsAfterPick } from '../app/narrative.ts'
 import type { ApiResponse } from '../app/api.ts'
+import type { KaneoMember } from '../app/kaneo-users.ts'
 import { usePoll, type ProjectArchive, type ProjectChoices } from './api.ts'
 import { Button, Icon, Input } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
@@ -17,7 +18,7 @@ import { Hint, Section } from './widgets.tsx'
 type Post = ProjectArchive['projects'][number]['posts'][number]
 type Project = ProjectArchive['projects'][number]
 
-const emptyPost = (): Post => ({ postId: '', role: 'worker', name: '', kaneoUserId: '', giteaUser: '', ntfySender: '',
+const emptyPost = (): Post => ({ postId: '', role: 'worker', name: '', kaneoUser: '', kaneoUserId: '', giteaUser: '', ntfySender: '',
   wipLimit: 3, instance: '', watchColumns: '' })
 const emptyCharter = () => ({ version: 0, publishedAt: '', publishedBy: '', text: '', draft: '', history: [] })
 const emptyProject = (): Project => ({ id: '', name: '', slug: '', charter: emptyCharter(), topics: [], posts: [] })
@@ -84,8 +85,9 @@ function CharterEditor({ charter, projectId, onChange, onPublished, readOnly }: 
   </div>
 }
 
-function PostEditor({ post, onChange, onRemove, readOnly, duties }: {
+function PostEditor({ post, onChange, onRemove, readOnly, duties, members }: {
   post: Post; onChange: (post: Post) => void; onRemove: () => void; readOnly?: boolean; duties?: DutiesView['duties']
+  members?: KaneoMember[]
 }) {
   const { t } = usePanel()
   const mine = (duties ?? []).filter(duty => duty.posts.includes(post.postId))
@@ -103,8 +105,15 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties }: {
           <option value="pm">{t('postsRolePm')}</option>
         </select>
       </label>
-      <Field label={t('projectPostKanban')} value={post.kaneoUserId} placeholder="Kanban 用户 id" readOnly={readOnly}
-        onChange={value => onChange({ ...post, kaneoUserId: value })} />
+      <label className="dt-archive-field">
+        <span className="dt-field-label">{t('projectPostKanban')}</span>
+        <Input value={post.kaneoUser} list={`kaneo-users-${post.postId || 'new'}`} placeholder="name@example.com" readOnly={readOnly}
+          onChange={event => onChange({ ...post, kaneoUser: event.target.value })} />
+        <datalist id={`kaneo-users-${post.postId || 'new'}`}>
+          {(members ?? []).filter(member => member.email).map(member =>
+            <option key={member.id} value={member.email}>{member.name ? `${member.name}（${member.id}）` : member.id}</option>)}
+        </datalist>
+      </label>
       <Field label={t('postsWatchColumns')} value={post.watchColumns} placeholder="ready" readOnly={readOnly}
         onChange={value => onChange({ ...post, watchColumns: value })} />
       <Field label={t('projectPostGitea')} value={post.giteaUser} placeholder="邮箱或用户名（可选）" readOnly={readOnly}
@@ -119,6 +128,9 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties }: {
           onChange={event => onChange({ ...post, wipLimit: Math.max(1, Math.min(20, Number(event.target.value) || 1)) })} />
       </label>
     </div>
+    <p className="dt-hint">{post.kaneoUserId
+      ? t('projectPostKanbanMapped', { id: post.kaneoUserId })
+      : t('projectPostKanbanHint')}</p>
     {post.postId && (mine.length > 0
       ? <p className="dt-hint">{t('projectPostDuties', { duties: mine.map(duty => duty.name || duty.id).join('、') })}</p>
       : <p className="dt-hint">{t('projectPostDutiesNone')}</p>)}
@@ -177,9 +189,10 @@ function DutiesEditor({ duties, onChanged, readOnly }: { duties?: DutiesView; on
   </div>
 }
 
-function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat, choices, duties, onDutiesChanged }: {
+function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat, choices, duties, onDutiesChanged, members }: {
   project: Project; onChange: (project: Project) => void; onRemove: () => void; onPublished?: () => void
   scoped?: boolean; seat?: string; choices?: ProjectChoices; duties?: DutiesView; onDutiesChanged?: () => void
+  members?: KaneoMember[]
 }) {
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
@@ -229,7 +242,7 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
     <div className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{scoped ? t('settingsMyPost') : t('projectPosts')}</span>
         <span className="dt-count">{posts.length}</span></h3>
-      {posts.map((post, index) => <PostEditor key={post.postId || index} post={post} duties={duties?.duties}
+      {posts.map((post, index) => <PostEditor key={post.postId || index} post={post} duties={duties?.duties} members={members}
         onChange={next => onChange({ ...project, posts: project.posts.map(item => item.postId === post.postId ? next : item) })}
         onRemove={() => onChange({ ...project, posts: project.posts.filter(item => item.postId !== post.postId) })} />)}
       {!scoped && <Button variant="outline" size="sm" icon={<Icon name="plus" size={14} />}
@@ -248,6 +261,8 @@ export function ProjectSettings() {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string>()
   const [duties, setDuties] = useState<DutiesView>()
+  // The workspace members of each project, so a post picks its Kanban account by e-mail.
+  const [members, setMembers] = useState<Record<string, KaneoMember[]>>({})
   // The project is chosen from the list this Host's Kanban account can see, not typed from memory.
   const { data: choices } = usePoll(() => call('GET projects'), [])
 
@@ -264,6 +279,17 @@ export function ProjectSettings() {
 
   const loadDuties = () => { call('GET duties').then(setDuties).catch(() => {}) }
   useEffect(() => { loadDuties() }, [call])
+
+  const projectIds = archive.projects.map(project => project.id).filter(Boolean).join('|')
+  useEffect(() => {
+    if (!projectIds) return
+    let active = true
+    void Promise.all(projectIds.split('|').map(id =>
+      call('GET kaneo-users', { query: { projectId: id } })
+        .then(value => [id, value.users] as const).catch(() => [id, [] as KaneoMember[]] as const)))
+      .then(entries => { if (active) setMembers(Object.fromEntries(entries)) })
+    return () => { active = false }
+  }, [call, projectIds])
 
   const save = useAction(async () => {
     const result = await call('PUT project-archive', { body: { archive, revision } })
@@ -285,7 +311,7 @@ export function ProjectSettings() {
 
   return <div className="dt-project-settings">
     <Hint>{scoped ? t('projectHintPost') : t('projectHint')}</Hint>
-    {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId} duties={duties} onDutiesChanged={loadDuties}
+    {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId} duties={duties} onDutiesChanged={loadDuties} members={members[project.id]}
       onChange={next => update(index, next)} onPublished={() => { void save.run() }} choices={choices}
       onRemove={() => setArchive(current => ({ ...current, projects: current.projects.filter((_item, at) => at !== index) }))} />)}
     {!scoped && <div className="dt-row-buttons">

@@ -284,6 +284,16 @@ describe('kaneo api client', () => {
     expect(attempts).toBe(2)
     expect(waits).toHaveLength(1)
   })
+  it('reads the workspace members whose e-mails a post can name', async () => {
+    const calls: string[] = []
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {
+      calls.push(url)
+      return response([{ id: 'u-pm', name: 'PM', email: 'pm@example.com', role: 'admin' }])
+    }))
+    const members = await client.workspaceMembers('ws-1')
+    expect(members).toEqual([{ id: 'u-pm', name: 'PM', email: 'pm@example.com', role: 'admin' }])
+    expect(calls[0]).toBe('https://pl.feg.cn/api/workspace/ws-1/members')
+  })
   it('surfaces the final HTTP status instead of retrying a refusal', async () => {
     const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async () => response({ error: 'nope' }, 401)))
     const failure = await client.request(z.unknown(), 'GET', '/task/x').catch((error: unknown) => error)

@@ -23,6 +23,9 @@ import type { Sessions } from './sessions.ts'
 import type { Store } from './store.ts'
 import { writeArchive } from './narrative.ts'
 import { charterOfText } from './narrative.ts'
+import { ArchiveSchema } from './narrative.ts'
+import { resolveArchiveKaneoUsers, type KaneoMember } from './kaneo-users.ts'
+import { KaneoClient } from '../sources/kaneo-api.ts'
 import { charterTarget, kaneoAccount, publishCharter, publishWindow, readPrimaryCharter } from './charter.ts'
 import { dutiesPathOf, publishDuties, readDuties } from './duties.ts'
 import { readProjectChoices } from './projects.ts'
@@ -200,9 +203,45 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
       const input = await body(256 * 1024) as { archive?: unknown; revision?: unknown }
       const revision = z.number().int().nonnegative().catch(0).parse(input?.revision)
       try {
-        return writeArchive(runtime.machine.stateDir, input?.archive, revision)
+        const archive = ArchiveSchema.parse(input?.archive)
+        const account = kaneoAccount(runtime.sources)
+        const needsMapping = archive.projects.some(project => project.posts.some(post => post.kaneoUser.trim()))
+        if (!needsMapping) return writeArchive(runtime.machine.stateDir, archive, revision)
+        if (!account) throw new Error('This Host has no Kanban account, so it cannot map a post\'s e-mail to a Kanban user')
+        const client = new KaneoClient(account)
+        const choices = await readProjectChoices(account)
+        const members = new Map<string, readonly KaneoMember[]>()
+        const membersOf = async (projectId: string): Promise<readonly KaneoMember[] | undefined> => {
+          const workspaceId = choices.projects.find(project => project.id === projectId)?.workspaceId
+          if (!workspaceId) {
+            // The project may be in a workspace the picker did not list; search the account's workspaces once.
+            const workspaces = await client.workspaces()
+            const all: KaneoMember[] = []
+            for (const workspace of workspaces) all.push(...await client.workspaceMembers(workspace.id))
+            return all
+          }
+          if (!members.has(workspaceId)) members.set(workspaceId, await client.workspaceMembers(workspaceId))
+          return members.get(workspaceId)
+        }
+        const resolved = await resolveArchiveKaneoUsers(archive, membersOf)
+        return { ...writeArchive(runtime.machine.stateDir, resolved.archive, revision), mapped: resolved.mapped }
       } catch (error) {
         throw new RouteError(400, error instanceof Error ? error.message : String(error))
+      }
+    },
+    // The workspace members, so a post picks an e-mail instead of typing a Kanban id.
+    'GET kaneo-users': async ({ query }) => {
+      const account = kaneoAccount(runtime.sources)
+      if (!account) return { users: [], detail: 'This Host has no Kanban account yet' }
+      try {
+        const choices = await readProjectChoices(account)
+        const workspaceId = query.projectId
+          ? choices.projects.find(project => project.id === query.projectId)?.workspaceId
+          : choices.workspaces[0]?.id
+        if (!workspaceId) return { users: [], detail: 'No Kanban workspace is visible to this account' }
+        return { workspaceId, users: await new KaneoClient(account).workspaceMembers(workspaceId) }
+      } catch (error) {
+        return { users: [], detail: error instanceof Error ? error.message : String(error) }
       }
     },
     'GET search': ({ query }) => search(views(runtime), query.q ?? '', runtime.sourceLinks),

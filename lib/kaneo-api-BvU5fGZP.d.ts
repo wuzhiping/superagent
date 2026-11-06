@@ -130,6 +130,8 @@ declare class KaneoClient {
   workspaces(options?: RequestOptions): Promise<z.infer<typeof WorkspaceSchema>[]>;
   /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. */
   me(options?: RequestOptions): Promise<z.infer<typeof KaneoUserSchema>>;
+  /** The members of a workspace: their ids are the board's assignees, their e-mails the friendly account a post names. */
+  workspaceMembers(workspaceId: string, options?: RequestOptions): Promise<z.infer<typeof KaneoUserSchema>[]>;
 }
 //#endregion
 export { KaneoClient as t };

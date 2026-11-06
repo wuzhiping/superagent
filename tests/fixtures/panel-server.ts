@@ -354,6 +354,9 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
   'GET capabilities': { answer: (): ApiResponse<'GET capabilities'> => server.capabilities },
   // The pickers read the projects and workspaces of the account; the fixture answers with one workspace and two projects.
   'GET projects': { answer: (): ApiResponse<'GET projects'> => server.choices },
+  'GET kaneo-users': { query: ['projectId'], answer: (): ApiResponse<'GET kaneo-users'> => ({ workspaceId: 'ws-1', users: [
+    { id: 'u-pm', name: 'PM', email: 'pm@example.com', role: 'admin' },
+    { id: 'u-w1', name: 'W1', email: 'w1@example.com', role: 'member' }] }) },
   // Publishing a charter writes the project and mirrors it into the archive; the fixture answers with the new version.
   'POST narrative/charter': { body: true, answer: (request): ApiResponse<'POST narrative/charter'> => {
     const body = request.body as { projectId: string, text: string, publishedBy: string, force?: boolean }
@@ -396,7 +399,7 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     archive: { version: 1, projects: [{ id: 'p1', name: 'FDEP', slug: 'FDE',
       charter: { version: 3, publishedAt: '2026-09-22T00:00:00Z', publishedBy: 'agent:pm', text: 'version: 3', draft: '', history: [] },
       topics: ['pub_fdep_pm'],
-      posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', kaneoUserId: 'u-pm',
+      posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', kaneoUser: 'pm@example.com', kaneoUserId: 'u-pm',
         giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web', watchColumns: 'ready' }] }] },
     revision: 7,
   }) },

@@ -11,7 +11,7 @@
 | RD.md 的概念 | 面板落点 | 实现 |
 | --- | --- | --- |
 | 项目 Project（§4） | 设置 → 项目与岗位 | `src/app/narrative.ts` 的 `ProjectArchive`（`<stateDir>/projects.json`） |
-| 岗位 post（§5） | 编队页的岗位卡片 | `ArchivePost`：role / kaneoUserId / giteaUser / ntfySender / wipLimit / instance |
+| 岗位 post（§5） | 编队页的岗位卡片 | `ArchivePost`：role / kaneoUser（登录邮箱，宿主映射） / kaneoUserId / giteaUser / ntfySender / wipLimit / instance |
 | 岗位职责 duty（§5.3） | 岗位卡片的「在飞职责」 | `Ticket.postId`（新字段） |
 | 宪章 charter（§8） | 项目卡片的「宪章 vN」徽标 | 实时读 Kanban 宪章载体任务，解析 `version: N`，>7 天判过期 |
 | WIP 合规 | 岗位卡片 `n / limit`，超限红框 | `dutyCount > wipLimit` |

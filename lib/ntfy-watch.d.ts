@@ -1,6 +1,6 @@
 import { W as Trigger, ft as DEFAULT_NTFY_URL, pt as NtfyConfig } from "./intake-BMM76792.js";
 import { n as SourceKind, r as SourceContext } from "./kind-Dfy9J4Q-.js";
-import { t as InboxEvent } from "./kaneo-inbox-B7Ivfmcs.js";
+import { t as InboxEvent } from "./kaneo-inbox-DPXhMW9G.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/ntfy-api.d.ts

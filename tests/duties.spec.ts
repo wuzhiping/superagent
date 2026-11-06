@@ -41,7 +41,7 @@ const trigger = (labels: string[], actorId = 'u-mine'): Trigger => ({
 const archive = (postId: string, kaneoUserId: string) => ({
   version: 1,
   projects: [{ id: 'p1', name: 'Project', slug: 'P', topics: [], charter: { version: 0, publishedAt: '', publishedBy: '', text: '', draft: '', history: [] },
-    posts: [{ postId, role: 'worker', name: postId, kaneoUserId, giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '' }] }],
+    posts: [{ postId, role: 'worker', name: postId, kaneoUser: '', kaneoUserId, giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '' }] }],
 }) as unknown as Parameters<typeof dutyGate>[1]
 
 it('parses a duties document: headings name the duty, bullets bind its fields', () => {

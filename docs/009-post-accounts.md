@@ -3,6 +3,8 @@
 > 目标：每个**岗位**（PM / Worker）有一个**专属的 Kanban 用户**，作为它在看板上的身份；账号在 Kanban 里**统一创建**，
 > 再逐个设置到对应的 SuperAgent 实例。依据见 [`../RD.md`](../RD.md) §12.8、§12.9 与 [`../TDD/008-real-data-validation.md`](../TDD/008-real-data-validation.md) 的实测结论。
 
+> 面板「项目与岗位设置」里不再要求填 Kanban 使用者 id：填**登录邮箱**即可，宿主保存档案时用工作区成员列表映射成 `kaneoUserId`（`kaneoUser` 字段）。本节的账户文件仍按 id 描述，两种写法并存。
+
 ---
 
 ## 1. 为什么必须有专属账号（实测依据）

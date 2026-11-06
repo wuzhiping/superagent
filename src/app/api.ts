@@ -32,7 +32,11 @@ export interface Api {
   'GET overview': { response: OverviewView }
   'GET narrative': { response: NarrativeView }
   'GET project-archive': { response: { archive: ProjectArchive; revision: number } }
-  'PUT project-archive': { body: { archive: unknown; revision: number }; response: { revision: number } }
+  'PUT project-archive': { body: { archive: unknown; revision: number };
+    response: { revision: number; mapped?: { postId: string; email: string; userId: string }[] } }
+  /** The members of the project's Kanban workspace (their e-mails are what a post names). */
+  'GET kaneo-users': { query: { projectId?: string };
+    response: { workspaceId?: string; users: import('./kaneo-users.ts').KaneoMember[]; detail?: string } }
   /** Publishes a project's charter into the project itself: one document per project, at most once a week. */
   'POST narrative/charter': { body: { projectId: string; text: string; publishedBy: string; force?: boolean };
     response: { charter: CharterInfo; carrier?: 'gitea' | 'kanban'; carrierRef?: string } }

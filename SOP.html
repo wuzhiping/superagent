@@ -320,7 +320,7 @@
         </div>
         <div class="card g"><span class="bar"></span>
           <div class="num">STEP 02</div><h3>登记岗位</h3>
-          <p><b>从列表选项目</b>（id / 名称 / slug 自动填，主题集默认 <code>pub_&lt;项目 id&gt;</code>）+ 每个岗位的 <b>Kanban 用户 id</b> + 领哪些列 + 并发上限。</p>
+          <p><b>从列表选项目</b>（id / 名称 / slug 自动填，主题集默认 <code>pub_&lt;项目 id&gt;</code>）+ 每个岗位的 <b>Kanban 账号（登录邮箱）</b>（宿主自动映射成使用者 id）+ 领哪些列 + 并发上限。</p>
           <p>Gitea / ntfy 身份可留空——不是编程任务就不需要。</p>
         </div>
         <div class="card n"><span class="bar"></span>
@@ -349,7 +349,7 @@
         <tr><td>Gitea 宪章仓</td><td><b>Gitea 只做宪章仓库</b>：宪章与职责说明（<code>README.md</code> 同目录的 <code>duties.md</code>）在这里；<b>不监听 Issue/PR</b>，工单要用的仓库由卡片的 <code>repo:</code> 标签给出</td><td>shawoo/rsi_superagent</td></tr>
         <tr><td>ntfy 入库 tag</td><td>只有带这些 tag 的消息才入库成卡（留空=全部）；宿主回复的 tag 是 <code>dsh-superagent</code>，不会被回收成卡</td><td>dsh</td></tr>
         <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 Team（PM）/ Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
-        <tr><td>Kanban 用户 id</td><td><b>决定它领得到哪张卡</b></td><td>bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG</td></tr>
+        <tr><td>Kanban 账号（邮箱）</td><td><b>决定它领得到哪张卡</b>；保存时自动映射成使用者 id</td><td>wu.zhiping@feg.cn</td></tr>
         <tr><td>监听列</td><td>该岗位领哪些列的卡（slug）</td><td>ready</td></tr>
         <tr><td>Gitea 账号 / ntfy sender / 实例</td><td>代码与消息身份、跑在哪台机器（都可留空）</td><td>sa-w1-fdep · #sa-w1-fdep · web</td></tr>
         <tr><td>并发上限 WIP</td><td>同时在飞的职责数上限</td><td>3</td></tr>
@@ -630,8 +630,8 @@ publishedBy: pm-rsi
           <h3>PM 岗位</h3>
           <div class="check">
             <div><i>✓</i>四个来源 status 都 ready（Kanban / Gitea / ntfy / MinIO）</div>
-            <div><i>✓</i>项目从<b>列表</b>选好（主题集默认 <code>pub_&lt;项目 id&gt;</code>），岗位已登记（监听列 / Kanban 用户 id）</div>
-            <div><i>✓</i>每个岗位的 Kanban 用户 id 已填写</div>
+            <div><i>✓</i>项目从<b>列表</b>选好（主题集默认 <code>pub_&lt;项目 id&gt;</code>），岗位已登记（监听列 / Kanban 账号）</div>
+            <div><i>✓</i>每个岗位的 Kanban 账号已填好并映射出使用者 id</div>
             <div><i>✓</i>宪章 v1 已<b>提交到 Gitea 宪章仓库的 README.md</b>（编队页徽标显示 carrier=gitea）</div>
             <div><i>✓</i>职责说明 <code>duties.md</code> 已发布；岗位的「承接岗位」与卡片 <code>duty:</code> 标签匹配</div>
             <div><i>✓</i>切到 Team 视角时权限自检通过（admin，或已知缺权限仍要切换）</div>

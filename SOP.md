@@ -86,7 +86,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 | 项目 id / 名称 / slug | 选择后自动填；名称与 slug 可再手改，看板仍以 id 为准 | `dgctny8ibgpn72ei2j8qj2hc` / FDEP / FDE |
 | 主题集 | 该项目订阅的 ntfy topic；**留空默认「所选项目」的 `pub_<项目 id>`**（选中/换选项目时自动填；自己写的值不会被改） | `pub_fdep_pm` |
 | 岗位 id / 名称 / 角色 | 岗位标识与 PM/Worker | `w1-fdep` / SuperAgent Worker 1 (FDEP) / Worker |
-| **Kanban 用户 id** | 岗位在看板上的身份，**决定它领得到哪张卡** | `bsFdwgQX…` |
+| **Kanban 账号（登录邮箱）** | 岗位在看板上的身份，**决定它领得到哪张卡**；保存时宿主自动映射成使用者 id | `wu.zhiping@feg.cn` |
 | 监听列 | 该岗位领哪些列的卡（slug，逗号分隔） | `ready` |
 | Gitea 账号 / ntfy sender / 实例 | 该岗位的代码与消息身份、跑在哪台机器（都可留空） | `sa-w1-fdep` / `#sa-w1-fdep` / `web` |
 | 并发上限（WIP） | 该岗位同时在飞的职责上限 | `3` |
@@ -99,7 +99,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 1. **贴一把 API key**：面板 → 设置 → 来源 → Kanban → 填服务器地址与 API key → 保存。
 2. **看板自己会说**：面板从 Kanban 读出工作区、项目与看板列（价值流），面板里显示的列就是看板真实的列。
-3. **登记岗位与宪章**：设置 → 项目与岗位 → **从列表里选项目**（id 自动填）、每个岗位的 Kanban 用户 id → 写宪章并点「发布」。
+3. **登记岗位与宪章**：设置 → 项目与岗位 → **从列表里选项目**（id 自动填）、每个岗位的 **Kanban 账号（登录邮箱）**（宿主自动映射成使用者 id，下拉里可选工作区成员）→ 写宪章并点「发布」。
 
 > 其余的（Gitea/ntfy）是**可选**：Gitea 只提供宪章与职责说明；ntfy 带入库 tag 的通知先入库成卡，再由岗位统一接手。
 
@@ -390,8 +390,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 **PM 岗位**
 
 - [ ] 三个来源 `status` 都是 ready
-- [ ] 项目与岗位已登记：项目（从列表选）、监听列、岗位的 Kanban 用户 id、topic 集
-- [ ] 每个岗位的 **Kanban 用户 id 已填写**（否则它领不到卡）
+- [ ] 项目与岗位已登记：项目（从列表选）、监听列、岗位的 Kanban 账号（登录邮箱）、topic 集
+- [ ] 每个岗位的 **Kanban 账号已填好并映射出使用者 id**（否则它领不到卡）
 - [ ] 宪章 v1 已发布**到项目上**（项目的 description 里能看到 `version: 1`）
 - [ ] 至少派过一张卡并看到它被领走、在编队页出现在飞职责里
 - [ ] 异常队列能正常显示

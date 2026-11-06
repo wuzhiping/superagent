@@ -212,4 +212,9 @@ export class KaneoClient {
   async me(options: RequestOptions = {}): Promise<z.infer<typeof KaneoUserSchema>> {
     return this.request(KaneoUserSchema, 'GET', '/user/me', undefined, options)
   }
+
+  /** The members of a workspace: their ids are the board's assignees, their e-mails the friendly account a post names. */
+  async workspaceMembers(workspaceId: string, options: RequestOptions = {}): Promise<z.infer<typeof KaneoUserSchema>[]> {
+    return this.request(z.array(KaneoUserSchema), 'GET', `/workspace/${encodeURIComponent(workspaceId)}/members`, undefined, options)
+  }
 }

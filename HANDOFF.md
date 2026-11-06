@@ -41,6 +41,12 @@
 - 修掉三类“测试债”：`model-surface` 的 delivery 段落引用了测试部署未注册的 `DSH_SUPERAGENT_KANEO_PROJECT`（改成通用的 `<project id>/<ticket id>` 键写法），并把两处过时的字符预算更新到功能增长后的真实大小（orchestrator 61.5k / worker 43.5k，保留回归用途）；`class-docs` 给 `NtfyError` 补 JSDoc；`docs.spec` 修 Windows 路径比较、模块表按行任意单元格识别路径，并补齐 007 模块表里缺的 8 个 client 文件。
 - 其余未绿套件是**环境限制**、不是本次改动：缺 `@deepseek-ai/cordis-plugin-include` / `dsh-http-proxy` 等包、Windows 无 `sh`/`sleep`/`fcntl`/`gh`/`lark-cli`、文件权限位与 bash 退出码语义差异、长超时用例在 Windows 上超时（runtime、runtime-concurrency、service-script、sources、commands、store、outbox、queue、bundle-patch、client、deployment、panel-deployment 等）。
 - **端到端 story 套件**（`scripts/user-stories.mjs`）：首跑 10/11，US-10 失败是因为它用空 tags 发 ntfy 消息，而 ntfy 入库按 tag 过滤——已改为用部署配置的 `ingestTags` 发布；随后两次中途跑出现执行器会话卡住（工单两次派工均无报告，已停止该工单并单跑 US-10 通过）与 US-06 的看板截断断言随看板变大而失效，把该断言改为不依赖看板大小；**最终跑 11/11 全部通过**（`TDD/artifacts/user-stories-us-20261106043545.json`）。
+### 岗位 Kanban 账号填邮箱，宿主映射成使用者 id（2026-11-06）
+
+- 面板「项目与岗位设置」的岗位身份不再要求填 Kanban 使用者 id：填**登录邮箱**（下拉里是该工作区成员，带姓名与 id），存档时宿主用 `GET /workspace/<id>/members` 把它映射成 `kaneoUserId` 再写档案；旧档案只有 id 也继续有效（不填邮箱就不动 id）。
+- 新字段 `ArchivePost.kaneoUser`（邮箱）与 `kaneoUserId`（解析结果）并存；新增 `GET kaneo-users?projectId=` 供面板取成员/展示已映射 id；`PUT project-archive` 返回 `mapped` 列表；邮箱不在工作区时保存被拒并说明是哪个岗位、哪个邮箱。
+- 实机验证：RSI 的 PM 岗位填 `wu.zhiping@feg.cn` → 映射到 `bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG`，档案两个字段都在，`mapped` 返回该条；未知邮箱被 400 拒绝。
+- 代码：`src/app/kaneo-users.ts`（纯映射 + 解析）、`src/sources/kaneo-api.ts` 的 `workspaceMembers`、`src/app/http.ts` 两条路由、面板 `src/client/project.tsx`（邮箱输入 + 成员 datalist + 已映射提示）。文档与演示稿同步（SOP.md、SOP.html/.pdf）。
 ### Gitea 只做宪章仓库、岗位视角来源只读（2026-11-06，TDD/016 §6）
 
 - Gitea 来源改为只承载**宪章仓库**（宪章 + duties.md）：不监听 Issue/PR、不入库事件；健康检查为「宪章仓库可读」。工单要用的代码仓库由 Kanban 卡的 `repo:` 标签给出。

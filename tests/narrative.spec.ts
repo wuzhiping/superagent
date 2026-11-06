@@ -22,9 +22,9 @@ const archive = (): ProjectArchive => ({ version: 1, projects: [{
   id: 'p1', name: 'FDEP', slug: 'FDE',
   charter: { version: 4, publishedAt: '2026-09-22T00:00:00Z', publishedBy: 'agent:pm', text: 'version: 4', draft: '', history: [] },
   topics: ['pub_fdep_pm'],
-  posts: [{ postId: 'pm-fdep', role: 'pm', name: 'PM', kaneoUserId: 'u-pm', giteaUser: 'sa-pm', ntfySender: '#sa-pm',
+  posts: [{ postId: 'pm-fdep', role: 'pm', name: 'PM', kaneoUser: '', kaneoUserId: 'u-pm', giteaUser: 'sa-pm', ntfySender: '#sa-pm',
     wipLimit: 2, instance: 'web', watchColumns: 'ready' },
-    { postId: 'w1-fdep', role: 'worker', name: 'W1', kaneoUserId: 'u-w1', giteaUser: '', ntfySender: '', wipLimit: 1, instance: '',
+    { postId: 'w1-fdep', role: 'worker', name: 'W1', kaneoUser: '', kaneoUserId: 'u-w1', giteaUser: '', ntfySender: '', wipLimit: 1, instance: '',
       watchColumns: 'ready' }],
 }] })
 
