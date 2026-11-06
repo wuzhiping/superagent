@@ -125,38 +125,38 @@ describe('gitea client authentication', () => {
   })
 })
 
-describe('gitea anonymous access', () => {
-  it('tests a public repository anonymously by reading one issue and one pull request', async () => {
+describe('gitea charter repository access', () => {
+  const charterConfig = (overrides: Partial<GiteaConfig> = {}): GiteaConfig =>
+    GiteaConfigSchema.parse({ charterRepository: 'acme/charter', ...overrides })
+  const repositoryAnswer = { id: 1, full_name: 'acme/charter', default_branch: 'main', private: false, has_issues: true, has_pull_requests: true }
+  it('tests the charter repository anonymously and reads no issues or pull requests', async () => {
     const calls: { url: string; authorization: unknown }[] = []
     vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
       calls.push({ url: String(input), authorization: (init?.headers as Record<string, string> | undefined)?.authorization })
-      return response([])
+      return response(repositoryAnswer)
     }))
-    await expect(giteaKind.test!(config())).resolves.toBeUndefined()
-    const issues = calls.find(call => call.url.includes('/issues?'))
-    const pulls = calls.find(call => call.url.includes('/pulls?'))
-    expect(issues?.url).toContain('limit=1')
-    expect(pulls?.url).toContain('limit=1')
+    await expect(giteaKind.test!(charterConfig())).resolves.toBeUndefined()
+    expect(calls.some(call => call.url.includes('/repos/acme/charter'))).toBe(true)
+    expect(calls.some(call => call.url.includes('/issues'))).toBe(false)
+    expect(calls.some(call => call.url.includes('/pulls'))).toBe(false)
     expect(calls.every(call => call.authorization === undefined)).toBe(true)
   })
-  it('still logs in and reads one issue and pull request when an account is set', async () => {
+  it('still logs in and reads the charter repository when an account is set', async () => {
     const calls: { url: string; authorization: unknown }[] = []
     vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input)
       calls.push({ url, authorization: (init?.headers as Record<string, string> | undefined)?.authorization })
       if (url.endsWith('/user')) return response({ id: 1, login: 'agent' })
-      return response([])
+      return response(repositoryAnswer)
     }))
-    await expect(giteaKind.test!(config({ user: 'agent@feg.cn', password: 'secret' }))).resolves.toBeUndefined()
+    await expect(giteaKind.test!(charterConfig({ user: 'agent@feg.cn', password: 'secret' }))).resolves.toBeUndefined()
     const login = calls.find(call => call.url.endsWith('/user'))
     expect(login?.authorization).toBe(`Basic ${Buffer.from('agent@feg.cn:secret').toString('base64')}`)
-    expect(calls.some(call => call.url.includes('/issues?'))).toBe(true)
-    expect(calls.some(call => call.url.includes('/pulls?'))).toBe(true)
+    expect(calls.some(call => call.url.includes('/repos/acme/charter'))).toBe(true)
+    expect(calls.some(call => call.url.includes('/issues'))).toBe(false)
   })
-  it('treats disabled pull requests as readable, not as a failed test', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (input: string) => String(input).includes('/pulls?')
-      ? response({ message: 'pull requests are disabled' }, 404) : response([])))
-    await expect(giteaKind.test!(config())).resolves.toBeUndefined()
+  it('refuses a Source without a charter repository', async () => {
+    await expect(giteaKind.test!(charterConfig({ charterRepository: '' }))).rejects.toThrow(/charter repository/)
   })
   it('names the reader (anonymous or the account) in the health detail', async () => {
     const anonymous = config()

@@ -59,7 +59,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 | 来源 | 作用 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | **Kanban** | **唯一直接来源**：任务、看板、价值流 | 服务器地址、**API key**（可留空：本机存储记录里有）、**项目（从列表选）**、监听的列（slug） | API key 在 Kanban 用户设置里生成；**只要这一把钥匙就能跑起来** |
-| **Gitea** | 代码资产（可选）+ **宪章的家** | 服务器地址、邮箱、密码、**事件仓库**、**宪章仓库**、宪章文件 | 邮箱 + 密码走 HTTP Basic；先点「测试连接」再保存。**事件仓库与宪章仓库是两个字段、必须分开**：`repository` 的 Issue/PR/评论是任务来源，`charterRepository` 的 README.md 是项目宪章；留空宪章退回 Kanban 项目描述 |
+| **Gitea** | 代码资产（可选）+ **宪章的家** | 服务器地址、邮箱、密码、**宪章仓库**、宪章文件（**不看 Issue/PR**） | 邮箱 + 密码走 HTTP Basic；先点「测试连接」再保存。**Gitea 只做宪章仓库**（不监听 Issue/PR；任务只来自看板卡，工单要用的仓库由卡片的 `repo:` 标签给出）：`repository` 的 Issue/PR/评论是任务来源，`charterRepository` 的 README.md 是项目宪章；留空宪章退回 Kanban 项目描述 |
 | **ntfy** | 消息通道（可选） | 服务器地址、topic（可多个实例＝多个 topic）、**入库过滤 tag** | 公开 `pub_` topic 只当上下文，不构成授权；**只有带过滤 tag 的消息才入库成卡**（留空=全部），宿主的回复 tag 是 `dsh-superagent`，设了过滤就不会被回收成卡 |
 
 > **Kanban 是唯一的直接来源** ✅：Gitea / ntfy 的事件**先入库成看板上的卡**（落在 `to-do`），再由 PM 指派、移进监听列，
@@ -101,7 +101,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 2. **看板自己会说**：面板从 Kanban 读出工作区、项目与看板列（价值流），面板里显示的列就是看板真实的列。
 3. **登记岗位与宪章**：设置 → 项目与岗位 → **从列表里选项目**（id 自动填）、每个岗位的 Kanban 用户 id → 写宪章并点「发布」。
 
-> 其余的（Gitea/ntfy）是**可选**：它们的内容先入库成看板上的卡片，再由岗位统一接手，所以不配也不影响 Kanban 链路。
+> 其余的（Gitea/ntfy）是**可选**：Gitea 只提供宪章与职责说明；ntfy 带入库 tag 的通知先入库成卡，再由岗位统一接手。
 
 ### 2.6 多台机器，一个项目（多 Host）
 
@@ -135,6 +135,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 | 岗位与并发 ✅ ✅ | 面板 → 设置 → 项目与岗位 ✅ ✅ | 谁接单、接多少 ✅ ✅ ✅ |
 
 ### 2.7 两种面板视角（PM / 岗位）
+岗位视角里**来源设置是只读的**：来源由 PM 在 Team 视角配置，岗位只用配置好的来源干活。
+
 面板右上角有一个**视角开关**，可在「Team 视角」（团队/PM 岗位，原「PM 视角」）与「岗位视角」之间切换。**后台只有一套**：同一个实例、同一套来源、同一份项目档案、同一个工单队列——视角只改变**你看到什么、从哪一页开始**。
 
 | | Team 视角（PM 岗位） | 岗位视角 |

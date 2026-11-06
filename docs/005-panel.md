@@ -45,7 +45,10 @@ Ticket details show the originating Trigger, Decision and reason, scope and Poli
 
 The Sources page holds four cards, each with one job (2026-11-06):
 
-- **Gitea** — two separate repositories on one card: the **event repository** (`repository`) whose issues, pull requests and comments are the task source, and the **charter repository** (`charterRepository`) whose `README.md` (path editable as `charterPath`) is the charter's entry point and body. Publishing the charter commits to the charter file; a refused write (no push right) or an empty charter repository falls back to the Kanban project description as the mirror.
+- **Gitea** — the **charter repository** only (`charterRepository`): the charter and its duties document are read and
+  published here; issues and pull requests are not watched (a ticket gets its repositories from the Kanban card's
+  `repo:` labels). The older event-repository fields remain in the stored schema for compatibility but are not used.
+- **Gitea (continued)** —  and comments are the task source, and the **charter repository** (`charterRepository`) whose `README.md` (path editable as `charterPath`) is the charter's entry point and body. Publishing the charter commits to the charter file; a refused write (no push right) or an empty charter repository falls back to the Kanban project description as the mirror.
 - **Kanban** — the task source: the board's columns and cards are the requests the posts work.
 - **ntfy** — the realtime message channel. Only messages carrying one of the **ingest tags** (`ingestTags`) become cards or requests; an empty filter takes every message. The host's own replies carry `dsh-superagent`, so a filter set to `dsh` never files them back.
 - **MinIO / S3** — the supplemental carrier for a project's data assets (documents, plans, reports, exports). It produces no tasks: it is configured and reports whether its bucket is readable.
@@ -53,6 +56,8 @@ The Sources page holds four cards, each with one job (2026-11-06):
 Every card's credentials default to this Host's storage record (`/BDD/API/AI/dsh/storage/<service>`, read with the masked key) and may be overridden field by field; an empty field means "use the record", and a secret typed into a card stays in memory rather than the settings file.
 
 ### The Team seat (the PM seat) and its rights
+
+The post perspective reads the Sources read-only: the Sources belong to the PM in the Team view; a post only works with what is configured.
 
 The header switches the perspective: the same deployment read from the Team seat (the PM seat, labelled **Team 视角**) or from a post's seat. The right the PM seat needs is real — only a workspace admin may change a project's columns — and the host still reports it through `GET capabilities`. The panel no longer acts on that answer, though: it asks nothing before a seat is taken and shows no rights banner, so both seats are open to every account (paused 2026-11-05; RD.md §4.1 keeps the design). The panel writes no board of its own — the board's columns are the server's — so nothing else was ever blocked.
 

@@ -42,11 +42,11 @@ export const GiteaConfigSchema = GiteaAccountSchema.extend({
 }).strict()
 export type GiteaConfig = z.infer<typeof GiteaConfigSchema>
 
-/** The account fields of a stored Gitea Source config, or undefined while no repository is configured. */
+/** The account fields of a stored Gitea Source config, or undefined while no charter repository is configured. */
 export function giteaAccountOf(stored: Record<string, unknown> | undefined): GiteaAccount | undefined {
   if (!stored) return undefined
   const parsed = GiteaAccountSchema.safeParse(stored)
-  return parsed.success && parsed.data.repository ? parsed.data : undefined
+  return parsed.success && parsed.data.charterRepository ? parsed.data : undefined
 }
 
 /** Whether the account can authenticate: a token, or a login and password. */

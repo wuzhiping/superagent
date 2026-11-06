@@ -109,63 +109,34 @@ const eventKey = (ref: GiteaRef, kind: string, id: string): string => `${giteaTh
 
 export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
-  title: { zh: 'Gitea 仓库', en: 'Gitea repository' },
+  title: { zh: 'Gitea（宪章仓库）', en: 'Gitea (charter repository)' },
   description: {
-    zh: '私有部署的 Gitea 仓库（默认 https://git.feg.cn）。**事件仓库**（`repository`）的 Issue/PR/评论是任务来源；**宪章仓库**（`charterRepository`）单独一个，它的 README.md 是项目宪章的入口与主体——两者必须分开。公开仓库只填服务器地址和仓库名即可匿名读取；私有仓库或 agent 通知模式才需要邮箱+密码（或 API token）。事件先在 Kanban 看板建一张卡（to-do 列），由看板统一调度，结果回写那张卡。',
-    en: 'A self-hosted Gitea repository (default https://git.feg.cn). The **event repository** (`repository`) is the task source (its issues, pull requests and comments); the **charter repository** (`charterRepository`) is a repository of its own, whose README.md is the charter entry point and body — the two must stay separate. A public repository needs only the server address and the repository name; a private repository or the agent notification mode needs the account e-mail and password (or an API token). Every event is filed as a card in the Kanban board (to-do column) first, the board schedules it from there, and the result is written back to that card.',
+    zh: '私有部署的 Gitea（默认 https://git.feg.cn），只做**宪章仓库**：宪章与职责说明（README.md 与同目录的 duties.md）从这里读写，**不监听 Issue/PR，也不把事件入库成卡**。任务只来自 Kanban 卡；工单要用哪个 Gitea 仓库由卡片的 `repo:owner/name` 提供，不在这里配置。公开仓库只填服务器地址和仓库名即可匿名读取；私有仓库才需要邮箱+密码（或 API token）。',
+    en: 'A self-hosted Gitea (default https://git.feg.cn) that carries the **charter repository** only: the charter and its duties document (README.md and duties.md beside it) are read and published here; **issues and pull requests are not watched and no events are filed as cards**. Tasks come only from Kanban cards; when a ticket needs a repository, the card provides it as `repo:owner/name`, not this Source. A public repository needs only the server address and the repository name; a private repository needs the e-mail and password (or an API token).',
   },
   schema: GiteaConfigSchema,
-  /** Settings-panel probe: read the entered repository with the entered account (or anonymously), without saving. */
+  /** Settings-panel probe: the charter repository must exist and be readable (or writable, for publishing), without saving. */
   async test(config: GiteaConfig): Promise<void> {
-    const repo = repositoryOf(config.repository)
-    if (!repo) throw new Error('The repository must be owner/name')
-    if (config.listen === 'notifications' && !giteaHasAuth(config)) throw new Error('The notification mode needs an account password or an API token')
+    const charterRepo = repositoryOf(config.charterRepository)
+    if (!charterRepo) throw new Error('The charter repository must be owner/name')
     const client = new GiteaClient(config)
     // An account, when supplied, must actually log in; without one the repository must be readable anonymously.
     if (giteaHasAuth(config)) await client.user()
-    // A named charter repository must exist and be readable with the same account; the charter file itself may not be
-    // published there yet, so only the repository is checked.
-    const charterRepo = repositoryOf(config.charterRepository)
-    if (config.charterRepository.trim() && !charterRepo) throw new Error('The charter repository must be owner/name')
-    if (charterRepo) await client.repository(charterRepo.owner, charterRepo.name)
-    // Read one issue and one pull request: the streams the Source consumes, both readable anonymously when public.
-    await client.issues(repo.owner, repo.name, { limit: 1 })
-    // Gitea answers 404 for `/pulls` when pull requests are disabled on the repository: that is not unreadable.
-    try { await client.pulls(repo.owner, repo.name, { limit: 1 }) }
-    catch (error) { if (!(error instanceof GiteaError && error.status === 404)) throw error }
+    // The charter file itself may not be published yet, so only the repository is checked.
+    await client.repository(charterRepo.owner, charterRepo.name)
   },
   fields: [
     { key: 'baseUrl', type: 'text', label: { zh: 'Gitea 服务器', en: 'Gitea server' }, hint: { zh: '例如 https://git.feg.cn。公开仓库只需服务器地址和仓库名，账号可以留空。', en: 'For example https://git.feg.cn. A public repository needs only the server and the repository name; the account may stay empty.' } },
     { key: 'user', type: 'text', label: { zh: '邮箱（可选）', en: 'E-mail (optional)' }, hint: { zh: '公开仓库可以不填；私有仓库才需要。填写 agent 的 Gitea 登录邮箱（或登录名）。只用于宿主进程，不进入提示词。', en: 'Empty for a public repository; a private repository needs it. The agent Gitea e-mail (or login); host process only, never prompts.' } },
     { key: 'password', type: 'password', label: { zh: '密码（可选）', en: 'Password (optional)' }, hint: { zh: '公开仓库可留空（匿名读取）；私有仓库才需要，与邮箱配套（HTTP Basic）。留空表示不修改已保存的密码。', en: 'Empty for a public repository (anonymous reads); a private repository needs it with the e-mail (HTTP Basic). Leave it empty to keep the saved password.' } },
-    { key: 'token', type: 'password', advanced: true, label: { zh: 'API token（可选）', en: 'API token (optional)' }, hint: { zh: '公开仓库不需要；私有仓库或用 notifications 模式时可代替邮箱+密码，设置后优先于邮箱密码。留空表示不修改。', en: 'Not needed for a public repository; for a private repository or the notifications mode it takes the place of the e-mail and password. Leave empty to keep it.' } },
-    { key: 'repository', type: 'text', label: { zh: '仓库', en: 'Repository' }, hint: { zh: 'owner/name；留空则来源暂停。这个仓库同时是**宪章的家**：宪章从它的宪章文件读取，发布也提交到那里。', en: 'owner/name; empty keeps the Source paused. This repository is also the **charter\'s home**: the charter is read from its charter file and published by committing to it.' } },
+    { key: 'token', type: 'password', advanced: true, label: { zh: 'API token（可选）', en: 'API token (optional)' }, hint: { zh: '私有仓库可用 token 代替邮箱+密码，设置后优先；留空表示不修改。', en: 'For a private repository it takes the place of the e-mail and password and wins when set; leave empty to keep it.' } },
     { key: 'charterRepository', type: 'text', label: { zh: '宪章仓库（owner/name）', en: 'Charter repository (owner/name)' },
-      hint: { zh: '宪章的家，与上面的**事件仓库分开**（例如 `shawoo/rsi_superagent`）；留空则宪章退回 Kanban 项目描述。',
-        en: 'The charter\'s home, **separate from the event repository above** (such as `shawoo/rsi_superagent`); empty falls back to the Kanban project description.' } },
+      hint: { zh: '宪章与职责说明的家（例如 `shawoo/rsi_superagent`）；留空则来源暂停、宪章退回 Kanban 项目描述。这里不监听任何 Issue/PR：任务只来自看板卡，工单要用的仓库由卡片的 `repo:` 标签给出。',
+        en: 'The home of the charter and its duties document (such as `shawoo/rsi_superagent`); empty keeps the Source paused and falls the charter back to the Kanban description. No issues or PRs are watched here: tasks come from board cards, and a ticket gets its repositories from the card\'s `repo:` labels.' } },
     { key: 'charterPath', type: 'text', label: { zh: '宪章文件（仓库内路径）', en: 'Charter file (path in the repository)' },
-      hint: { zh: '默认 README.md：这个文件就是项目宪章的入口与主体；发布宪章会提交到这个文件上。',
-        en: 'Defaults to README.md: that file is the project charter\'s entry point and body, and publishing the charter commits to it.' } },
-    { key: 'listen', type: 'select', label: { zh: '读取方式', en: 'Read mode' }, options: [
-      { value: 'repo', label: { zh: '仓库增量（Issue/评论/PR）', en: 'Repository increments (issues/comments/PRs)' } },
-      { value: 'notifications', label: { zh: 'agent 通知（需 token）', en: 'Agent notifications (needs a token)' } },
-    ] },
-    { key: 'agent', type: 'text', label: { zh: 'agent 的 Gitea 登录名', en: 'Agent Gitea login' }, hint: { zh: '评论或描述里 @ 这个名字即视为明确请求（入库模式下由 PM 在看板上决定是否派工）。', en: 'Mentioning this name in a comment or description is an explicit request (with the inbox on, the PM decides on the board whether to assign it).' } },
-    { key: 'bots', type: 'text', advanced: true, label: { zh: '机器人账号（逗号分隔）', en: 'Bot accounts (comma separated)' } },
-    { key: 'observeIssues', type: 'switch', label: { zh: '读 Issue 变化', en: 'Read issue changes' } },
-    { key: 'observeComments', type: 'switch', label: { zh: '读评论', en: 'Read comments' } },
-    { key: 'observePulls', type: 'switch', advanced: true, label: { zh: '读 PR 变化', en: 'Read pull request changes' } },
-    { key: 'bootstrap', type: 'select', advanced: true, label: { zh: '首次轮询', en: 'First poll' },
-      hint: { zh: 'skip：跳过已有事件；trigger：把已有事件也入库成卡（会一次建很多张卡）。', en: 'skip ignores the existing events; trigger files them as cards too (that creates many cards at once).' },
-      options: [
-      { value: 'skip', label: { zh: '跳过已有事件', en: 'Skip existing events' } },
-      { value: 'trigger', label: { zh: '已有事件也入库', en: 'File existing events too' } },
-    ] },
-    { key: 'pollSeconds', type: 'number', advanced: true, min: 15, max: 3600, label: { zh: '轮询间隔 / 秒', en: 'Polling interval / seconds' } },
-    { key: 'failuresBeforeError', type: 'number', advanced: true, min: 1, max: 20, label: { zh: '连续失败几次后报告异常', en: 'Failed polls before reporting an error' } },
-    { key: 'maxItems', type: 'number', advanced: true, min: 1, max: 200, label: { zh: '每次最多读取', en: 'Items read per poll' } },
-  ],
-  scope: () => ({ listened: true, observed: false }),
+      hint: { zh: '默认 README.md：这个文件就是项目宪章的入口与主体；职责说明是同目录的 duties.md。',
+        en: 'Defaults to README.md: that file is the project charter\'s entry point and body; the duties document is duties.md beside it.' } },
+  ],  scope: () => ({ listened: true, observed: false }),
   health: ['gitea'],
   channel: {
     async send(host, message: OutboundMessage): Promise<'sent' | 'gone'> {
@@ -357,17 +328,36 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
   }
 }
 
+/** Watches the charter repository (the Source's whole job now): readable, and nothing else is polled. */
+async function charterHealth(ctx: SourceContext, signal: AbortSignal): Promise<void> {
+  await ctx.ready
+  while (!signal.aborted) {
+    const config = ctx.config<GiteaConfig>(SOURCE)
+    const repo = config ? repositoryOf(config.charterRepository) : undefined
+    if (!config || !repo) {
+      ctx.report('gitea', { state: 'paused', detail: 'The Gitea Source names no charter repository (it carries the charter and its duties document)' })
+    } else {
+      try {
+        await new GiteaClient(config).repository(repo.owner, repo.name, signal)
+        ctx.report('gitea', { state: 'ready', detail: `charter repository ${config.charterRepository} readable; issues and pull requests are not watched (tasks and their repositories come from Kanban cards)`, at: now() })
+      } catch (error) {
+        ctx.report('gitea', { state: 'error', detail: `the charter repository is not readable: ${error instanceof Error ? error.message : String(error)}` })
+      }
+    }
+    await pause(300_000, signal)
+  }
+}
+
 export const name = 'dsh-superagent-gitea'
 export const inject = ['orchestrator']
-/** Registers the kind and starts the polling loop; both effects unwind on unload. */
+/** Registers the kind and checks the charter repository; both effects unwind on unload. */
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.orchestrator.sources.register(giteaKind), 'gitea: source kind')
   ctx.effect(() => {
     const source = sourceContext(ctx.orchestrator, giteaKind)
     const controller = new AbortController()
-    const running = watch(source, controller.signal).catch((error: unknown) => { source.report('gitea', { state: 'error', detail: String(error) }) })
+    const running = charterHealth(source, controller.signal).catch((error: unknown) => { source.report('gitea', { state: 'error', detail: String(error) }) })
     return async () => { controller.abort(); await running }
-  })
+  }, 'gitea: charter health')
 }
-
 export { DEFAULT_GITEA_URL }

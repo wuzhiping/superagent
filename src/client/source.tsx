@@ -11,7 +11,7 @@ import { ConfigHistory, Fields, SourceField, useBlockDraft, useSettings } from '
 import { actorName, errorText, healthText, localized, readableMarkers, reasonLabel, valueLabel, when } from './text.ts'
 import { CheckSetupButton, Hint, LabelValue, LoadState, SetupMessage, StatusHead, When } from './widgets.tsx'
 
-function SourceCard({ source }: { source: SourceView }) {
+function SourceCard({ source, readOnly }: { source: SourceView; readOnly?: boolean }) {
   const { t, call } = usePanel()
   const { running } = usePanelData()
   const { reload } = useSettings()
@@ -37,6 +37,8 @@ function SourceCard({ source }: { source: SourceView }) {
   // Saving a modified setup-sensitive field restarts dsh-superagent, interrupting running Assignments.
   const restarts = draft.dirty && source.restarts.some(changed)
   const description = localized(t, source.description)
+  // The post perspective reads the Sources the PM configured; it does not own them.
+  const locked = readOnly === true
   // A card that asks for a project or a workspace reads the list from the host instead of asking for a typed id.
   const wantsPicks = source.fields.some(spec => spec.type === 'pick')
   const { data: picked } = usePoll(async () => wantsPicks ? call('GET projects') : undefined, [source.id, wantsPicks])
@@ -59,7 +61,7 @@ function SourceCard({ source }: { source: SourceView }) {
     }} />
   const advanced = source.fields.filter(spec => spec.advanced)
   return <form id={`dt-source-${source.id}`} className="dt-card" onSubmit={event => { void draft.submit(event) }}>
-    <Fields disabled={draft.busy}>
+    <Fields disabled={draft.busy || locked}>
       <div className="dt-card-head">
         <div className="dt-row-main">
           <div className="dt-row-title">
@@ -67,15 +69,16 @@ function SourceCard({ source }: { source: SourceView }) {
             {!source.installed && <Tag tone="warning">{t('sourceNotInstalled')}</Tag>}
           </div>
         </div>
-        {source.installed && <Switch checked={value.enabled} onChange={enabled => draft.edit({ ...value, enabled })}
+        {source.installed && !locked && <Switch checked={value.enabled} onChange={enabled => draft.edit({ ...value, enabled })}
           label={t('sourceEnable', { name: localized(t, source.title) })} />}
       </div>
+      {locked && <Hint>{t('sourceReadOnlyPost')}</Hint>}
       {problem && <div className="dt-row-buttons">
         <p className="dt-error" role="status"><SetupMessage problem={problem} lead /></p><CheckSetupButton />
       </div>}
       {!source.installed && <Hint>{t('sourceNotInstalledHint')}</Hint>}
       {source.installed && source.fields.filter(spec => !spec.advanced).map(field)}
-      {source.installed && source.testable && <div className="dt-row-buttons">
+      {source.installed && source.testable && !locked && <div className="dt-row-buttons">
         <Button size="sm" variant="ghost" disabled={draft.busy || test?.busy} onClick={() => { void runTest() }}>
           {test?.busy ? t('testing') : t('testConnection')}
         </Button>
@@ -87,17 +90,17 @@ function SourceCard({ source }: { source: SourceView }) {
         <div className="dt-disclosure-body">{advanced.map(field)}</div>
       </DisclosureRow>}
     </Fields>
-    <SaveBar {...draft} saveDisabled={needsTest}
+    {!locked && <SaveBar {...draft} saveDisabled={needsTest}
       status={needsTest ? t('testRequired') : restarts && running > 0 ? t('restartInterrupts', { count: running }) : undefined}
-      onDiscard={draft.discard} />
+      onDiscard={draft.discard} />}
   </form>
 }
 
-export function SourceSettings({ focus }: { focus?: string }) {
+export function SourceSettings({ focus, readOnly }: { focus?: string; readOnly?: boolean }) {
   const { sources } = useSettings().settings
   useEffect(() => { if (focus) document.getElementById(`dt-source-${focus}`)?.scrollIntoView?.({ block: 'start' }) }, [focus])
   return <div className="dt-form">
-    {sources.map(source => <SourceCard key={source.id} source={source} />)}
+    {sources.map(source => <SourceCard key={source.id} source={source} readOnly={readOnly} />)}
     <ConfigHistory blocks={['source:']} />
   </div>
 }

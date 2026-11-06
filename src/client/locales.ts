@@ -190,6 +190,7 @@ const TEXT = {
   labelsFailed: ['读取失败，列表保持不变：{error}', 'Could not read the list; it stays as it was: {error}'],
   sourceNotInstalled: ['插件未安装', 'Plugin not installed'],
   sourceNotInstalledHint: ['提供这个来源的插件没有加载，配置按保存时的样子保留。', 'The plugin that provides this Source is not loaded; its configuration is kept as saved.'],
+  sourceReadOnlyPost: ['来源由 PM 在 Team 视角配置；岗位视角只读：岗位只用配置好的来源干活。', 'Sources belong to the PM in the Team view; the post perspective is read-only: a post just works with the Sources as configured.'],
   sourceEnable: ['运行来源：{name}', 'Run Source: {name}'],
   addRow: ['添加', 'Add'],
   removeRow: ['移除：{name}', 'Remove: {name}'],

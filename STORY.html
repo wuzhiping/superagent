@@ -183,7 +183,7 @@
     <div class="content">
       <div class="grid g2 fill">
         <div class="card k"><div class="bar"></div><div class="num">01 · SCENE</div><h3>Kanban 看板任务</h3><p>拖进 ready 列之后，从 Trigger 到工单、到评论回写、再到看板推进的完整闭环。</p></div>
-        <div class="card g"><div class="bar"></div><div class="num">02 · SCENE</div><h3>Gitea：事件仓 + 宪章仓</h3><p>事件仓的 Issue/PR 只消费增量、把提及变成请求；<b>宪章仓的 README.md 是宪章的家</b>——两个仓库分开。</p></div>
+        <div class="card g"><div class="bar"></div><div class="num">02 · SCENE</div><h3>Gitea：宪章仓</h3><p><b>宪章仓的 README.md 是宪章的家</b>（同目录 duties.md 是职责说明）；Gitea 不监听 Issue/PR——工单要用的仓库由 Kanban 卡的 <code>repo:</code> 标签给出。</p></div>
         <div class="card n"><div class="bar"></div><div class="num">03 · SCENE</div><h3>ntfy：带 tag 的消息才入库</h3><p>只有带<b>入库 tag</b>（如 <code>dsh</code>）的消息才变成看板卡；不带 tag 的只是聊天，宿主的回复也不会被回收。</p></div>
         <div class="card"><div class="bar" style="background:#8b7bff"></div><div class="num">04 · MODEL</div><h3>全生命周期与人类方向盘</h3><p>十个阶段一张表，加上人类可随时按下的暂停、停止、重试与测试按钮。</p></div>
       </div>
@@ -203,7 +203,7 @@
           <p><b style="color:#c9cfff">pl.feg.cn</b> · FDEP 项目</p><p>监听列可配（本部署 <b>to-do</b>）；任务 = Thread，回复 = 任务评论。</p>
           <div class="chips"><span class="chip">poll 60s</span><span class="chip">API key</span></div></div>
         <div class="card g"><div class="bar"></div><div class="num">SOURCE · GITEA</div><h3>Gitea 仓库</h3>
-          <p><b style="color:#b6f5d4">git.feg.cn</b> · 事件仓 + 宪章仓</p><p>Issue / PR / 评论增量；回复 = Issue 评论。宪章仓的 <code>README.md</code> = 项目宪章。</p>
+          <p><b style="color:#b6f5d4">git.feg.cn</b> · 宪章仓</p><p>只读写宪章与职责说明；不监听 Issue/PR。工单要用的仓库由 Kanban 卡的 <code>repo:</code> 标签给出。</p>
           <div class="chips"><span class="chip">email + password</span><span class="chip">增量</span><span class="chip">宪章提交</span></div></div>
         <div class="card n"><div class="bar"></div><div class="num">SOURCE · NTFY</div><h3>ntfy 主题</h3>
           <p><b style="color:#ffdfaa">msn.feg.cn</b> · topic</p><p>只有带入库 tag 的消息入库成卡；回复发布回同一 topic。</p>
@@ -283,7 +283,7 @@
             <div class="li"><span class="mk dot">•</span><div>同一 Thread 的追问 → 上下文续传给执行中的 Assignment。</div></div>
             <div class="li"><span class="mk dot">•</span><div>账号用<b>邮箱 + 密码（HTTP Basic）</b>；密码框掩码、接口不回显。</div></div>
             <div class="li"><span class="mk ok">✓</span><div>改完账号先点「测试连接」，通过才允许保存。</div></div>
-            <div class="li"><span class="mk dot">•</span><div><b>事件仓与宪章仓是两个字段、两个仓库</b>，必须分开；宪章仓留空则退回 Kanban 项目描述镜像。</div></div>
+            <div class="li"><span class="mk dot">•</span><div><b>Gitea 只做宪章仓库</b>（不监听 Issue/PR）；工单需要的仓库由 Kanban 卡的 <code>repo:</code> 标签给出，不在 Gitea 卡上配置。</div></div>
           </div>
         </div>
       </div>
@@ -450,7 +450,7 @@
       </div>
       <div class="grid g3 fill">
         <div class="card k"><div class="bar"></div><h3>Kanban</h3><p>服务器 + API key + 项目 id；保存前自动探测，也可点「测试连接」。</p></div>
-        <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ <b>事件仓 owner/name</b> + <b>宪章仓 + 宪章文件</b>；<b>测试通过再保存</b>。</p></div>
+        <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ <b>宪章仓 + 宪章文件</b>（只做宪章；工单仓库由卡片 <code>repo:</code> 给）；<b>测试通过再保存</b>。</p></div>
         <div class="card n"><div class="bar"></div><h3>ntfy</h3><p>服务器 + topic + 认证：公开 <code style="color:#ffdfaa">pub_</code> 选 none；私有 topic 用账号+密码（basic）或 token。</p></div>
       </div>
       <p class="small" style="text-align:center">验收：<code style="color:#b6f5d4">/orchestrator/api/state</code> 中 runtime / kaneo / gitea / ntfy / s3 全部 ready；<b>切到 Team 视角先过权限自检</b>；宪章未发布时项目不接受任务（没有宪章不可开工）；再让一条真实消息走完全流程。</p>
@@ -468,7 +468,7 @@
     <div class="content">
       <table class="tight">
         <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
-        <tr><td><b>宪章</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code>（与事件仓库分开）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>宪章</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code>（职责说明是同目录 <code>duties.md</code>）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
         <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一派工来源；没有宪章的项目不接受任务</td></tr>
         <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带入库 tag 的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
         <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡</td><td>非代码交付物 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>

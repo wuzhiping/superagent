@@ -204,7 +204,7 @@ declare const giteaKind: SourceKind<GiteaConfig>;
 declare function pollRound(ctx: SourceContext, config: GiteaConfig, client: GiteaClient, signal?: AbortSignal): Promise<number>;
 declare const name = "dsh-superagent-gitea";
 declare const inject: string[];
-/** Registers the kind and starts the polling loop; both effects unwind on unload. */
+/** Registers the kind and checks the charter repository; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
 export { DEFAULT_GITEA_URL, GiteaRef, SOURCE, apply, commentEvent, commentTrigger, giteaKind, giteaRef, giteaRefOfThread, giteaThreadId, giteaThreadKey, inject, issueEvent, issueTrigger, name, notificationEvent, notificationTrigger, pollRound, refFromUrl };

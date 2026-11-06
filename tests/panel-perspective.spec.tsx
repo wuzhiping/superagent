@@ -94,3 +94,16 @@ it('takes the PM seat without a question when the account may manage the board',
   expect(document.querySelector('.dt-modal')).toBeNull()
   expect(find(zh['perspective.pm'], '.dt-perspective-option').getAttribute('aria-pressed')).toBe('true')
 })
+
+it('shows the Sources read-only in the post perspective', async () => {
+  await mount()
+  await click(find(zh['perspective.post'], '.dt-perspective-option'))
+  await click(tab(zh['tab.settings']))
+  await click(find(zh['term.source'], '.dt-settings-link'))
+  await settle()
+  // The post does not own the deployment's Sources: the cards carry the PM's values and cannot be saved.
+  expect(text()).toContain(zh.sourceReadOnlyPost)
+  expect(all('.dt-savebar').length).toBe(0)
+  // Fields renders a disabled fieldset; its controls inherit the lock.
+  expect(document.querySelectorAll('fieldset[disabled]').length).toBeGreaterThan(0)
+})

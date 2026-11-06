@@ -278,7 +278,7 @@
         <div class="card g"><span class="bar"></span>
           <div class="num">STEP 02</div><h3>三个来源账号</h3>
           <p>Kanban：地址 + API key（可留空）<b>+ 项目</b>（从列表选）+ 监听列（slug）。</p>
-          <p>Gitea：地址 + 邮箱 + 密码 + <b>事件仓库</b>（Issue/PR）+ <b>宪章仓库</b>（宪章的家，两个仓库分开）。</p>
+          <p>Gitea：地址 + 邮箱 + 密码 + <b>宪章仓库</b>（只做宪章与职责说明，<b>不监听 Issue/PR</b>）；工单要用的仓库由看板卡片的 <code>repo:</code> 标签给出。</p>
           <p>ntfy：地址 + topic + <b>入库过滤 tag</b>；MinIO：端点 + 桶。</p>
         </div>
         <div class="card n"><span class="bar"></span>
@@ -313,7 +313,7 @@
         <div class="card n"><span class="bar"></span>
           <div class="num">STEP 03</div><h3>发布宪章</h3>
           <p>设置 → 项目与岗位 → 宪章：写当期流程与交付标准 → <b>发布</b>。</p>
-          <p>发布<b>提交到 Gitea 宪章仓库的 <code>README.md</code></b>（宪章的家，与事件仓库分开）；版本号 +1、记发布者、旧版进历史；<b>每周至多一版</b>；工单钉在开工那版。</p>
+          <p>发布<b>提交到 Gitea 宪章仓库的 <code>README.md</code></b>（宪章的家）；版本号 +1、记发布者、旧版进历史；<b>每周至多一版</b>；工单钉在开工那版。</p>
         </div>
       </div>
       <p class="small"><b>Kanban 是唯一的直接来源</b>：Gitea / ntfy 的事件先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责。<b>没有宪章不可开工</b>：项目在宪章发布前不接受任何任务。</p>
@@ -331,9 +331,9 @@
       <table class="tight">
         <tr><th>字段</th><th>含义</th><th>例子</th></tr>
         <tr><td>项目</td><td><b>从列表选</b>（这台 Host 的账号能看到的项目）；选中后 id / 名称 / slug 自动填</td><td>FDEP（FDE）· ATEAM</td></tr>
-        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」——<b>提交到 Gitea 宪章仓库的 README.md</b>（与事件仓库分开），一个项目只有一份，<b>每周至多一版</b></td><td>version: 12 · publishedBy: pm-rsi</td></tr>
+        <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」——<b>提交到 Gitea 宪章仓库的 README.md</b>，一个项目只有一份，<b>每周至多一版</b></td><td>version: 12 · publishedBy: pm-rsi</td></tr>
         <tr><td>主题集</td><td>该项目订阅的 ntfy topic；<b>留空默认所选项目的 <code>pub_&lt;项目 id&gt;</code></b></td><td>pub_at8x…</td></tr>
-        <tr><td>Gitea 事件仓 / 宪章仓</td><td><b>两个字段、两个仓库</b>：事件仓的 Issue/PR 是任务来源；宪章仓的 <code>README.md</code> 是宪章的家（留空则宪章退回 Kanban 描述镜像）</td><td>shawoo/PDP · shawoo/rsi_superagent</td></tr>
+        <tr><td>Gitea 宪章仓</td><td><b>Gitea 只做宪章仓库</b>：宪章与职责说明（<code>README.md</code> 同目录的 <code>duties.md</code>）在这里；<b>不监听 Issue/PR</b>，工单要用的仓库由卡片的 <code>repo:</code> 标签给出</td><td>shawoo/rsi_superagent</td></tr>
         <tr><td>ntfy 入库 tag</td><td>只有带这些 tag 的消息才入库成卡（留空=全部）；宿主回复的 tag 是 <code>dsh-superagent</code>，不会被回收成卡</td><td>dsh</td></tr>
         <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 Team（PM）/ Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
         <tr><td>Kanban 用户 id</td><td><b>决定它领得到哪张卡</b></td><td>bsFdwgQXqZpYKvD5E2emqQ5TQ81eJ3zG</td></tr>
@@ -386,7 +386,7 @@
         <tr><td>权限</td><td>切成 Team 视角前验证 <code>canManageFlow</code>；缺权限先弹窗说明账号/角色/缺的权利，仍可切换</td><td>不需要管理权限：只干自己领到的活</td></tr>
         <tr><td>首页</td><td>概览</td><td>我的职责</td></tr>
       </table>
-      <p class="small">岗位第一次进入时，在「我的岗位」页选一次<b>你是哪个岗位</b>（记在这台设备上），之后概览、职责、设置都只围绕它展开。岗位视角里的「<b>我的岗位设置</b>」只改自己的岗位身份；项目、topic、宪章由 PM 在 Team 视角维护。<b>没有项目宪章时，团队页显示「没有宪章不可开工」。</b></p>
+      <p class="small">岗位视角的<b>来源设置只读</b>（来源由 PM 在 Team 视角配置）。岗位第一次进入时，在「我的岗位」页选一次<b>你是哪个岗位</b>（记在这台设备上），之后概览、职责、设置都只围绕它展开。岗位视角里的「<b>我的岗位设置</b>」只改自己的岗位身份；项目、topic、宪章由 PM 在 Team 视角维护。<b>没有项目宪章时，团队页显示「没有宪章不可开工」。</b></p>
     </div>
   </section>
 
@@ -599,7 +599,7 @@ publishedBy: pm-rsi
         <tr><td>看板自动化抢跑</td><td>进入 ready 约 20 秒就被搬到 in-progress，60 秒轮询会漏</td><td>轮询间隔 ≤ 15 秒，或把 in-progress 也纳入监听列</td></tr>
         <tr><td>宿主重启打断工单</td><td>跑长任务时保存来源设置会重启插件，正在跑的工单被中断</td><td>工单会带「host restarted」输入自动续跑；长任务期间不要改设置</td></tr>
         <tr><td>ntfy 换 topic</td><td>读游标跨 topic 保留，切换瞬间的消息可能被跳过</td><td>换 topic 自动回退游标 600 秒（入库标记去重）</td></tr>
-        <tr><td>宪章仓 / 事件仓</td><td>两者是 Gitea 卡片上的两个独立字段，不能共用一个仓库</td><td>宪章仓留空 = 退回 Kanban 描述镜像；事件仓只放 Issue/PR</td></tr>
+        <tr><td>Gitea 只做宪章</td><td>Gitea 卡片上没有事件仓库，也不监听 Issue/PR</td><td>工单需要代码仓库时，在卡片打 <code>repo:owner/name</code>；宪章仓留空则退回 Kanban 描述镜像</td></tr>
       </table>
     </div>
   </section>
@@ -650,7 +650,7 @@ publishedBy: pm-rsi
     <div class="content">
       <table class="tight">
         <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
-        <tr><td><b>宪章</b></td><td>Gitea「<b>宪章仓库</b>」的 <code>README.md</code>，与事件仓库分开</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>宪章</b></td><td>Gitea「<b>宪章仓库</b>」的 <code>README.md</code>（与职责说明 <code>duties.md</code> 同仓）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
         <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一的派工来源；看板列就是价值流</td></tr>
         <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带<b>入库 tag</b>（如 <code>dsh</code>）的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
         <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡（桶 <code>ateam</code>）</td><td>非代码交付物：<code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>

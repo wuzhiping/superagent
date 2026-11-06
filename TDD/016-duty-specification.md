@@ -63,3 +63,10 @@ interface DutySpec {
 - 职责的**工具/技能收紧**目前是简报里的分配说明（提示），尚未与执行环境的工具白名单联动强制；下一步接 `policies/executor` 的工具面。
 - 「职责 × 岗位」矩阵、按职责的 WIP/列映射、`depends:` 链、一键下一步建卡。
 - 宪章与 `duties.md` 的一致性提示（职责 id 在宪章提要里缺失时提示补齐）。
+
+## 6. 2026-11-06 追加：Gitea 只做宪章仓库；岗位视角来源只读
+
+- **Gitea 来源不再监听事件仓库**：面板卡片只留账号 + 宪章仓库 + 宪章文件；不再轮询 Issue/PR、不再把事件入库成卡。健康检查改为「宪章仓库可读」；`giteaAccountOf` 以 `charterRepository` 为配置完成标志（旧的事件仓库字段保留在存储 schema 里兼容，但不再使用）。
+- 工单需要代码仓库时，由 Kanban 卡片的 `repo:owner/name` 标签提供（`enrichTicket` 既有逻辑），不在 Gitea 来源卡上配置。
+- **岗位视角的来源设置只读**：来源由 PM 在 Team 视角配置；岗位视角里字段被禁用、没有保存按钮，只显示提示。
+- 线上验证：Gitea 健康 `charter repository shawoo/rsi_superagent readable; issues and pull requests are not watched`；岗位视角来源页 `disabledFieldsets=4`、无保存条、提示可见；Team 视角的 Gitea 卡片不再出现「事件仓库」。

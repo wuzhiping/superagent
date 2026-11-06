@@ -465,7 +465,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/panel-projects.spec.tsx` | The project pickers: the archive offers the list, and a stored project stays selectable when the list is unreadable |
 | `tests/passes.spec.ts` | Passes: one at a time, the ones asked for during a pass run as one after it, and the runtime health a failed pass reports |
 | `tests/kaneo.spec.ts` | The Kanban Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, and the REST client's retries |
-| `tests/gitea.spec.ts` | The Gitea Source: config defaults, trigger mapping, first-poll baseline, increments, channel idempotence, thread context, retries and refusals |
+| `tests/gitea.spec.ts` | The Gitea Source (charter repository): config defaults, trigger mapping, first-poll baseline, increments, channel idempotence, thread context, retries and refusals |
 | `tests/ntfy.spec.ts` | The ntfy Source: config/auth headers, history parsing with tombstones, trigger mapping, poll cursor and bootstrap, publish idempotence |
 | `tests/outbox.spec.ts` | The Outbox on a running Runtime: messages wait while processing is paused or their Source is not installed |
 | `tests/cache.spec.ts` | `TextCache` |
