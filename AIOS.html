@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIOS · AI⁺ 自进化组织的组织操作系统</title>
+<style>
+  :root{
+    --bg0:#070b16; --bg1:#0c1224; --panel:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.12); --text:#eef2ff; --dim:#a6b1cc; --faint:#7c87a3;
+    --kaneo:#7c8cff; --gitea:#41c98a; --ntfy:#f5a524; --accent:#8b7bff; --danger:#ff6b7a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1400px 900px at 82% -10%, rgba(124,140,255,.20), transparent 60%),
+      radial-gradient(1200px 800px at -10% 110%, rgba(65,201,138,.13), transparent 55%),
+      radial-gradient(1000px 700px at 50% 120%, rgba(245,165,36,.10), transparent 55%),
+      linear-gradient(160deg,var(--bg0),var(--bg1));
+    color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",system-ui,sans-serif;
+    overflow:hidden;
+  }
+  .viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  /* Fixed 1280x720 design canvas, scaled to the viewport, so every proportion and font size stays PPT-like. */
+  .stage{width:1280px;height:720px;flex:none;position:relative;transform-origin:center center}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:46px 64px 40px;
+    border-radius:20px;overflow:hidden;
+    background:linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.028) 45%, rgba(255,255,255,.05));
+    border:1px solid var(--line);
+    box-shadow:0 40px 90px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 100% 0%, rgba(139,123,255,.14), transparent 55%)}
+  .slide.active{display:flex;animation:in .45s cubic-bezier(.2,.7,.2,1)}
+  @keyframes in{from{opacity:0;transform:translateY(14px) scale(.995)}to{opacity:1;transform:none}}
+
+  .head{flex:none;position:relative;z-index:1}
+  .content{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px;justify-content:center;position:relative;z-index:1;margin-top:16px}
+  .slide.airy .content{margin-top:34px}
+
+  .kicker{display:flex;align-items:center;gap:10px;font-size:14px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;font-weight:700}
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  h1{font-size:74px;line-height:1.05;letter-spacing:-.025em;font-weight:800}
+  h2{font-size:42px;line-height:1.12;letter-spacing:-.015em;font-weight:800;margin-top:14px}
+  h3{font-size:22px;font-weight:700;line-height:1.25}
+  p.lead{font-size:20px;line-height:1.5;color:var(--dim);margin-top:12px}
+  .accent{background:linear-gradient(100deg,#a99bff,#7c8cff 45%,#41c98a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .small{font-size:16px;color:var(--faint);line-height:1.5}
+  .tag{display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:999px;font-size:15px;
+    border:1px solid var(--line);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap}
+  .tag.kaneo{color:#c9cfff;border-color:rgba(124,140,255,.45);background:rgba(124,140,255,.13)}
+  .tag.gitea{color:#b6f5d4;border-color:rgba(65,201,138,.42);background:rgba(65,201,138,.12)}
+  .tag.ntfy{color:#ffdfaa;border-color:rgba(245,165,36,.42);background:rgba(245,165,36,.12)}
+  .tag.pm{color:#ffd9a1;border-color:rgba(245,165,36,.5);background:rgba(245,165,36,.14)}
+  .tag.worker{color:#c9cfff;border-color:rgba(124,140,255,.5);background:rgba(124,140,255,.14)}
+
+  .grid{display:grid;gap:18px}
+  .grid.fill{flex:1;min-height:0;grid-auto-rows:minmax(0,1fr);align-content:stretch}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+  .card h3{margin-bottom:8px}
+  .card .num{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--faint);letter-spacing:.14em;margin-bottom:10px}
+  .card p{color:var(--dim);font-size:18px;line-height:1.5}
+  .card p + p{margin-top:6px}
+  .card .bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+  .card.k .bar{background:var(--kaneo)} .card.g .bar{background:var(--gitea)} .card.n .bar{background:var(--ntfy)}
+  .card.pm .bar{background:var(--ntfy)} .card.w .bar{background:var(--kaneo)}
+
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+  .step{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:14px 10px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+  .step b{display:block;font-size:17px;font-weight:700;line-height:1.25}
+  .step span{display:block;font-size:13px;color:var(--faint);margin-top:5px;letter-spacing:.02em}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:20px;padding:0 2px}
+
+  .timeline{display:flex;flex-direction:column;justify-content:space-evenly;flex:1;min-height:0}
+  .tl{display:grid;grid-template-columns:96px 26px 1fr;gap:16px;align-items:start}
+  .tl .time{font-family:"SF Mono",Consolas,monospace;font-size:18px;color:var(--kaneo);font-weight:700;padding-top:2px;text-align:right}
+  .tl .rail{position:relative;display:flex;justify-content:center;align-self:stretch}
+  .tl .rail::before{content:"";position:absolute;top:0;bottom:-20px;width:2px;background:linear-gradient(var(--line),transparent)}
+  .tl .rail i{width:11px;height:11px;border-radius:50%;background:var(--kaneo);margin-top:5px;box-shadow:0 0 0 4px rgba(124,140,255,.16);z-index:1}
+  .tl:last-child .rail::before{display:none}
+  .tl .body h3{font-size:20px}
+  .tl .body p{font-size:17px;color:var(--dim);line-height:1.5;margin-top:3px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .chip{font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--dim);font-family:"SF Mono",Consolas,monospace}
+
+  table{width:100%;border-collapse:collapse;font-size:17px}
+  th{text-align:left;color:var(--faint);font-weight:700;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.07);color:var(--dim);vertical-align:top;line-height:1.4}
+  td:first-child{color:var(--text);font-weight:700;white-space:nowrap}
+  table.tight td, table.tight th{padding:6px 9px;font-size:16px}
+
+  .list{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+  .li{display:flex;gap:10px;align-items:flex-start;font-size:18px;color:var(--dim);line-height:1.45}
+  .li b{color:var(--text);font-weight:700}
+  .li .mk{flex:none;width:24px;text-align:center;font-weight:800}
+  .mk.ok{color:var(--gitea)} .mk.no{color:var(--danger)} .mk.dot{color:var(--accent)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+  .cols .card{padding:26px 28px}
+  /* Checklist: the same green check as the other lists, aligned to the first line of every item. */
+  .check{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .check div{display:flex;gap:10px;align-items:flex-start;font-size:16.5px;color:var(--dim);line-height:1.45}
+  .check i{flex:none;width:16px;text-align:center;font-style:normal;font-size:15px;font-weight:800;color:var(--gitea);line-height:1.45}
+  pre{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    font-family:"SF Mono",Consolas,monospace;font-size:15px;line-height:1.65;color:var(--dim);overflow:hidden}
+  pre b{color:var(--text)}
+  /* Inline commands and keys: monospace, and a long git URL breaks anywhere instead of pushing out of its card. */
+  code{font-family:"SF Mono",Consolas,monospace;font-size:14px;line-height:1.55;color:var(--text);
+    background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:1px 7px;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+
+  /* cover */
+  .cover{justify-content:center;gap:8px}
+  .cover .glow{position:absolute;right:-6%;top:-22%;width:55%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(139,123,255,.34),transparent 62%);filter:blur(6px)}
+  .cover .ghost{position:absolute;right:60px;bottom:30px;font-size:150px;font-weight:900;letter-spacing:-.05em;
+    color:rgba(255,255,255,.035);line-height:1;user-select:none;white-space:nowrap;z-index:0}
+  .cover h1{max-width:15em;margin-top:10px}
+  .cover .sub{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .cover .meta{margin-top:40px;display:flex;gap:56px;flex-wrap:wrap;padding-top:20px;border-top:1px solid var(--line);width:100%}
+  .cover .meta div{font-size:14px;color:var(--faint)}
+  .cover .meta b{display:block;color:var(--text);font-size:18px;margin-top:6px;font-weight:700}
+  .cover .head,.cover .content{position:relative;z-index:2}
+
+  /* chrome */
+  .nav{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.06);z-index:20}
+  .nav .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#41c98a);transition:width .3s ease;box-shadow:0 0 14px rgba(139,123,255,.7)}
+  .hint{position:fixed;right:16px;bottom:16px;font-size:13px;color:var(--faint);background:rgba(0,0,0,.35);
+    border:1px solid var(--line);border-radius:999px;padding:8px 14px;z-index:21;transition:opacity .5s;backdrop-filter:blur(8px)}
+  .hint.hide{opacity:0}
+  .ctrls{position:fixed;left:16px;bottom:14px;display:flex;gap:8px;z-index:21;opacity:.55}
+  .ctrls button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);
+    color:var(--dim);font-size:18px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s}
+  .ctrls button:hover{color:#fff;border-color:rgba(255,255,255,.4);transform:translateY(-1px)}
+  .dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:21}
+  .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:.25s;display:block}
+  .dots i.on{background:var(--accent);box-shadow:0 0 10px var(--accent);transform:scale(1.3)}
+  .pageno{position:absolute;right:64px;bottom:22px;font-family:"SF Mono",Consolas,monospace;font-size:13px;color:var(--faint);z-index:2}
+  .brand{position:absolute;left:64px;bottom:22px;font-size:12px;letter-spacing:.2em;color:var(--faint);text-transform:uppercase;z-index:2}
+
+  @media print{
+    html,body{height:auto;background:#0b1020;overflow:visible;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .viewport{position:static;display:block}
+    /* One 16:9 slide per page: the page itself is exactly the 1280x720 design canvas, so nothing is rescaled or clipped. */
+    .stage{width:1280px;height:auto;transform:none!important}
+    .slide{position:relative!important;display:flex!important;width:1280px;height:720px;margin:0;border-radius:0;
+      border:none;box-shadow:none;break-after:page;page-break-after:always;animation:none}
+    .slide:last-child{break-after:auto;page-break-after:auto}
+    .nav,.hint,.ctrls,.dots{display:none}
+    @page{size:1280px 720px;margin:0}
+  }
+  /* Dense slides: the same look with less vertical growth, so nothing runs into the footer. */
+  .slide.dense .content{gap:12px}
+  .slide.dense table.tight td, .slide.dense table.tight th{padding:5px 8px;font-size:15px}
+  .slide.dense .card p{font-size:15.5px;line-height:1.45}
+  .slide.dense .card p + p{margin-top:4px}
+  .slide.dense .check div{font-size:15px;line-height:1.4}
+  .slide.dense .small{font-size:14.5px;line-height:1.5}
+  /* Timeline rows keep their height instead of shrinking and overlapping; their type is a little smaller. */
+  .timeline{justify-content:flex-start;gap:18px}
+  .timeline .tl{flex:none}
+  .tl .time{font-size:16px;padding-top:1px}
+  .tl .body h3{font-size:19px;line-height:1.3}
+  .tl .body p{font-size:16px;line-height:1.45;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="viewport"><div class="stage" id="stage">
+  <!-- 1 cover -->
+  <section class="slide cover active">
+
+    <div class="glow"></div><div class="ghost">AIOS</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>AI NATIVE SELF-EVOLVING ORGANIZATION · AIOS</div>
+      <h1>AI⁺ <span class="accent">自进化组织</span></h1>
+      <p class="lead" style="max-width:48em">一套组织操作系统：定义组织如何成立、成员如何协作、工作如何执行、知识如何沉淀、规则如何治理，以及组织如何持续进化。<br>标准化是为了复制，自动化是为了效率，知识化是为了积累，自进化是为了持续创造更大的价值。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
+        <span class="tag pm">组织内核</span>
+        <span class="tag worker">组织模板</span>
+        <span class="tag kaneo">VSM 组织实例</span>
+        <span class="tag gitea">Human + AI</span>
+        <span class="tag ntfy">规则驱动 · 可复制 · 自进化</span>
+      </div>
+      <div class="meta">
+        <div>读者<b>负责人 / 架构师 / 想理解全局的人</b></div>
+        <div>配套文档<b>AIOS.md · RD.md · SOP.md · docs/001</b></div>
+        <div>当前状态<b>单组织实例已闭环运行</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 definition -->
+  <section class="slide airy">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DEFINITION</div>
+      <h2>AIOS 不是一个工具，而是<span class="accent">组织的操作系统</span></h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><div class="num">NOT</div>
+          <h3>不只是</h3>
+          <div class="list">
+            <div class="li"><span class="mk no">✕</span><div>一个简单的 AI Agent 集合</div></div>
+            <div class="li"><span class="mk no">✕</span><div>一个任务管理工具</div></div>
+            <div class="li"><span class="mk no">✕</span><div>一个自动化工作流平台</div></div>
+          </div>
+        </div>
+        <div class="card w"><span class="bar"></span><div class="num">BUT</div>
+          <h3>而是</h3>
+          <div class="list">
+            <div class="li"><span class="mk ok">✓</span><div>可标准化定义、被软件承载、被不同业务复制的<b>组织形态</b></div></div>
+            <div class="li"><span class="mk ok">✓</span><div>由 Human 与 AI Agent 共同运行、通过实践不断优化自身规则的<b>智能组织</b></div></div>
+            <div class="li"><span class="mk ok">✓</span><div>一套能够不断复制项目、组织和组织能力的<b>生产体系</b></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="small">本仓库的 <b>dsh-superagent</b> 是这套操作系统的第一个可运行原型：已跑通一个组织实例的闭环；内核、模板与复制的自动化仍是方向（本 deck 末尾标注现状）。</p>
+    </div>
+  </section>
+
+  <!-- 3 why -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>WHY · 组织为什么需要操作系统</div>
+      <h2>复制的是<span class="accent">组织能力</span>，不是重新组班子</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>传统做法的问题</th><th>AIOS 的主张</th></tr>
+        <tr><td>每遇到新机会就重新组班子、重新设计管理方式</td><td>先有组织内核，再用模板实例化，复制组织能力</td></tr>
+        <tr><td>流程靠人记、靠口口相传，成员一走就断档</td><td>规则进宪章（版本化），知识进公共资产库，不依赖个人记忆</td></tr>
+        <tr><td>AI 只是帮人干更多活的工具</td><td>AI 与 Human 是同一组织里的成员与 Worker，同一治理框架下协作</td></tr>
+        <tr><td>SOP 是写死的一成不变文档</td><td>SOP 在执行与复盘中持续改进，经评审与版本管理</td></tr>
+        <tr><td>职责模糊、交付无验收标准</td><td>每个任务有负责人、输入、验收标准与唯一权威载体</td></tr>
+      </table>
+      <p class="small">一句话：不建一个项目，而建一套能不断复制项目、组织和组织能力的生产体系。</p>
+    </div>
+  </section>
+
+  <!-- 4 principles -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DESIGN PRINCIPLES</div>
+      <h2>六条设计原则</h2>
+    </div>
+    <div class="content">
+      <div class="grid g3 fill">
+        <div class="card k"><span class="bar"></span><div class="num">01</div><h3>规则驱动</h3><p>先有宪章才有工作；没有宪章、职责未定义、岗位不承接、派给 PM，都在主机侧被拒绝。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">02</div><h3>单一事实来源</h3><p>任务只来自 Kanban；宪章/职责在 Gitea；交付物唯一权威载体；状态与结果回写看板。</p></div>
+        <div class="card n"><span class="bar"></span><div class="num">03</div><h3>分层继承</h3><p>内核 → 模板 → VSM 实例 → 独立运行与反向贡献。</p></div>
+        <div class="card w"><span class="bar"></span><div class="num">04</div><h3>岗位与职责分离</h3><p>岗位长期存在、持有身份；职责一次性授权、随交付结束，不持有外部身份。</p></div>
+        <div class="card pm"><span class="bar"></span><div class="num">05</div><h3>人类保留最终权力</h3><p>AI 在授权内自主执行；宪章发布、权限边界与异常升级由人掌握。</p></div>
+        <div class="card"><span class="bar"></span><div class="num">06</div><h3>可复制</h3><p>成熟规则沉入内核被所有实例继承；业务特有经验留在各自 Workspace。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 architecture -->
+  <section class="slide airy">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>ARCHITECTURE · 四层继承</div>
+      <h2>一套内核，多个组织</h2>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step"><b>① 组织内核</b><span>身份 · 治理 · 岗位 · 执行规则 · 质量 · 复盘</span></div><div class="arrow">→</div>
+        <div class="step"><b>② 组织模板</b><span>默认岗位 · Team 模板 · Flow · 基础设施配置</span></div><div class="arrow">→</div>
+        <div class="step"><b>③ VSM 组织实例</b><span>独立 Workspace · 宪章 · 成员 · 流程 · KPI</span></div><div class="arrow">→</div>
+        <div class="step"><b>④ 运行与进化</b><span>独立运行 · 复盘 · 知识沉淀 · 经验回流内核</span></div>
+      </div>
+      <table class="tight">
+        <tr><th>层</th><th>当前实现（本原型）</th><th>状态</th></tr>
+        <tr><td>① 组织内核</td><td>代码默认值 + 提示词 + SOP/文档 + 闸门规则 + 职责格式</td><td>🚧 隐式，无独立版本包</td></tr>
+        <tr><td>② 组织模板</td><td>一个 bundle + 一套面板设置 + 项目档案结构（手工复制）</td><td>🚧 无导出/导入与新建向导</td></tr>
+        <tr><td>③ 组织实例</td><td>一个 Kanban 项目 = 一个实例：档案 + 宪章仓库 + 看板/桶/topic</td><td>✅ 可独立运行</td></tr>
+        <tr><td>④ 运行与进化</td><td>看板 + 面板 + 周复盘制度；charter/duties 版本历史</td><td>🚧 复盘与回流靠人和文档</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6 concepts-org -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CONCEPTS · 组织与人</div>
+      <h2>叙事术语 ↔ <span class="accent">系统实现</span></h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>叙事概念</th><th>系统映射</th><th>状态</th></tr>
+        <tr><td>Organization 组织</td><td>一个 Kanban 项目 + 项目档案（岗位/宪章镜像/职责说明/看板订阅）</td><td>✅</td></tr>
+        <tr><td>PM 领导者</td><td>PM 岗位（主 Session / Team 视角）：宪章、派工、异常、审进度</td><td>✅</td></tr>
+        <tr><td>Member 成员</td><td>AI 成员 = 岗位（Post）；Human 通过来源消息、看板指派与审批参与</td><td>🚧 无统一成员目录</td></tr>
+        <tr><td>Role / 岗位</td><td>岗位的 role（pm/worker）+ 身份绑定 + 监听列 + WIP</td><td>✅</td></tr>
+        <tr><td>Team / 团队</td><td>当前以“项目 + 看板列 + 职责承接岗位”体现</td><td>🔭 无独立 Team 实体</td></tr>
+        <tr><td>Team Leader</td><td>当前由 PM 岗位兼任（项目规模小时是合理默认）</td><td>🔭</td></tr>
+      </table>
+      <p class="small">身份取舍：岗位在 Kanban 用登录邮箱（宿主映射成使用者 id），Gitea/ntfy 各自有身份；跨来源“同一个人”只作提示词上下文与档案信息（见 docs/001）。</p>
+    </div>
+  </section>
+
+  <!-- 7 concepts-work -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CONCEPTS · 工作与治理</div>
+      <h2>Task → Duty → Ticket → <span class="accent">Deliverable</span></h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>叙事概念</th><th>系统映射</th><th>状态</th></tr>
+        <tr><td>Worker 执行者</td><td>Worker 岗位的执行器 Session：每个工单一个执行会话与工作目录</td><td>✅</td></tr>
+        <tr><td>Charter 宪章</td><td>项目宪章：Gitea 宪章仓库 README.md（或 Kanban 描述镜像）；版本化、每周≤1 版</td><td>✅</td></tr>
+        <tr><td>Responsibilities 职责说明</td><td>宪章同目录 duties.md：目标/完成/载体/知识/资源/工具/技能/接单/步骤/常见坑/承接岗位</td><td>✅</td></tr>
+        <tr><td>Task 任务</td><td>Kanban 卡片：duty:/kind:/repo: 标签 + assignee；唯一任务来源</td><td>✅</td></tr>
+        <tr><td>Pipeline 流程</td><td>看板列（价值流）+ 宪章流程语义 + 职责步骤；复杂分支仍靠文档表达</td><td>🚧 无流程引擎</td></tr>
+        <tr><td>Duty / 工单</td><td>Ticket：接受时创建，携带 Mandate、Duty brief、宪章版本；随交付结束</td><td>✅</td></tr>
+        <tr><td>Deliverable 产出</td><td>代码 = Gitea PR；文档/方案 = MinIO 对象；看板只留进度与结果</td><td>✅</td></tr>
+        <tr><td>Knowledge / Review / Evolution</td><td>MinIO + 仓库文档/技能 + 宪章职责版本历史；周复盘制度</td><td>🚧 无统一索引/自动复盘</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 8 infrastructure -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>INFRASTRUCTURE · 四个系统，各司其职</div>
+      <h2>不让信息四处分散</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>组织基础设施</th><th>系统映射</th><th>组织职责</th><th>明确不承担</th></tr>
+        <tr><td>组织工作空间</td><td>Kaneo Workspace / Project</td><td>组织、项目、任务、看板状态、日志与回写</td><td>不存代码、不存文档产物</td></tr>
+        <tr><td>组织宪章</td><td>Gitea 宪章仓库</td><td>规则、SOP、岗位职责说明；发布 = 提交，历史 = 版本</td><td>不产生任务（不监听 Issue/PR）</td></tr>
+        <tr><td>组织资产库</td><td>MinIO / S3</td><td>交付物、方案、memo、共享资产</td><td>不参与调度与授权</td></tr>
+        <tr><td>组织通信渠道</td><td>ntfy</td><td>事件、通知、异常提醒；带 tag 的消息可先入库成卡</td><td>不构成授权（公开 topic 仅上下文）</td></tr>
+        <tr><td>组织运行环境</td><td>DSH Host（SuperAgent bundle）</td><td>运行主 Session 与执行器 Session，执行闸门、派工、回写、交付</td><td>不替人做规则决策；不直接改看板</td></tr>
+      </table>
+      <p class="small">统一身份与关联：Kanban 登录邮箱 → 使用者 id；Gitea 账号；ntfy sender。跨系统「同一个人」只作上下文，系统不建跨来源账号映射。</p>
+    </div>
+  </section>
+
+  <!-- 9 initialization -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>INITIALIZATION · 从默认规则到正式运行</div>
+      <h2>PM 负责完成首次初始化</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><div class="num">01 — 05</div>
+          <div class="check">
+            <div><i>✓</i>创建组织工作空间（Kanban Workspace/Project）</div>
+            <div><i>✓</i>初始化宪章仓库（Gitea）</div>
+            <div><i>✓</i>确认目标与客户价值（宪章 Objectives）</div>
+            <div><i>✓</i>登记岗位（AI 成员）与 Human 参与方式</div>
+            <div><i>✓</i>明确岗位职责（duties.md + 承接岗位）</div>
+          </div>
+        </div>
+        <div class="card"><span class="bar"></span><div class="num">06 — 10</div>
+          <div class="check">
+            <div><i>✓</i>建立 Team 与协作关系（当前以项目/看板协同代替）</div>
+            <div><i>✓</i>初始化项目流程与任务流程（看板列 + 宪章语义）</div>
+            <div><i>✓</i>配置公共资产空间（MinIO 桶与凭据）</div>
+            <div><i>✓</i>创建通知频道（ntfy topic 与入库 tag）</div>
+            <div><i>✓</i>确认权限、授权与审计（canManageFlow / 决策记录）</div>
+          </div>
+        </div>
+      </div>
+      <p class="small">默认配置可以有，模糊责任不可以有：每个岗位有明确身份与职责，每个任务有负责人、输入与验收标准，每个交付物有唯一权威载体。</p>
+    </div>
+  </section>
+
+  <!-- 10 operating-loop -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>OPERATING LOOP · 从卡到交付</div>
+      <h2>一张卡如何变成<span class="accent">可验收的交付</span></h2>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step"><b>Kanban 卡片</b><span>唯一任务来源</span></div><div class="arrow">→</div>
+        <div class="step"><b>指派给岗位</b><span>assignee = 岗位账号</span></div><div class="arrow">→</div>
+        <div class="step"><b>接单</b><span>读回 + 租约</span></div><div class="arrow">→</div>
+        <div class="step"><b>工单 + Duty</b><span>钉住宪章版本</span></div><div class="arrow">→</div>
+        <div class="step"><b>执行器交付</b><span>PR / MinIO 对象</span></div><div class="arrow">→</div>
+        <div class="step"><b>宿主回写</b><span>状态 + 日志 + 引用</span></div>
+      </div>
+      <div class="grid g3">
+        <div class="card k"><span class="bar"></span><h3>Kanban 唯一任务源</h3><p>评论 @ 岗位不算派工；只有看板上的卡才是任务。</p></div>
+        <div class="card g"><span class="bar"></span><h3>唯一权威载体</h3><p>代码走 PR，文档/方案存 MinIO；看板只留进度与结果。</p></div>
+        <div class="card n"><span class="bar"></span><h3>单写者纪律</h3><p>看板由宿主写；Worker 报告状态，不自己搬卡。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 governance -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>GOVERNANCE · 不可谈判的规则</div>
+      <h2>规则不是建议，是<span class="accent">主机侧闸门</span></h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>规则</th><th>行为</th><th>落点</th></tr>
+        <tr><td>没有宪章不可开工</td><td>宪章版本 0 → noCharter 忽略，不建工单</td><td>charter.ts</td></tr>
+        <tr><td>职责必须先定义</td><td>duty 未定义 → dutyUndefined；岗位不承接 → dutyUnsupported</td><td>duties.ts</td></tr>
+        <tr><td>PM 不给自己派活</td><td>卡片落在 PM 岗位 → pmExecutionNotAllowed；宪章写明「PM 可执行职责」才放行</td><td>pm-execution.ts</td></tr>
+        <tr><td>任务只来自看板</td><td>Gitea 只做宪章仓库；ntfy 带 tag 的消息先入库成卡</td><td>sources/gitea.ts · ntfy.ts</td></tr>
+        <tr><td>权限先验证</td><td>切 Team 视角前查 canManageFlow；岗位视角来源只读</td><td>capabilities.ts · 面板</td></tr>
+        <tr><td>宪章版本纪律</td><td>每周最多发布一版（覆盖需说明理由），历史保留，工单钉住开工版本</td><td>charter.ts · narrative.ts</td></tr>
+        <tr><td>复用公共资产</td><td>文档/方案存 MinIO 不贴评论；代码走 PR；知识进仓库文档</td><td>prompts/work.md</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 12 delivery -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DELIVERY · 产出有唯一权威载体</div>
+      <h2>一处载体，处处可引用</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>产出类型</th><th>权威载体</th><th>回写看板</th></tr>
+        <tr><td>代码变更</td><td>Gitea PR（一仓一目录一 PR）</td><td>PR 链接 + 评审状态</td></tr>
+        <tr><td>文档 / 方案</td><td>MinIO 对象（来源卡可覆盖端点/桶/凭据）</td><td>对象键 + URL</td></tr>
+        <tr><td>memo / 决策</td><td>MinIO 对象（长）或任务评论（短）</td><td>摘要 + 结论</td></tr>
+        <tr><td>工作日志</td><td>Kanban 任务评论（追加式）</td><td>即为看板内容</td></tr>
+      </table>
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>交付前自查</h3>
+          <div class="check">
+            <div><i>✓</i>只改了被授权的仓库与目录</div>
+            <div><i>✓</i>产出有可点击引用</div>
+            <div><i>✓</i>工作日志已追加、状态已更新</div>
+          </div>
+        </div>
+        <div class="card"><span class="bar"></span><h3>边界</h3>
+          <p>不跨工作目录交付；需求有歧义不要猜：提问并转 blocked，进 PM 的异常队列。</p>
+          <p>看板由宿主写：岗位只报告，不自己搬卡。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 knowledge -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>KNOWLEDGE · 组织学习</div>
+      <h2>沉淀可复用的<span class="accent">能力</span>，不只保存交付物</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>沉淀类型</th><th>载体</th><th>状态</th></tr>
+        <tr><td>交付物（方案/文档/报告）</td><td>MinIO 对象（固定 key，可回读）</td><td>✅</td></tr>
+        <tr><td>SOP 与操作指南</td><td>SOP.md / SOP.html / STORY.md</td><td>✅</td></tr>
+        <tr><td>方法论与决策记录</td><td>RD.md / docs/ / TDD/ / HANDOFF.md</td><td>✅</td></tr>
+        <tr><td>规则与职责</td><td>宪章 README.md / duties.md（commit 历史 = 版本）</td><td>✅</td></tr>
+        <tr><td>工具与技能</td><td>仓库内 Agent Skill、提示词、bundle 代码</td><td>✅</td></tr>
+        <tr><td>失败案例与改进</td><td>TDD 记录、HANDOFF 修正、story 回归</td><td>🚧 未自动提炼模板</td></tr>
+      </table>
+      <p class="small">知识不能随 Member 离开而消失：规则进宪章、经验进仓库、交付物进对象存储，而不是留在某次对话或某个人脑子里。</p>
+    </div>
+  </section>
+
+  <!-- 14 review-evolution -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>REVIEW &amp; EVOLUTION</div>
+      <h2>复盘不是汇报，是<span class="accent">检查组织自身</span></h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><h3>每周复盘问什么</h3>
+          <div class="check">
+            <div><i>✓</i>客户价值是否真正实现？</div>
+            <div><i>✓</i>目标与 Task/Pipeline 是否有效？</div>
+            <div><i>✓</i>Team 协作与岗位职责是否合理？</div>
+            <div><i>✓</i>SOP 是否有重复、低效或错误？</div>
+            <div><i>✓</i>知识资产是否有效沉淀？</div>
+            <div><i>✓</i>哪些工作可自动化、哪些规则要改？</div>
+          </div>
+        </div>
+        <div class="card"><span class="bar"></span><h3>三层进化</h3>
+          <div class="list">
+            <div class="li"><span class="mk ok">1</span><div><b>执行进化</b>：Worker 在任务内优化方法与质量</div></div>
+            <div class="li"><span class="mk ok">2</span><div><b>团队进化</b>：改 duties/流程/岗位与能力配置</div></div>
+            <div class="li"><span class="mk ok">3</span><div><b>组织进化</b>：改宪章/结构/权限/方法论（≤每周一版）</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="small">复盘结果必须有行动：一般改进进 Kanban 成新卡；知识进 Gitea/MinIO；规则修改发新宪章版本，并经过评审与版本管理。</p>
+    </div>
+  </section>
+
+  <!-- 15 replication -->
+  <section class="slide airy dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>REPLICATION · 一套内核，多个组织</div>
+      <h2>最重要的设计原则：<span class="accent">分层继承</span></h2>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step"><b>Global Kernel</b><span>基础规则 · 身份 · 治理 · 通用 SOP</span></div><div class="arrow">→</div>
+        <div class="step"><b>Organization Template</b><span>默认岗位 · Team 模板 · Flow · 基础设施</span></div><div class="arrow">→</div>
+        <div class="step"><b>VSM Instance</b><span>独立 Workspace · 宪章 · 成员 · KPI</span></div><div class="arrow">→</div>
+        <div class="step"><b>运行 + 复盘</b><span>通用经验反向贡献内核</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><span class="bar"></span><h3>今天已可复制</h3><p>同一 bundle 的默认行为；项目档案；宪章与职责文档；SOP/deck/文档；story 套件与 TDD 证据。装 bundle + 建项目 + 发宪章/职责 + 登记岗位即可运行（半自动）。</p></div>
+        <div class="card"><span class="bar"></span><h3>尚未实现</h3><p>独立内核包与版本；模板导出/导入；“新建组织”向导；内核回流机制；Team/Team Leader 与 Member 目录实体。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 current-state -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>CURRENT STATE · 2026-11-06</div>
+      <h2>诚实区分：<span class="accent">已实现 / 部分 / 愿景</span></h2>
+    </div>
+    <div class="content">
+      <div class="grid g3 fill">
+        <div class="card g"><span class="bar"></span><h3>✅ 已运行</h3>
+          <div class="check">
+            <div><i>✓</i>任务只来自看板，岗位按身份接单</div>
+            <div><i>✓</i>宪章 / 职责 / PM 三道闸门</div>
+            <div><i>✓</i>唯一载体交付与回写</div>
+            <div><i>✓</i>Team/岗位视角与权限</div>
+            <div><i>✓</i>Story 套件 11/11 通过</div>
+          </div>
+        </div>
+        <div class="card n"><span class="bar"></span><h3>🚧 部分实现</h3>
+          <div class="check">
+            <div><i>✓</i>内核/模板：隐式默认值 + 手工复制</div>
+            <div><i>✓</i>复盘：制度与事实记录，缺自动汇总</div>
+            <div><i>✓</i>知识：有载体，缺索引与自动提炼</div>
+            <div><i>✓</i>Pipeline：看板列 + 文档表达</div>
+          </div>
+        </div>
+        <div class="card pm"><span class="bar"></span><h3>🔭 仍是方向</h3>
+          <div class="list">
+            <div class="li"><span class="mk dot">•</span><div>Team / Team Leader / Member 目录</div></div>
+            <div class="li"><span class="mk dot">•</span><div>KPI 与客户价值指标系统</div></div>
+            <div class="li"><span class="mk dot">•</span><div>“新建组织”自动化与内核回流</div></div>
+            <div class="li"><span class="mk dot">•</span><div>Gitea Issue/PR 改宪章循环（本版有意简化）</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17 document-map -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DOCUMENT MAP · 遇到什么问题读哪份</div>
+      <h2>从叙事到实现，一路可查</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>文档</th><th>回答什么问题</th></tr>
+        <tr><td>AIOS.md</td><td>AI⁺ 组织是什么、与系统的对应、哪些已实现/未实现</td></tr>
+        <tr><td>RD.md · STORY.md</td><td>目标模型与协作叙事 / 一个完整用户故事</td></tr>
+        <tr><td>SOP.md · SOP.html</td><td>两类岗位的日常操作指南（培训与照做）</td></tr>
+        <tr><td>docs/001–010</td><td>领域模型 · 授权 · 执行 · 提示词 · 面板 · 部署 · 架构 · 扩展 · 账号 · 维护</td></tr>
+        <tr><td>TDD/（尤其 016）</td><td>职责契约、闸门、实测证据、用户故事验证与回归</td></tr>
+        <tr><td>HANDOFF.md · REPORT.md</td><td>代码现状、已修问题、测试闭环、差距分析</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 18 closing -->
+  <section class="slide cover">
+
+    <div class="glow" style="left:-10%;right:auto"></div><div class="ghost">AIOS</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>THE POINT</div>
+      <h1>标准化为了复制<br><span class="accent">自进化为了持续创造价值</span></h1>
+      <p class="lead" style="max-width:44em">让人和 AI 一起建立一种全新的组织生产方式：<br>以客户为中心 · Human 与 AI 共生 · 规则驱动 · 知识沉淀 · 持续学习 · 可复制 · 自进化。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
+        <span class="tag">AIOS.md · 完整说明</span>
+        <span class="tag">RD.md · 叙事与决策</span>
+        <span class="tag">SOP.md · 日常操作</span>
+        <span class="tag">TDD/ · 证据与回归</span>
+      </div>
+      <div class="meta">
+        <div>下一步<b>内核版本化 · 模板向导 · Team 实体 · 复盘自动化</b></div>
+        <div>当前<b>单组织实例已闭环，复制半自动</b></div>
+        <div>文档<b>AIOS.html / AIOS.pdf</b></div>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+
+<div class="nav"><div class="bar" id="bar"></div></div>
+<div class="dots" id="dots"></div>
+<div class="ctrls"><button id="prev" title="上一页">‹</button><button id="next" title="下一页">›</button></div>
+<div class="hint" id="hint">← → 翻页 · F 全屏</div>
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var index = 0, dots = document.getElementById('dots'), bar = document.getElementById('bar');
+  var hint = document.getElementById('hint');
+
+  // Fit the fixed 1280x720 canvas into the viewport without breaking any proportion.
+  function fit(){
+    var scale = Math.min((window.innerWidth - 28) / 1280, (window.innerHeight - 28) / 720);
+    stage.style.transform = 'scale(' + scale + ')';
+  }
+  window.addEventListener('resize', fit);
+
+  // Page number and brand for every slide.
+  slides.forEach(function(slide, i){
+    var p = document.createElement('span'); p.className = 'pageno'; p.textContent = (i+1) + ' / ' + slides.length;
+    var b = document.createElement('span'); b.className = 'brand'; b.textContent = 'SuperAgent · AIOS';
+    slide.appendChild(b); slide.appendChild(p);
+  });
+
+  slides.forEach(function(_, i){
+    var el = document.createElement('i');
+    el.title = '第 ' + (i+1) + ' 页';
+    el.addEventListener('click', function(){ go(i); });
+    dots.appendChild(el);
+  });
+  var marks = Array.prototype.slice.call(dots.children);
+
+  function go(i){
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, n){ s.classList.toggle('active', n === index); });
+    marks.forEach(function(m, n){ m.classList.toggle('on', n === index); });
+    bar.style.width = ((index + 1) / slides.length * 100) + '%';
+    location.hash = 'slide-' + (index + 1);
+  }
+  function next(){ if(index < slides.length - 1) go(index + 1); }
+  function prev(){ if(index > 0) go(index - 1); }
+
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if(k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter'){ e.preventDefault(); next(); }
+    else if(k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace'){ e.preventDefault(); prev(); }
+    else if(k === 'Home'){ e.preventDefault(); go(0); }
+    else if(k === 'End'){ e.preventDefault(); go(slides.length - 1); }
+    else if(k === 'f' || k === 'F'){ toggleFullscreen(); }
+    hint.classList.add('hide');
+  });
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  function toggleFullscreen(){
+    if(document.fullscreenElement) document.exitFullscreen();
+    else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  }
+
+  var x0 = null, y0 = null;
+  document.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? next() : prev();
+    x0 = y0 = null;
+  }, {passive:true});
+
+  fit();
+  var start = (location.hash.match(/slide-(\d+)/) || [])[1];
+  go(start ? Number(start) - 1 : 0);
+  setTimeout(function(){ hint.classList.add('hide'); }, 6000);
+})();
+</script>
+</body>
+</html>

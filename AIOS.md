@@ -4,6 +4,8 @@
 > 本文件把「AI⁺ 自进化组织 / AI Native Self-Evolving Organization」的叙事，与仓库里已经实现的系统（`dsh-superagent` 原型）对齐成一份**完整、自洽、可落地**的说明：
 > 哪些概念已经能跑通（✅）、哪些只实现了一部分（🚧）、哪些仍是方向（🔭）。
 > 叙事原稿见 [RD.md](RD.md)；怎么操作见 [SOP.md](SOP.md)；领域模型见 [docs/001-domain.md](docs/001-domain.md)；代码现状与证据见 [HANDOFF.md](HANDOFF.md) 与 `TDD/`。
+>
+> 演示稿（16:9，与 SOP/STORY 同一套样式）：[AIOS.html](AIOS.html) · [AIOS.pdf](AIOS.pdf)。
 
 ---
 
