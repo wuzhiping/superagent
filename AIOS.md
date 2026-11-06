@@ -299,6 +299,7 @@ VSM Organization Instance（独立 Workspace、宪章、成员、流程、KPI）
 | --- | --- | --- |
 | **本文件 `AIOS.md`** | AI⁺ 组织是什么、与系统的对应关系、哪些已实现/未实现 | 负责人、架构师、想理解全局的人 |
 | [README.md](README.md) | 这是什么、怎么安装、文档索引 | 第一次接触仓库的人 |
+| [ABC.md](ABC.md) | 两类用户如何快速把 SuperAgent 配到"能接单"：PM / Worker 分步操作 + 面板截图 | 落地操作者 |
 | [INSTALL.md](INSTALL.md) / [SETUP.md](SETUP.md) | 怎么装、怎么和我一起初始化 | 安装与初始化的操作者 |
 | [RD.md](RD.md) | 目标模型、协作叙事、实测基线与决策记录 | 设计与决策 |
 | [SOP.md](SOP.md) / [SOP.html](SOP.html) | 两类岗位的日常操作指南（也适合培训） | PM 岗位、Worker 岗位 |

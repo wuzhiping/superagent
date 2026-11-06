@@ -39,6 +39,7 @@ Read the numbered documents in order; each builds only on the ones before it.
 - [TDD 009](TDD/009-narrative-ui.md): the narrative-shaped panel (编队 page, projects & posts settings) and the SOP delivery
 - [TDD 010](TDD/010-user-stories-validation.md): nine user stories run again and again in the test environment — dispatch, claim, delivery, "no claiming for others" — and the bugs they found (B-1 ~ B-11)
 - [STORY](STORY.md): a user story of the three-source deployment (Kanban + Gitea + ntfy) and the full lifecycle
+- [ABC](ABC.md): quick start for the PM and the worker — from ready accounts to the first dispatched card, with panel screenshots 快速上手（PM / Worker 两条路线）
 - [SOP](SOP.md): the operating guide for the two roles — the PM post and the worker posts (also as [SOP.html](SOP.html), a 16:9 slide deck)
 - [000 Philosophy](docs/000-philosophy.md)
 - [001 Domain model](docs/001-domain.md)
