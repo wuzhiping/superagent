@@ -37,7 +37,9 @@ interface Skill { name: string; description: string; content: string }
  * Maximum combined character count of system prompt and tool definitions per role (~5% above baseline).
  * Lower this limit when shrinking model-facing text; raise it only intentionally and explain why in the commit message.
  */
-const BUDGET: Record<Role, number> = { orchestrator: 59_000, worker: 40_500 }
+// The charter gate, the duty contract and the post permissions added text to both prompts (2026-11-06); the
+// budgets follow that growth and stay tight enough to catch another round of accidental bloat.
+const BUDGET: Record<Role, number> = { orchestrator: 61_500, worker: 43_500 }
 const PROMPTS = 'prompts/, skills/', TOOLS = 'src/app/tools/', SESSIONS = 'src/app/sessions.ts'
 const NOTICES = 'src/app/notices.ts', LINKS = 'src/app/links.ts', ASSESSMENT = 'src/app/assessment.ts'
 const EXECUTOR = 'src/executor/dsh.ts', ERRORS = 'src/core/errors.ts'

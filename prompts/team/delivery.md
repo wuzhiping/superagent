@@ -9,7 +9,7 @@ Work the same way for any other non-code carrier the assignment names.
 
 1. Write the file in your workspace under a name a reader can recognise, such as `delivery.md` or `plan.md`.
 2. Put it in the store with `minio_write`: list the buckets with `minio_bucket` when the assignment does not name one,
-   and use `deliverables/$DSH_SUPERAGENT_KANEO_PROJECT/$DSH_SUPERAGENT_TICKET/<file>` as the key so a reader can find
+   and use `deliverables/<project id>/<ticket id>/<file>` as the key so a reader can find
    a deliverable from the card it belongs to. Keep the bucket and the key, not a local path: the workspace does not
    survive the ticket.
 3. Read the object back with `minio_read` (or list it with `minio_list`) after writing, so the report states a carrier

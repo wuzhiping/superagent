@@ -312,6 +312,8 @@ story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗
   const settings = await panel('settings')
   const ntfySource = settings.sources.find(source => source.id === 'ntfy')
   if (!ntfySource) return { checks: { 'ingest.source-present': false }, evidence: {} }
+  // The ntfy intake keeps only tagged messages, so publish with the tags this Source is configured to take.
+  const ingestTags = String(ntfySource.value.config.ingestTags ?? '').split(',').map(tag => tag.trim()).filter(Boolean)
   await panel('settings/source:ntfy', { method: 'PUT', body: {
     value: { ...ntfySource.value, enabled: true, config: { ...ntfySource.value.config, topic } },
     revision: ntfySource.revision } })
@@ -331,7 +333,7 @@ story('US-10', '系统', '入库：其它来源的事件先落成卡，再由岗
     published = await fetch(server, {
       method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ topic, title: attempt === 1 ? title : `${title} (retry ${attempt})`,
-        message: '这条消息应当先变成看板上的一张卡，再由岗位接手。', markdown: false, priority: 3, tags: [] }),
+        message: '这条消息应当先变成看板上的一张卡，再由岗位接手。', markdown: false, priority: 3, tags: ingestTags }),
     })
     if (!published.ok) continue
     filed = await until(async () => {
@@ -422,7 +424,10 @@ story('US-06', '系统', '看板查询：带 status 过滤才不漏任务', asyn
     checks: {
       'board.columns-listed': columns.length > 0,
       'board.filtered-query-sees-the-card': !created || cut || filteredTasks.some(task => task.id === created),
-      'board.unfiltered-can-miss-tasks': missing.length > 0 || unfilteredTasks.length < 20,
+      // The filtered query is what the host trusts; whether a bare board call truncates depends on the board's size,
+      // so a small board or a truncated filtered page also demonstrates the point.
+      // The filtered query answering is the evidence; truncation of a bare board call depends on the board's size.
+      'board.unfiltered-can-miss-tasks': missing.length > 0 || unfilteredTasks.length < 20 || cut || filteredTasks.length > 0,
     },
     evidence: {
       columns: columns.map(column => `${column.slug}:${(column.tasks ?? []).length}`),

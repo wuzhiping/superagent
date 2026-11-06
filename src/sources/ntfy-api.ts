@@ -7,6 +7,7 @@ import { z } from 'zod'
 const TIMEOUT_MS = 30_000
 export type NtfyFetch = (input: string, init?: RequestInit) => Promise<Response>
 
+/** A readable ntfy failure: the server's message and, when known, its HTTP status. */
 export class NtfyError extends Error {
   constructor(message: string, readonly status?: number) { super(message); this.name = 'NtfyError' }
 }

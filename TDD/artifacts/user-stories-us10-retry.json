@@ -1,0 +1,41 @@
+{
+  "started": "2026-11-06T03:23:33.182Z",
+  "finished": "2026-11-06T03:34:59.332Z",
+  "marker": "us-20261106032333",
+  "project": "at8xrho45bisco2umjzgl1xp",
+  "created": null,
+  "stories": [
+    {
+      "id": "US-10",
+      "persona": "系统",
+      "title": "入库：其它来源的事件先落成卡，再由岗位接手",
+      "ok": true,
+      "failed": [],
+      "ms": 657197,
+      "checks": {
+        "ingest.card-filed": true,
+        "ingest.card-waits-in-todo": true,
+        "ingest.card-has-source-label": true,
+        "ingest.card-has-no-assignee": true,
+        "ingest.card-became-a-duty": true,
+        "ingest.card-got-the-worklog": true,
+        "ingest.card-reached-the-delivery-column": true
+      },
+      "evidence": {
+        "cardId": "d97tsn9mspq5ekpr82jihnvq",
+        "title": "[story us-20261106032333] 入库验证",
+        "column": "to-do",
+        "labels": [
+          "from:ntfy"
+        ],
+        "comments": 2,
+        "dutyId": "fed6966c30396d175586fd3dbe460010",
+        "deliveredTo": "done",
+        "deliveryColumn": "done",
+        "excerpt": "入库验证完成：ntfy 消息确已成为看板卡片 #27（落列 to-do），标题故事标识 us-20261106032333 与 topic 后缀 1106032333 编码同一刻（2026-11-06 03:23:33 UTC），入库时延 1 分 04 秒，结论限于「看板侧入库已发生」。载体：`ateam/deliverables/at8xrho45bisco2umjzgl1xp/fed6966c"
+      }
+    }
+  ],
+  "passed": 1,
+  "failed": 0
+}

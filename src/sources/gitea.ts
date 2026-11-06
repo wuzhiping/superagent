@@ -334,7 +334,9 @@ async function charterHealth(ctx: SourceContext, signal: AbortSignal): Promise<v
   while (!signal.aborted) {
     const config = ctx.config<GiteaConfig>(SOURCE)
     const repo = config ? repositoryOf(config.charterRepository) : undefined
-    if (!config || !repo) {
+    if (!config) {
+      ctx.report('gitea', health('paused', 'sourceOff'))
+    } else if (!repo) {
       ctx.report('gitea', { state: 'paused', detail: 'The Gitea Source names no charter repository (it carries the charter and its duties document)' })
     } else {
       try {
@@ -344,7 +346,7 @@ async function charterHealth(ctx: SourceContext, signal: AbortSignal): Promise<v
         ctx.report('gitea', { state: 'error', detail: `the charter repository is not readable: ${error instanceof Error ? error.message : String(error)}` })
       }
     }
-    await pause(300_000, signal)
+    await pause(60_000, signal)
   }
 }
 

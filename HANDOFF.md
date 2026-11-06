@@ -35,6 +35,12 @@
 
 
 
+### 测试闭环（2026-11-06）
+
+- **全量单测**（`pnpm exec vitest run`，1340 条）：与本次改进相关的套件全绿（duties、gitea、assessment、tools、resources-charter、panel-perspective/posts/projects/source、styles、locales、model-surface、class-docs、docs）。
+- 修掉三类“测试债”：`model-surface` 的 delivery 段落引用了测试部署未注册的 `DSH_SUPERAGENT_KANEO_PROJECT`（改成通用的 `<project id>/<ticket id>` 键写法），并把两处过时的字符预算更新到功能增长后的真实大小（orchestrator 61.5k / worker 43.5k，保留回归用途）；`class-docs` 给 `NtfyError` 补 JSDoc；`docs.spec` 修 Windows 路径比较、模块表按行任意单元格识别路径，并补齐 007 模块表里缺的 8 个 client 文件。
+- 其余未绿套件是**环境限制**、不是本次改动：缺 `@deepseek-ai/cordis-plugin-include` / `dsh-http-proxy` 等包、Windows 无 `sh`/`sleep`/`fcntl`/`gh`/`lark-cli`、文件权限位与 bash 退出码语义差异、长超时用例在 Windows 上超时（runtime、runtime-concurrency、service-script、sources、commands、store、outbox、queue、bundle-patch、client、deployment、panel-deployment 等）。
+- **端到端 story 套件**（`scripts/user-stories.mjs`）：首跑 10/11，US-10 失败是因为它用空 tags 发 ntfy 消息，而 ntfy 入库按 tag 过滤——已改为用部署配置的 `ingestTags` 发布；随后两次中途跑出现执行器会话卡住（工单两次派工均无报告，已停止该工单并单跑 US-10 通过）与 US-06 的看板截断断言随看板变大而失效，把该断言改为不依赖看板大小；**最终跑 11/11 全部通过**（`TDD/artifacts/user-stories-us-20261106043545.json`）。
 ### Gitea 只做宪章仓库、岗位视角来源只读（2026-11-06，TDD/016 §6）
 
 - Gitea 来源改为只承载**宪章仓库**（宪章 + duties.md）：不监听 Issue/PR、不入库事件；健康检查为「宪章仓库可读」。工单要用的代码仓库由 Kanban 卡的 `repo:` 标签给出。

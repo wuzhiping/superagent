@@ -400,13 +400,17 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/feishu-image.ts` | Reads a Feishu message's image as an attachment for the assessing Session |
 | `src/client/index.tsx` | The client plugin entry: the sidebar entry, the main panel and the page in DeepSeek Harness's Plugin Manager |
 | `src/client/app.tsx` | The panel: header, search, glossary, tabs and the page of the current route |
+| `src/client/capabilities.tsx` | The Team seat's permission gate: `GET capabilities`, the confirmation that names the account and the missing right, and the rights banner |
+| `src/client/perspective.tsx` | The panel perspective (the Team seat or a post's seat) and the choice remembered on this device |
+| `src/client/posts.tsx` | The posts page: each project with its charter, posts and the exception queue; in the post perspective only the reader's own seat |
+| `src/client/project.tsx` | Project and post settings: the archive editor, the charter editor, the duties editor and each post's identity fields |
 | `src/client/provider.tsx` | What every page reads from its host: copy, calls, navigation, notices, the state poll, and `restart`, which reads the state quickly while dsh-superagent restarts |
 | `src/client/api.ts` | Calls and polls of the management API, typed by `src/app/api.ts`, and the Decision filters of the Eval status |
 | `src/client/route.ts` | The tabs, the settings groups, the typed routes that `parseRoute` reads, and the route memory with the settings group opened last |
 | `src/client/overview.tsx` | The overview |
 | `src/client/maintenance.tsx` | The Cleanup page: ended duties by size, preselected except those with a deliverable, and the confirmed cleanup with its separate folder removal |
-| `src/client/source.tsx`, `trigger.tsx`, `eval.tsx`, `execution.tsx` | One file per stage: its status, and its settings where it has some |
-| `src/client/thread.tsx`, `ticket.tsx` | The record pages: a Thread with its timeline, and a Ticket with its authorization, Inputs and Assignments |
+| `src/client/source.tsx`, `src/client/trigger.tsx`, `src/client/eval.tsx`, `src/client/execution.tsx` | One file per stage: its status, and its settings where it has some |
+| `src/client/thread.tsx`, `src/client/ticket.tsx` | The record pages: a Thread with its timeline, and a Ticket with its authorization, Inputs and Assignments |
 | `src/client/settings.tsx` | The Settings tab: the group navigation and the group on screen |
 | `src/client/settings-kit.tsx` | The building blocks of settings blocks: the settings the stage groups share, `useBlockDraft`, the fields, among them a Source kind's, and the history of saves |
 | `src/client/prompts.tsx` | The Prompts settings: the page owns the view it read and its editor the draft, and the Edit, Full prompt and History tabs render from them; a built-in part's editor shows a changed default and keeps or drops the override |
