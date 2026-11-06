@@ -105,10 +105,10 @@
   .mk.ok{color:var(--gitea)} .mk.no{color:var(--danger)} .mk.dot{color:var(--accent)}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
   .cols .card{padding:26px 28px}
-  .check{display:flex;flex-direction:column;gap:9px;margin-top:6px}
-  .check div{display:flex;gap:11px;align-items:flex-start;font-size:17px;color:var(--dim);line-height:1.4}
-  .check i{flex:none;width:20px;height:20px;border-radius:6px;border:1px solid var(--line);
-    display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;color:var(--gitea);margin-top:2px}
+  /* Checklist: the same green check as the other lists, aligned to the first line of every item. */
+  .check{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .check div{display:flex;gap:10px;align-items:flex-start;font-size:16.5px;color:var(--dim);line-height:1.45}
+  .check i{flex:none;width:16px;text-align:center;font-style:normal;font-size:15px;font-weight:800;color:var(--gitea);line-height:1.45}
   pre{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
     font-family:"SF Mono",Consolas,monospace;font-size:15px;line-height:1.65;color:var(--dim);overflow:hidden}
   pre b{color:var(--text)}
@@ -173,7 +173,7 @@
     <div class="content">
       <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
         <span class="tag pm">Team 视角 · 管流程</span>
-        <span class="tag worker">岗位 · 干职责</span>
+        <span class="tag worker">岗位 · 履行职责</span>
         <span class="tag kaneo">Kanban · 任务</span>
         <span class="tag gitea">Gitea · 代码</span>
         <span class="tag ntfy">ntfy · 消息</span>
@@ -316,7 +316,7 @@
           <p>发布<b>提交到 Gitea 宪章仓库的 <code>README.md</code></b>（宪章的家）；版本号 +1、记发布者、旧版进历史；<b>每周至多一版</b>；工单钉在开工那版。</p>
         </div>
       </div>
-      <p class="small"><b>Kanban 是唯一的直接来源</b>：Gitea / ntfy 的事件先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责。<b>没有宪章不可开工</b>：项目在宪章发布前不接受任何任务。</p>
+      <p class="small"><b>Kanban 是唯一的直接来源</b>：ntfy 带入库 tag 的通知先入库成看板上的卡（落在 to-do），PM 指派并移进监听列后，才成为职责。<b>没有宪章不可开工</b>：项目在宪章发布前不接受任何任务；<b>没有职责定义（或岗位不承接）也不开工</b>。</p>
     </div>
   </section>
 
@@ -530,6 +530,7 @@ publishedBy: pm-rsi
           <p>不跨工作目录交付；需求有歧义<b>不要猜</b>：在任务里提问并转 blocked，进入 PM 的异常队列。</p>
           <p>文档/方案<b>存 MinIO，不贴进评论</b>：<code>minio_write</code> 到 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code> → <code>minio_read</code> 回读确认 → 报告写 <code>bucket/key</code>；卡片只留进度与结果。</p><p><b>看板由宿主写</b>：岗位报告 ready，宿主把结果写成评论并把卡片推进交付列；岗位不要自己调用看板 API 搬卡。</p>
           <p><b>ntfy</b>：项目 topic 只有带入库 tag（如 <code>dsh</code>）的消息才入库成卡；没带的当聊天，不产生卡。</p>
+          <p><b>职责</b>：卡片用 <code>duty:&lt;id&gt;</code> 声明职责；派工说明里带 <b>Duty brief</b>（目标/完成/载体/宪章关注/步骤/常见坑），<code>orchestrator_read duty</code> 可读完整规格。</p>
         </div>
       </div>
     </div>
@@ -619,6 +620,7 @@ publishedBy: pm-rsi
             <div><i>✓</i>项目从<b>列表</b>选好（主题集默认 <code>pub_&lt;项目 id&gt;</code>），岗位已登记（监听列 / Kanban 用户 id）</div>
             <div><i>✓</i>每个岗位的 Kanban 用户 id 已填写</div>
             <div><i>✓</i>宪章 v1 已<b>提交到 Gitea 宪章仓库的 README.md</b>（编队页徽标显示 carrier=gitea）</div>
+            <div><i>✓</i>职责说明 <code>duties.md</code> 已发布；岗位的「承接岗位」与卡片 <code>duty:</code> 标签匹配</div>
             <div><i>✓</i>切到 Team 视角时权限自检通过（admin，或已知缺权限仍要切换）</div>
             <div><i>✓</i>派过一张卡，并看到它被领走</div>
             <div><i>✓</i>异常队列能正常显示；ntfy 入库 tag 已配置，MinIO 卡片桶可读</div>
@@ -651,6 +653,7 @@ publishedBy: pm-rsi
       <table class="tight">
         <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
         <tr><td><b>宪章</b></td><td>Gitea「<b>宪章仓库</b>」的 <code>README.md</code>（与职责说明 <code>duties.md</code> 同仓）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>职责说明</b></td><td>同一宪章仓库的 <code>duties.md</code>（与 <code>README.md</code> 同目录）</td><td>职责规格：目标/完成/载体/知识/资源/工具/技能/接单/步骤/常见坑；卡片用 <code>duty:</code> 声明</td></tr>
         <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一的派工来源；看板列就是价值流</td></tr>
         <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带<b>入库 tag</b>（如 <code>dsh</code>）的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
         <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡（桶 <code>ateam</code>）</td><td>非代码交付物：<code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>
@@ -674,6 +677,7 @@ publishedBy: pm-rsi
             <div class="li"><span class="mk ok">✓</span><div><b>评估接受</b>：accept 变成带 <code>noCharter</code> 理由的 ignore——不建工单。</div></div>
             <div class="li"><span class="mk ok">✓</span><div><b>主会话显式派工</b>（<code>orchestrator_route</code>）：同样拒绝，返回「Ticket was not created」。</div></div>
             <div class="li"><span class="mk dot">•</span><div>不属于任何项目的事件不设闸门；面板团队页对缺宪章的项目显示红色提示。</div></div>
+            <div class="li"><span class="mk ok">✓</span><div><b>职责闸门</b>：<code>duty:&lt;id&gt;</code> 未定义 → 带 <code>dutyUndefined</code> 的忽略；岗位不承接 → <code>dutyUnsupported</code>；都不建工单。</div></div>
           </div>
         </div>
         <div class="card w"><span class="bar"></span>

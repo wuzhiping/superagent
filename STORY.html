@@ -450,7 +450,7 @@
       </div>
       <div class="grid g3 fill">
         <div class="card k"><div class="bar"></div><h3>Kanban</h3><p>服务器 + API key + 项目 id；保存前自动探测，也可点「测试连接」。</p></div>
-        <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ <b>宪章仓 + 宪章文件</b>（只做宪章；工单仓库由卡片 <code>repo:</code> 给）；<b>测试通过再保存</b>。</p></div>
+        <div class="card g"><div class="bar"></div><h3>Gitea</h3><p>服务器 + 邮箱 + 密码（或 token）+ <b>宪章仓 + 宪章文件</b>（只做宪章）；职责说明 <code>duties.md</code> 与宪章同仓发布；工单仓库由卡片 <code>repo:</code> 给；<b>测试通过再保存</b>。</p></div>
         <div class="card n"><div class="bar"></div><h3>ntfy</h3><p>服务器 + topic + 认证：公开 <code style="color:#ffdfaa">pub_</code> 选 none；私有 topic 用账号+密码（basic）或 token。</p></div>
       </div>
       <p class="small" style="text-align:center">验收：<code style="color:#b6f5d4">/orchestrator/api/state</code> 中 runtime / kaneo / gitea / ntfy / s3 全部 ready；<b>切到 Team 视角先过权限自检</b>；宪章未发布时项目不接受任务（没有宪章不可开工）；再让一条真实消息走完全流程。</p>
@@ -468,15 +468,15 @@
     <div class="content">
       <table class="tight">
         <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
-        <tr><td><b>宪章</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code>（职责说明是同目录 <code>duties.md</code>）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>宪章 / 职责说明</b></td><td>Gitea <b>宪章仓库</b>的 <code>README.md</code> 与同目录 <code>duties.md</code></td><td>发布 = 提交文件；commit 历史 = 版本历史；职责规格（目标/完成/载体/知识/资源/工具/技能/接单/步骤）由 <code>duties.md</code> 给出，卡片 <code>duty:</code> 声明</td></tr>
         <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一派工来源；没有宪章的项目不接受任务</td></tr>
         <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带入库 tag 的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
         <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡</td><td>非代码交付物 <code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>
       </table>
       <div class="grid g3 fill" style="margin-top:8px">
         <div class="card"><h3>Team 视角要先验权限</h3><p>切到 Team（PM）视角前查 <code>canManageFlow</code>；缺权限先说明再让你决定。岗位视角的「我的岗位设置」只改自己的岗位。</p></div>
-        <div class="card"><h3>岗位自己读宪章</h3><p><code>orchestrator_read charter</code> 返回版本、载体与正文——不需要 shell/HTTP，也不给岗位 Gitea 凭据。</p></div>
-        <div class="card"><h3>没有宪章不可开工</h3><p>评估接受与显式派工都会被拦成带 <code>noCharter</code> 理由的忽略；团队页红色提示，没有工单被创建。</p></div>
+        <div class="card"><h3>岗位自己读宪章</h3><p><code>orchestrator_read charter</code> 返回版本、载体与正文；派工说明里带 <b>Duty brief</b>，<code>orchestrator_read duty</code> 可读完整职责规格——不需要 shell/HTTP，也不给岗位 Gitea 凭据。</p></div>
+        <div class="card"><h3>没有宪章 / 职责不可开工</h3><p>评估接受与显式派工都会被拦：没有宪章 → <code>noCharter</code>；职责未定义 → <code>dutyUndefined</code>；岗位不承接 → <code>dutyUnsupported</code>。都不建工单。</p></div>
       </div>
     </div>
   </section>
