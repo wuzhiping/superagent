@@ -68,12 +68,12 @@ export function SettingsReadiness({ state, compact = false }: { state: StateView
       items.push({ key: 'project', group: 'project', label: t('readiness.project'),
         detail: project ? (project.name || project.id) : t('readinessNoProject'),
         state: project ? 'done' : 'warning' })
+      // A host plays a free combination of posts (often just one), so one mapped identity is already a complete answer.
       const posts = project?.posts ?? []
-      const mapped = [posts.some(post => post.role === 'pm' && post.kaneoUserId),
-        posts.some(post => post.role === 'worker' && post.kaneoUserId)].filter(Boolean).length
+      const mapped = posts.filter(post => post.kaneoUserId).length
       items.push({ key: 'posts', group: 'project', label: t('readiness.posts'),
-        detail: posts.length ? t('readinessMapped', { mapped: String(mapped), total: '2' }) : t('readinessNoPosts'),
-        state: posts.length && mapped === 2 ? 'done' : 'warning' })
+        detail: posts.length ? t('readinessMapped', { mapped: String(mapped), total: String(posts.length) }) : t('readinessNoPosts'),
+        state: mapped > 0 ? 'done' : 'warning' })
       const charterVersion = project?.charter.version ?? 0
       items.push({ key: 'charter', group: 'project', label: t('readiness.charter'),
         detail: charterVersion > 0 ? `v${charterVersion}` : t('readinessNotPublished'),

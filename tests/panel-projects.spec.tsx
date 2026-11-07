@@ -3,7 +3,7 @@
 // the project's own name, slug and (when the list is still the previous default) its topic along with it.
 import { expect, it } from 'vitest'
 import { zh } from '../src/client/locales.ts'
-import { usePanel, mount, find, tab, click, type, settle } from './fixtures/panel.tsx'
+import { usePanel, mount, find, tab, click, type, settle, text } from './fixtures/panel.tsx'
 import { server } from './fixtures/panel-server.ts'
 
 usePanel()
@@ -135,6 +135,15 @@ it('picks a post duty from the published duties list and saves the selection', a
   // Clicking the chip removes the selection again.
   await click(editor().querySelector('.dt-duties-picked .dt-tag')!)
   expect(editor().querySelector('.dt-duties-picked')).toBeNull()
+})
+
+it('accepts a host that maps just one post identity', async () => {
+  await mount()
+  await click(tab(zh['tab.settings']))
+  await settle()
+  // The fixture's host plays one PM post: one mapped identity is a complete answer, not "1 of a fixed PM + worker pair".
+  expect(text()).toContain('1/1 已映射')
+  expect(text()).not.toContain('1/2')
 })
 
 it('keeps the current project selectable when the account cannot see it any more', async () => {

@@ -116,7 +116,7 @@ node scripts/post-accounts.mjs --roster config/post-accounts.json --out config/p
 
 | 约定 | 规则 |
 | --- | --- |
-| 一岗一账号 | 一个 Kanban 用户 ↔ 一个岗位 ↔ 一个 SuperAgent 实例（默认） |
+| 一岗一账号 | 一个 Kanban 用户 ↔ 一个岗位；一台 SuperAgent 宿主可承担一个或多个岗位（组合自由，默认一个） |
 | assignee = 主责 | 主责唯一，决定谁推进状态；协同角色用标签 `role:<name>` |
 | 评论署名 | 岗位在评论里带 `【agent:<postId>】`，与看板既有 `agent:pm/ux/bi` 惯例一致 |
 | 最小权限 | Worker 用 `member`；只读岗位用 `viewer`；PM 才需要改列/改负责人 |

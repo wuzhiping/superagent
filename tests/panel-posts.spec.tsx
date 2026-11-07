@@ -45,7 +45,7 @@ it('edits the project archive in the settings page and saves it', async () => {
   expect(all('.dt-field-label').map(label => label.textContent)).toContain(zh.projectPostKanban)
   const identity = [...document.querySelectorAll<HTMLInputElement>('input')].find(input => input.value === 'pm@example.com')
   expect(identity).toBeDefined()
-  expect(document.body.textContent).toContain('u-pm')
+  expect(document.body.textContent).toContain('bsFdwgQX')
   await click(zh.projectSave)
   const saved = server.requests.find(request => request.path === 'project-archive' && request.method === 'PUT')
   expect(saved).toBeDefined()
