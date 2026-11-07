@@ -30,6 +30,8 @@ export const ArchivePostSchema = z.object({
   instance: z.string().default(''),
   /** The board columns whose cards this post takes; empty means "use the Source's own configuration". */
   watchColumns: z.string().default(''),
+  /** The duties the panel's dropdown gives this post (duty ids from the charter repository); empty means "use each duty's 承接岗位". */
+  duties: z.array(z.string()).default([]),
 })
 export type ArchivePost = z.infer<typeof ArchivePostSchema>
 

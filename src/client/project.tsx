@@ -20,7 +20,7 @@ type Post = ProjectArchive['projects'][number]['posts'][number]
 type Project = ProjectArchive['projects'][number]
 
 const emptyPost = (role: Post['role'], name = ''): Post => ({ postId: '', role, name, kaneoUser: '', kaneoUserId: '',
-  giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '' })
+  giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '', duties: [] })
 const emptyCharter = () => ({ version: 0, publishedAt: '', publishedBy: '', text: '', draft: '', history: [] })
 
 /** What must be fixed before the archive can be saved: a project id, and each post's own id (they start empty). */
@@ -106,7 +106,11 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties, members }: {
   members?: KaneoMember[]
 }) {
   const { t } = usePanel()
-  const mine = (duties ?? []).filter(duty => duty.posts.includes(post.postId))
+  // The duties this post takes: the dropdown selection wins; without one, a duty's 承接岗位 line still binds it (legacy).
+  const taken = post.duties.length
+    ? (duties ?? []).filter(duty => post.duties.includes(duty.id))
+    : (duties ?? []).filter(duty => duty.posts.includes(post.postId))
+  const available = (duties ?? []).filter(duty => !post.duties.includes(duty.id))
   return <div className="dt-archive-card dt-post-editor">
     <div className="dt-grid">
       <Field label={t('projectPostId')} value={post.postId} placeholder="w1-fdep" readOnly={readOnly} required
@@ -144,11 +148,31 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties, members }: {
           onChange={event => onChange({ ...post, wipLimit: Math.max(1, Math.min(20, Number(event.target.value) || 1)) })} />
       </label>
     </div>
+    <label className="dt-field">
+      <span className="dt-field-label">{t('projectPostDutiesPick')}</span>
+      <select className="dt-select" value="" disabled={readOnly || available.length === 0}
+        onChange={event => {
+          const id = event.target.value
+          if (id) onChange({ ...post, duties: [...post.duties, id] })
+        }}>
+        <option value="">{available.length ? t('projectPostDutiesChoose') : t('projectPostDutiesAll')}</option>
+        {available.map(duty => <option key={duty.id} value={duty.id}>{duty.name}（{duty.id}）</option>)}
+      </select>
+    </label>
+    {post.duties.length > 0 && <div className="dt-duties-picked">
+      {post.duties.map(id => {
+        const duty = (duties ?? []).find(item => item.id === id)
+        return <button key={id} type="button" className="dt-tag" data-tone="info" disabled={readOnly}
+          title={t('projectPostDutiesRemove')}
+          onClick={() => onChange({ ...post, duties: post.duties.filter(item => item !== id) })}>{duty?.name || id} ×</button>
+      })}
+    </div>}
+    <p className="dt-hint">{t('projectPostDutiesPickHint')}</p>
     <p className="dt-hint">{post.kaneoUserId
       ? t('projectPostKanbanMapped', { email: post.kaneoUser || t('postsUnset'), id: post.kaneoUserId })
       : t('projectPostKanbanHint')}</p>
-    {post.postId && (mine.length > 0
-      ? <p className="dt-hint">{t('projectPostDuties', { duties: mine.map(duty => duty.name || duty.id).join('、') })}</p>
+    {post.postId && (taken.length > 0
+      ? <p className="dt-hint">{t('projectPostDuties', { duties: taken.map(duty => duty.name || duty.id).join('、') })}</p>
       : <p className="dt-hint">{t('projectPostDutiesNone')}</p>)}
     {!readOnly && <Button variant="ghost" size="sm" icon={<Icon name="trash" size={14} />} onClick={onRemove}>{t('projectRemovePost')}</Button>}
   </div>
@@ -176,6 +200,7 @@ function DutiesEditor({ duties, onChanged, readOnly }: { duties?: DutiesView; on
   return <div className="dt-duties">
     <p className="dt-hint">{t('projectDutiesHint')}</p>
     {duties?.carrierRef && <p className="dt-hint">{t('projectDutiesSource', { ref: duties.carrierRef })}</p>}
+    {duties?.mode === 'file' && <p className="dt-hint">{t('projectDutiesLegacy')}</p>}
     {duties?.detail && list.length === 0 && <p className="dt-hint">{t('projectDutiesUnavailable', { detail: duties.detail })}</p>}
     {editing ? <>
       <textarea className="dt-textarea" rows={14} value={draft} placeholder={t('projectDutiesPlaceholder')}

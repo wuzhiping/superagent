@@ -41,9 +41,9 @@ export interface Api {
   'POST narrative/charter': { body: { projectId: string; text: string; publishedBy: string; force?: boolean };
     response: { charter: CharterInfo; carrier?: 'gitea' | 'kanban'; carrierRef?: string } }
   /** The project's duty descriptions, read from the Gitea repository that holds the charter (beside its file). */
-  'GET duties': { response: { path: string; carrierRef: string; sha?: string; text: string; duties: DutySpec[]; detail?: string } }
+  'GET duties': { response: { path: string; carrierRef: string; sha?: string; text: string; duties: DutySpec[]; mode: 'folder' | 'file' | 'none'; files?: Record<string, string>; detail?: string } }
   /** Publishes the duties document into that Gitea repository, as a commit; the Host configures nothing about duties. */
-  'POST duties': { body: { text: string; publishedBy?: string }; response: { sha?: string; carrierRef: string; path?: string } }
+  'POST duties': { body: { text: string; publishedBy?: string }; response: { sha?: string; carrierRef: string; path?: string; files?: string[] } }
   'GET search': { query: { q: string }; response: SearchView }
   'GET sources': { response: SourceStatusView[] }
   'GET settings': { response: SettingsView }

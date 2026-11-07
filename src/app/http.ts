@@ -27,7 +27,7 @@ import { ArchiveSchema } from './narrative.ts'
 import { resolveArchiveKaneoUsers, type KaneoMember } from './kaneo-users.ts'
 import { KaneoClient } from '../sources/kaneo-api.ts'
 import { charterTarget, kaneoAccount, publishCharter, publishWindow, readPrimaryCharter } from './charter.ts'
-import { dutiesPathOf, publishDuties, readDuties } from './duties.ts'
+import { dutiesDirOf, dutiesPathOf, publishDuties, readDuties } from './duties.ts'
 import { readProjectChoices } from './projects.ts'
 import { readCapabilities } from './capabilities.ts'
 import { storedKaneoAccount } from '../sources/bdd-storage.ts'
@@ -288,8 +288,9 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
     'GET duties': async () => {
       const target = charterTarget(runtime.sources)
       const doc = await readDuties(target)
-      return { path: dutiesPathOf(target.gitea?.path ?? 'README.md'), carrierRef: doc.carrierRef,
-        ...doc.sha ? { sha: doc.sha } : {}, text: doc.text, duties: doc.duties, ...doc.detail ? { detail: doc.detail } : {} }
+      return { path: dutiesDirOf(target.gitea?.path ?? 'README.md'), carrierRef: doc.carrierRef,
+        ...doc.sha ? { sha: doc.sha } : {}, text: doc.text, duties: doc.duties, mode: doc.mode,
+        ...doc.files ? { files: doc.files } : {}, ...doc.detail ? { detail: doc.detail } : {} }
     },
     'POST duties': async ({ body }) => {
       const input = await body(64 * 1024) as { text?: unknown; publishedBy?: unknown }
@@ -298,7 +299,7 @@ function routes(runtime: HttpHost, maintenance: CleanHost): Routes {
       const publishedBy = typeof input?.publishedBy === 'string' ? input.publishedBy.trim() : ''
       try {
         const published = await publishDuties(charterTarget(runtime.sources), text, publishedBy)
-        return { ...published, path: dutiesPathOf(charterTarget(runtime.sources).gitea?.path ?? 'README.md') }
+        return { ...published, path: dutiesDirOf(charterTarget(runtime.sources).gitea?.path ?? 'README.md') }
       } catch (error) {
         throw new RouteError(400, error instanceof Error ? error.message : String(error))
       }

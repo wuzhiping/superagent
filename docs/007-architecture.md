@@ -352,7 +352,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/app/views/sources.ts` | The Source status: each Source instance's state, its last day's counts, and what it filtered and dropped in that day |
 | `src/app/views/settings.ts` | The settings page's view: each block with its revision, each Source's settings with its kind's form, and the execution environment |
 | `src/app/views/overview.ts` | The overview: Tickets that need a person, problems, the last day's flow and the Executor's load |
-| `src/app/duties.ts` | The project's duties document (`duties.md` beside the charter, in Gitea): parsing, reading and publishing it, the `duty:` gate and the brief a worker reads |
+| `src/app/duties.ts` | The project's duties (`duties/` beside the charter, one `.md` per duty, in Gitea; legacy `duties.md` is still read and split on publish), the `duty:` gate, and the post's own duty selection |
 | `src/app/charter.ts` | The project charter and its carriers: the Gitea repository file (`readGiteaCharter`, `publishCharter`), the Kanban project description it falls back to, `publishWindow` (once a week), `stampCharter`, `kaneoAccount` and `giteaCharter` |
 | `src/app/capabilities.ts` | The Kanban account behind this Host and the rights it has (`GET capabilities`, paused in the panel) |
 | `src/app/pm-execution.ts` | The PM execution rule: the charter line that allows a PM post to execute (`PM 可执行职责`), and the gate that refuses a card assigned to a PM post without it |
@@ -463,6 +463,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/topics.spec.ts` | The topic convention: an empty project topic list reads and writes as `pub_<project id>` |
 | `tests/pm-execution.spec.ts` | PM 岗位执行闸门：宪章允许行的解析、按职责/通配放行、无宪章时拒绝 |
 | `tests/duties.spec.ts` | 职责说明的解析、岗位承接闸门、`dutyOutcome` 与简报 |
+| `tests/duties-folder.spec.ts` | 职责目录（一个职责一个文件）的读取、发布拆分与旧文件迁移 |
 | `tests/kaneo-users.spec.ts` | 岗位的 Kanban 邮箱映射：按邮箱/id 匹配成员、解析时补 `kaneoUserId`、未知邮箱报错 |
 | `tests/charter-gate.spec.ts` | 没有宪章不可开工: the charter gate per archived project, and `gateOutcome` turning an accept into an ignore with the reason |
 | `tests/resources-charter.spec.ts` | The `charter` resource: its version, carrier and text, its paging, its refusal without a charter or a ticket, and its place in the worker resource list |

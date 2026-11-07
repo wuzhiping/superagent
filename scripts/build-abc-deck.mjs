@@ -86,7 +86,7 @@ slide('minimum', 'dense', `
         <tr><td>来源 · MinIO</td><td>服务地址、桶</td><td>密钥可留空（用本机存储记录）</td></tr>
         <tr><td>项目与岗位</td><td>项目、每个岗位的 id / 角色 / 登录邮箱</td><td>监听列 ready、WIP 默认、Gitea/ntfy 身份</td></tr>
         <tr><td>宪章</td><td>正文（5 行模板）</td><td>发布者、历史自动记录</td></tr>
-        <tr><td>职责说明</td><td>正文（1 段模板，承接岗位写 Worker）</td><td>其余职责字段按模板</td></tr>
+        <tr><td>职责说明</td><td>正文（1 段模板；发布后拆成 duties/ 下一个职责一个文件）</td><td>其余职责字段按模板</td></tr>
         <tr><td>评估 / 执行</td><td>接单模式=自动接单；模型可用</td><td>时限、并行数、执行目录</td></tr>
       </table>
     </div>`)
@@ -147,14 +147,14 @@ slide('duties', '', `
     </div>
     <div class="content">
       <pre>### doc · 文档交付
-- 承接岗位：w1-&lt;项目&gt;
+- 承接岗位：（可留空，发布后在岗位卡下拉里选）
 - 目标：按卡片要求产出一份文档
 - 完成：文件已上传并可回读，卡片回写文件位置
 - 载体：MinIO 对象（deliverables/&lt;项目&gt;/&lt;工单&gt;/&lt;文件&gt;）
 - 步骤：读宪章 → 读卡片 → 写文档 → 上传回读 → 报告</pre>
       <div class="grid g2">
-        <div class="card"><span class="bar"></span><h3>动作</h3><p>编辑 → 点<b>发布职责说明</b>（提交到宪章仓库的 duties.md）。</p></div>
-        <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>职责列表出现、条数正确；<b>承接岗位写 Worker</b>，不要写 PM。</p></div>
+        <div class="card"><span class="bar"></span><h3>动作</h3><p>编辑 → 点<b>发布职责说明</b>（按标题拆成 duties/ 下一职责一文件）。</p></div>
+        <div class="card g"><span class="bar"></span><h3>OK 的样子</h3><p>职责列表出现、条数正确；发布后回岗位卡用「接哪些职责」下拉选中它。</p></div>
       </div>
     </div>`)
 

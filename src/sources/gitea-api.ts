@@ -72,7 +72,7 @@ export class GiteaClient {
   }
 
   /** Sends one request and parses its JSON body; 429 and 5xx retry with backoff, others surface `GiteaError`. */
-  async request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  async request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     let lastError: unknown
     const auth = giteaAuthHeaders(this.account)
     const anonymous = Object.keys(auth).length === 0
@@ -195,10 +195,35 @@ export class GiteaClient {
     }, signal)
     return result.content?.sha
   }
+
+  /**
+   * The files of one directory through the contents API, so a document kept as one file per entry can be read without
+   * configuring anything: the folder is the list. A missing directory answers 404 (Gitea reports a file here instead, so
+   * the schema refuses it and the caller falls back).
+   */
+  async listDirectory(owner: string, name: string, path: string, signal?: AbortSignal): Promise<{ name: string, path: string, type: string, sha: string }[]> {
+    const entries = await this.request(ContentDirSchema, 'GET',
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/contents/${encodePath(path)}`, undefined, signal)
+    return entries.map(entry => ({ name: entry.name, path: entry.path, type: entry.type, sha: entry.sha }))
+  }
+
+  /** Deletes one file with a commit; `sha` is the blob being removed. */
+  async deleteFile(owner: string, name: string, path: string,
+    input: { sha: string, message: string, branch?: string }, signal?: AbortSignal): Promise<void> {
+    await this.request(DeleteFileSchema, 'DELETE', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/contents/${encodePath(path)}`, {
+      sha: input.sha,
+      message: input.message,
+      ...input.branch ? { branch: input.branch } : {},
+    }, signal)
+  }
 }
 
 /** One file of the contents API: the blob sha identifies the version a replacement commits on top of. */
 const ContentWriteSchema = z.looseObject({ content: z.looseObject({ sha: z.string().optional() }).optional() })
+const DeleteFileSchema = z.unknown()
+const ContentDirSchema = z.array(z.looseObject({
+  name: z.string().min(1), path: z.string().min(1), type: z.string().default('file'), sha: z.string().min(1),
+}))
 
 const ContentFileSchema = z.looseObject({
   sha: z.string().min(1), type: z.string().default('file'), encoding: z.string().default('base64'),

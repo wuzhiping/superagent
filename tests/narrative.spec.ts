@@ -23,9 +23,9 @@ const archive = (): ProjectArchive => ({ version: 1, projects: [{
   charter: { version: 4, publishedAt: '2026-09-22T00:00:00Z', publishedBy: 'agent:pm', text: 'version: 4', draft: '', history: [] },
   topics: ['pub_fdep_pm'],
   posts: [{ postId: 'pm-fdep', role: 'pm', name: 'PM', kaneoUser: '', kaneoUserId: 'u-pm', giteaUser: 'sa-pm', ntfySender: '#sa-pm',
-    wipLimit: 2, instance: 'web', watchColumns: 'ready' },
+    wipLimit: 2, instance: 'web', watchColumns: 'ready', duties: [] },
     { postId: 'w1-fdep', role: 'worker', name: 'W1', kaneoUser: '', kaneoUserId: 'u-w1', giteaUser: '', ntfySender: '', wipLimit: 1, instance: '',
-      watchColumns: 'ready' }],
+      watchColumns: 'ready', duties: [] }],
 }] })
 
 it('writes the archive, reads it back, and changes the revision when it changes', () => {

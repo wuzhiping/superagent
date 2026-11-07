@@ -102,7 +102,7 @@ declare class GiteaClient {
   private readonly base;
   constructor(account: GiteaAuth, fetchImpl?: GiteaFetch, wait?: (ms: number) => Promise<void>);
   /** Sends one request and parses its JSON body; 429 and 5xx retry with backoff, others surface `GiteaError`. */
-  request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, signal?: AbortSignal): Promise<T>;
+  request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, signal?: AbortSignal): Promise<T>;
   /**
    * A readable failure: an anonymous read that was refused usually means the repository is private, so it names the
    * account fields that fix it instead of looking like an empty repository.
@@ -166,6 +166,23 @@ declare class GiteaClient {
     sha?: string;
     branch?: string;
   }, signal?: AbortSignal): Promise<string | undefined>;
+  /**
+   * The files of one directory through the contents API, so a document kept as one file per entry can be read without
+   * configuring anything: the folder is the list. A missing directory answers 404 (Gitea reports a file here instead, so
+   * the schema refuses it and the caller falls back).
+   */
+  listDirectory(owner: string, name: string, path: string, signal?: AbortSignal): Promise<{
+    name: string;
+    path: string;
+    type: string;
+    sha: string;
+  }[]>;
+  /** Deletes one file with a commit; `sha` is the blob being removed. */
+  deleteFile(owner: string, name: string, path: string, input: {
+    sha: string;
+    message: string;
+    branch?: string;
+  }, signal?: AbortSignal): Promise<void>;
 }
 //#endregion
 //#region src/sources/gitea.d.ts

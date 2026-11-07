@@ -533,3 +533,4 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-03 13:52 | 修复 Windows `tools.restrict`；插件 ready |
 | 2026-11-03 13:57 | 端到端验证通过；清理测试卡 |
 | 2026-11-03 14:05 | 文档回填：HANDOFF + TDD/001–006 + artifacts |
+| 2026-11-07 20:10 | 职责说明改为 `duties/` 目录（一个职责一个文件）；岗位卡用「接哪些职责」下拉选择；旧的单个 `duties.md` 发布一次即迁移删除 |

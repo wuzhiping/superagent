@@ -111,8 +111,8 @@ export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
   title: { zh: 'Gitea（宪章仓库）', en: 'Gitea (charter repository)' },
   description: {
-    zh: '私有部署的 Gitea（默认 https://git.feg.cn），只做**宪章仓库**：宪章与职责说明（README.md 与同目录的 duties.md）从这里读写，**不监听 Issue/PR，也不把事件入库成卡**。任务只来自 Kanban 卡；工单要用哪个 Gitea 仓库由卡片的 `repo:owner/name` 提供，不在这里配置。公开仓库只填服务器地址和仓库名即可匿名读取；私有仓库才需要邮箱+密码（或 API token）。',
-    en: 'A self-hosted Gitea (default https://git.feg.cn) that carries the **charter repository** only: the charter and its duties document (README.md and duties.md beside it) are read and published here; **issues and pull requests are not watched and no events are filed as cards**. Tasks come only from Kanban cards; when a ticket needs a repository, the card provides it as `repo:owner/name`, not this Source. A public repository needs only the server address and the repository name; a private repository needs the e-mail and password (or an API token).',
+    zh: '私有部署的 Gitea（默认 https://git.feg.cn），只做**宪章仓库**：宪章与职责说明（README.md 与同目录的 duties/ 目录，每个职责一个文件）从这里读写，**不监听 Issue/PR，也不把事件入库成卡**。任务只来自 Kanban 卡；工单要用哪个 Gitea 仓库由卡片的 `repo:owner/name` 提供，不在这里配置。公开仓库只填服务器地址和仓库名即可匿名读取；私有仓库才需要邮箱+密码（或 API token）。',
+    en: 'A self-hosted Gitea (default https://git.feg.cn) that carries the **charter repository** only: the charter and its duties folder (README.md and a duties/ folder beside it, one file per duty) are read and published here; **issues and pull requests are not watched and no events are filed as cards**. Tasks come only from Kanban cards; when a ticket needs a repository, the card provides it as `repo:owner/name`, not this Source. A public repository needs only the server address and the repository name; a private repository needs the e-mail and password (or an API token).',
   },
   schema: GiteaConfigSchema,
   /** Settings-panel probe: the charter repository must exist and be readable (or writable, for publishing), without saving. */
@@ -134,8 +134,8 @@ export const giteaKind: SourceKind<GiteaConfig> = {
       hint: { zh: '宪章与职责说明的家（例如 `shawoo/rsi_superagent`）；留空则来源暂停、宪章退回 Kanban 项目描述。这里不监听任何 Issue/PR：任务只来自看板卡，工单要用的仓库由卡片的 `repo:` 标签给出。',
         en: 'The home of the charter and its duties document (such as `shawoo/rsi_superagent`); empty keeps the Source paused and falls the charter back to the Kanban description. No issues or PRs are watched here: tasks come from board cards, and a ticket gets its repositories from the card\'s `repo:` labels.' } },
     { key: 'charterPath', type: 'text', label: { zh: '宪章文件（仓库内路径）', en: 'Charter file (path in the repository)' },
-      hint: { zh: '默认 README.md：这个文件就是项目宪章的入口与主体；职责说明是同目录的 duties.md。',
-        en: 'Defaults to README.md: that file is the project charter\'s entry point and body; the duties document is duties.md beside it.' } },
+      hint: { zh: '默认 README.md：这个文件就是项目宪章的入口与主体；职责说明是同目录的 duties/ 目录（一个职责一个 .md）。',
+        en: 'Defaults to README.md: that file is the project charter\'s entry point and body; the duties are in a duties/ folder beside it, one file per duty.' } },
   ],  scope: () => ({ listened: true, observed: false }),
   health: ['gitea'],
   channel: {

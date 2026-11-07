@@ -137,7 +137,7 @@ export interface PanelServer {
   /** The cleanup page's audit: ended duties and the workspace each one left behind. */
   maintenance: MaintenanceView
   /** The duties document the panel reads; a test may set it, and publishing records what was written. */
-  duties?: { text?: string; duties?: import('../../src/app/duties.ts').DutySpec[]; detail?: string }
+  duties?: { mode?: 'folder' | 'file' | 'none'; text?: string; duties?: import('../../src/app/duties.ts').DutySpec[]; detail?: string }
   dutiesPublished?: { text: string; publishedBy?: string }
 }
 export let server: PanelServer
@@ -381,13 +381,13 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
         ageDays: 1, stale: false, hasDraft: false, versions: [], detail: 'The charter is current' },
       posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', projectId: 'p1', projectName: 'FDEP',
         kaneoUser: 'pm@example.com', kaneoUserId: 'u-pm', giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web',
-        watchColumns: 'ready,in-progress',
+        watchColumns: 'ready,in-progress', dutyIds: [],
         dutyCount: 1, duties: [{ ticketId: 't1', title: '修复回归', postId: 'pm-fdep', projectId: 'p1', state: 'running',
           waiting: false, updatedAt: '2026-09-23T00:00:00Z' }], overLimit: false }],
     }],
     posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', projectId: 'p1', projectName: 'FDEP',
       kaneoUser: 'pm@example.com', kaneoUserId: 'u-pm', giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web',
-      watchColumns: 'ready,in-progress',
+      watchColumns: 'ready,in-progress', dutyIds: [],
       dutyCount: 1, duties: [{ ticketId: 't1', title: '修复回归', postId: 'pm-fdep', projectId: 'p1', state: 'running',
         waiting: false, updatedAt: '2026-09-23T00:00:00Z' }], overLimit: false }],
     duties: [{ ticketId: 't1', title: '修复回归', postId: 'pm-fdep', projectId: 'p1', state: 'running',
@@ -401,7 +401,7 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
       charter: { version: 3, publishedAt: '2026-09-22T00:00:00Z', publishedBy: 'agent:pm', text: 'version: 3', draft: '', history: [] },
       topics: ['pub_fdep_pm'],
       posts: [{ postId: 'pm-fdep', role: 'pm', name: 'SuperAgent PM (FDEP)', kaneoUser: 'pm@example.com', kaneoUserId: 'u-pm',
-        giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web', watchColumns: 'ready' }] }] },
+        giteaUser: 'sa-pm-fdep', ntfySender: '#sa-pm-fdep', wipLimit: 3, instance: 'web', watchColumns: 'ready', duties: [] }] }] },
     revision: 7,
   }) },
   'PUT project-archive': { body: true, answer: ({ body }) => {
@@ -410,7 +410,7 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     return { revision: server.archiveRevision }
   } },
   'GET duties': { answer: (): ApiResponse<'GET duties'> => ({ path: 'duties.md', carrierRef: 'acme/charter/duties.md',
-    text: server.duties?.text ?? '', duties: server.duties?.duties ?? [],
+    text: server.duties?.text ?? '', duties: server.duties?.duties ?? [], mode: server.duties?.mode ?? 'file',
     ...server.duties?.detail ? { detail: server.duties.detail } : {} }) },
   'POST duties': { body: true, answer: ({ body }) => {
     server.dutiesPublished = body as { text: string; publishedBy?: string }

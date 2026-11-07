@@ -346,7 +346,7 @@
         <tr><td>项目</td><td><b>从列表选</b>（这台 Host 的账号能看到的项目）；选中后 id / 名称 / slug 自动填</td><td>FDEP（FDE）· ATEAM</td></tr>
         <tr><td><b>宪章</b></td><td>当期怎么做事：流程、职责、交付标准；写完点「发布」——<b>提交到 Gitea 宪章仓库的 README.md</b>，一个项目只有一份，<b>每周至多一版</b></td><td>version: 12 · publishedBy: pm-rsi</td></tr>
         <tr><td>主题集</td><td>该项目订阅的 ntfy topic；<b>留空默认所选项目的 <code>pub_&lt;项目 id&gt;</code></b></td><td>pub_at8x…</td></tr>
-        <tr><td>Gitea 宪章仓</td><td><b>Gitea 只做宪章仓库</b>：宪章与职责说明（<code>README.md</code> 同目录的 <code>duties.md</code>）在这里；<b>不监听 Issue/PR</b>，工单要用的仓库由卡片的 <code>repo:</code> 标签给出</td><td>shawoo/rsi_superagent</td></tr>
+        <tr><td>Gitea 宪章仓</td><td><b>Gitea 只做宪章仓库</b>：宪章与职责说明（<code>README.md</code> 同目录的 <code>duties/</code> 目录，一个职责一个文件）在这里；<b>不监听 Issue/PR</b>，工单要用的仓库由卡片的 <code>repo:</code> 标签给出</td><td>shawoo/rsi_superagent</td></tr>
         <tr><td>ntfy 入库 tag</td><td>只有带这些 tag 的消息才入库成卡（留空=全部）；宿主回复的 tag 是 <code>dsh-superagent</code>，不会被回收成卡</td><td>dsh</td></tr>
         <tr><td>岗位 id / 名称 / 角色</td><td>岗位标识与 Team（PM）/ Worker</td><td>w1-fdep · SuperAgent Worker 1 (FDEP)</td></tr>
         <tr><td>Kanban 账号（邮箱）</td><td><b>决定它领得到哪张卡</b>；保存时自动映射成使用者 id</td><td>wu.zhiping@feg.cn</td></tr>
@@ -633,7 +633,7 @@ publishedBy: pm-rsi
             <div><i>✓</i>项目从<b>列表</b>选好（主题集默认 <code>pub_&lt;项目 id&gt;</code>），岗位已登记（监听列 / Kanban 账号）</div>
             <div><i>✓</i>每个岗位的 Kanban 账号已填好并映射出使用者 id</div>
             <div><i>✓</i>宪章 v1 已<b>提交到 Gitea 宪章仓库的 README.md</b>（编队页徽标显示 carrier=gitea）</div>
-            <div><i>✓</i>职责说明 <code>duties.md</code> 已发布；岗位的「承接岗位」与卡片 <code>duty:</code> 标签匹配</div>
+            <div><i>✓</i>职责说明 <code>duties/</code> 已发布；岗位在「接哪些职责」下拉里选中，与卡片 <code>duty:</code> 标签匹配</div>
             <div><i>✓</i>切到 Team 视角时权限自检通过（admin，或已知缺权限仍要切换）</div>
             <div><i>✓</i>派过一张卡，并看到它被领走</div>
             <div><i>✓</i>异常队列能正常显示；ntfy 入库 tag 已配置，MinIO 卡片桶可读</div>
@@ -665,8 +665,8 @@ publishedBy: pm-rsi
     <div class="content">
       <table class="tight">
         <tr><th>环节</th><th>载体</th><th>规矩</th></tr>
-        <tr><td><b>宪章</b></td><td>Gitea「<b>宪章仓库</b>」的 <code>README.md</code>（与职责说明 <code>duties.md</code> 同仓）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
-        <tr><td><b>职责说明</b></td><td>同一宪章仓库的 <code>duties.md</code>（与 <code>README.md</code> 同目录）</td><td>职责规格：目标/完成/载体/知识/资源/工具/技能/接单/步骤/常见坑；卡片用 <code>duty:</code> 声明</td></tr>
+        <tr><td><b>宪章</b></td><td>Gitea「<b>宪章仓库</b>」的 <code>README.md</code>（与职责说明 <code>duties/</code> 同仓）</td><td>发布 = 提交该文件；commit 历史 = 版本历史；编队页徽标显示载体</td></tr>
+        <tr><td><b>职责说明</b></td><td>同一宪章仓库的 <code>duties/</code> 目录（与 <code>README.md</code> 同目录，一个职责一个文件）</td><td>职责规格：目标/完成/载体/知识/资源/工具/技能/接单/步骤/常见坑；卡片用 <code>duty:</code> 声明</td></tr>
         <tr><td><b>任务</b></td><td>Kanban 看板（监听列可配，如 <code>to-do</code>）</td><td>卡片是唯一的派工来源；看板列就是价值流</td></tr>
         <tr><td><b>实时消息</b></td><td>ntfy 项目 topic <code>pub_&lt;项目 id&gt;</code></td><td>只有带<b>入库 tag</b>（如 <code>dsh</code>）的消息才入库成卡；宿主回复 tag <code>dsh-superagent</code> 不会被回收</td></tr>
         <tr><td><b>数据资产</b></td><td>「MinIO 对象存储」来源卡（桶 <code>ateam</code>）</td><td>非代码交付物：<code>deliverables/&lt;项目 id&gt;/&lt;ticket id&gt;/&lt;file&gt;</code>，卡片只留进度与结果</td></tr>

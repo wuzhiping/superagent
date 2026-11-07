@@ -115,6 +115,28 @@ it('keeps the post id field focused while a new post id is typed', async () => {
   expect(document.activeElement).toBe(input)
 })
 
+it('picks a post duty from the published duties list and saves the selection', async () => {
+  server.duties = { mode: 'folder', text: '### api · 后台接口\n- 目标：按卡片实现接口\n', duties: [{
+    id: 'api', name: '后台接口', goal: '按卡片实现接口', done: [], carrier: 'code', charterFocus: [], knowledge: [],
+    resources: [], tools: [], skills: [], intake: [], steps: [], pitfalls: [], posts: [] }] }
+  await mount()
+  await click(tab(zh['tab.settings']))
+  await click(find(zh['settingsGroup.project'], '.dt-settings-link'))
+  await settle()
+  // The post editor's last select is the duty dropdown; choosing one adds a removable chip.
+  const editor = () => [...document.querySelectorAll<HTMLElement>('.dt-post-editor')][0]!
+  const picker = () => [...editor().querySelectorAll<HTMLSelectElement>('select')].at(-1)!
+  await type(picker(), 'api')
+  expect(editor().querySelector('.dt-duties-picked')?.textContent).toContain('后台接口')
+  await click(zh.projectSave)
+  await settle()
+  const saved = (server.archive as { projects: { posts: { duties: string[] }[] }[] }).projects[0]!.posts[0]!
+  expect(saved.duties).toEqual(['api'])
+  // Clicking the chip removes the selection again.
+  await click(editor().querySelector('.dt-duties-picked .dt-tag')!)
+  expect(editor().querySelector('.dt-duties-picked')).toBeNull()
+})
+
 it('keeps the current project selectable when the account cannot see it any more', async () => {
   server.choices = { workspaces: [], projects: [], problem: 'the server refused the request' }
   await mount()

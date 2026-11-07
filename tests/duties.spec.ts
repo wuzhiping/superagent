@@ -3,11 +3,11 @@
  * does not take it, the brief the worker reads) and the accept outcome that carries the brief into the assignment.
  */
 import { expect, it } from 'vitest'
-import { dutyBrief, dutyGate, dutiesPathOf, parseDuties, type DutiesDoc } from '../src/app/duties.ts'
+import { dutyBrief, dutyGate, dutiesDirOf, dutiesPathOf, parseDuties, parseDutyFile, splitDuties, type DutiesDoc } from '../src/app/duties.ts'
 import { dutyOutcome } from '../src/app/assessment.ts'
 import type { Trigger } from '../src/core/index.ts'
 
-const doc = (text: string): DutiesDoc => ({ text, duties: parseDuties(text), carrierRef: 'acme/charter/duties.md' })
+const doc = (text: string): DutiesDoc => ({ text, duties: parseDuties(text), carrierRef: 'acme/charter/duties', mode: 'folder' })
 
 const sample = [
   '# 职责说明',
@@ -38,10 +38,10 @@ const trigger = (labels: string[], actorId = 'u-mine'): Trigger => ({
   human: true, at: '2026-11-06T00:00:00.000Z', text: 'do it', meta: { labels, projectId: 'p1' },
 })
 
-const archive = (postId: string, kaneoUserId: string) => ({
+const archive = (postId: string, kaneoUserId: string, duties: string[] = []) => ({
   version: 1,
   projects: [{ id: 'p1', name: 'Project', slug: 'P', topics: [], charter: { version: 0, publishedAt: '', publishedBy: '', text: '', draft: '', history: [] },
-    posts: [{ postId, role: 'worker', name: postId, kaneoUser: '', kaneoUserId, giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '' }] }],
+    posts: [{ postId, role: 'worker', name: postId, kaneoUser: '', kaneoUserId, duties, giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '' }] }],
 }) as unknown as Parameters<typeof dutyGate>[1]
 
 it('parses a duties document: headings name the duty, bullets bind its fields', () => {
@@ -72,6 +72,30 @@ it('puts the duties file beside the charter file', () => {
   expect(dutiesPathOf('')).toBe('duties.md')
 })
 
+it('puts the duties folder beside the charter file', () => {
+  expect(dutiesDirOf('README.md')).toBe('duties')
+  expect(dutiesDirOf('docs/charter.md')).toBe('docs/duties')
+  expect(dutiesDirOf('')).toBe('duties')
+})
+
+it('reads one duty per file: the file name is the id, the heading only names it', () => {
+  const fromFile = parseDutyFile('# api · 后台接口实现\n- 目标：按卡片实现接口\n- 承接岗位：w-api\n', 'api')
+  expect(fromFile.id).toBe('api')
+  expect(fromFile.name).toBe('后台接口实现')
+  expect(fromFile.goal).toBe('按卡片实现接口')
+  expect(fromFile.posts).toEqual(['w-api'])
+  // A heading that disagrees cannot re-id the file.
+  expect(parseDutyFile('# other · 别的称呼\n- 目标：x\n', 'api').id).toBe('api')
+})
+
+it('splits one document into one file per duty, with the heading normalized', () => {
+  const files = splitDuties('# 职责说明\n\n### req-analysis · 需求分析\n- 目标：整理需求\n\n### api · 接口\n- 目标：写接口\n')
+  expect(files.map(file => file.id)).toEqual(['req-analysis', 'api'])
+  expect(files[0]!.text.startsWith('# req-analysis · 需求分析')).toBe(true)
+  expect(files[1]!.text).toContain('- 目标：写接口')
+  expect(() => splitDuties('### bad id · x\n- 目标：y\n')).toThrow()
+})
+
 it('lets a card start when its duty is defined and its post takes it, with the brief', async () => {
   const gate = await dutyGate({}, archive('w-analyst', 'u-mine'), trigger(['duty:req-analysis']), async () => doc(sample))
   expect(gate.refuse).toBeUndefined()
@@ -90,6 +114,14 @@ it('refuses a duty the card post does not take', async () => {
   const gate = await dutyGate({}, archive('w-builder', 'u-mine'), trigger(['duty:req-analysis']), async () => doc(sample))
   expect(gate.refuse?.code).toBe('dutyUnsupported')
   expect(gate.refuse?.detail).toContain('w-analyst')
+})
+
+it('lets the post own selection decide which duties it takes', async () => {
+  // The dropdown selection wins over the duty's 承接岗位 line, in both directions.
+  const takes = await dutyGate({}, archive('w-builder', 'u-mine', ['req-analysis']), trigger(['duty:req-analysis']), async () => doc(sample))
+  expect(takes.refuse).toBeUndefined()
+  const refuses = await dutyGate({}, archive('w-analyst', 'u-mine', ['prd']), trigger(['duty:req-analysis']), async () => doc(sample))
+  expect(refuses.refuse?.code).toBe('dutyUnsupported')
 })
 
 it('does not gate a card without a duty label, or a project without a duties document', async () => {

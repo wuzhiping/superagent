@@ -26,6 +26,8 @@ export interface PostView {
   instance: string
   /** The board columns whose cards this post takes. */
   watchColumns: string
+  /** The duties this post picked from the duties list (duty ids); empty means its duties come from each duty's 承接岗位. */
+  dutyIds: string[]
   /** The duties this post runs right now. */
   dutyCount: number
   /** The duties this post runs, newest first. */
@@ -94,7 +96,7 @@ export async function narrativeView (store: Store, sources: SourceRegistry, stat
       return {
         postId: post.postId, role: post.role, name: post.name, projectId: project.id, projectName: project.name,
         kaneoUser: post.kaneoUser, kaneoUserId: post.kaneoUserId, giteaUser: post.giteaUser, ntfySender: post.ntfySender,
-        wipLimit: post.wipLimit, instance: post.instance, watchColumns: post.watchColumns,
+        wipLimit: post.wipLimit, instance: post.instance, watchColumns: post.watchColumns, dutyIds: post.duties,
         dutyCount: own.length, duties: own, overLimit: own.length > post.wipLimit,
       }
     })

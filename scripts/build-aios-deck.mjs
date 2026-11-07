@@ -132,7 +132,7 @@ slide('concepts-org', { sectionClass: 'dense', html: `
         <tr><td>PM 领导者</td><td>PM 岗位（主 Session / Team 视角）：宪章、派工、异常、审进度</td><td>✅</td></tr>
         <tr><td>Member 成员</td><td>AI 成员 = 岗位（Post）；Human 通过来源消息、看板指派与审批参与</td><td>🚧 无统一成员目录</td></tr>
         <tr><td>Role / 岗位</td><td>岗位的 role（pm/worker）+ 身份绑定 + 监听列 + WIP</td><td>✅</td></tr>
-        <tr><td>Team / 团队</td><td>当前以“项目 + 看板列 + 职责承接岗位”体现</td><td>🔭 无独立 Team 实体</td></tr>
+        <tr><td>Team / 团队</td><td>当前以“项目 + 看板列 + 岗位职责下拉”体现</td><td>🔭 无独立 Team 实体</td></tr>
         <tr><td>Team Leader</td><td>当前由 PM 岗位兼任（项目规模小时是合理默认）</td><td>🔭</td></tr>
       </table>
       <p class="small">身份取舍：岗位在 Kanban 用登录邮箱（宿主映射成使用者 id），Gitea/ntfy 各自有身份；跨来源“同一个人”只作提示词上下文与档案信息（见 docs/001）。</p>
@@ -148,7 +148,7 @@ slide('concepts-work', { sectionClass: 'dense', html: `
         <tr><th>叙事概念</th><th>系统映射</th><th>状态</th></tr>
         <tr><td>Worker 执行者</td><td>Worker 岗位的执行器 Session：每个工单一个执行会话与工作目录</td><td>✅</td></tr>
         <tr><td>Charter 宪章</td><td>项目宪章：Gitea 宪章仓库 README.md（或 Kanban 描述镜像）；版本化、每周≤1 版</td><td>✅</td></tr>
-        <tr><td>Responsibilities 职责说明</td><td>宪章同目录 duties.md：目标/完成/载体/知识/资源/工具/技能/接单/步骤/常见坑/承接岗位</td><td>✅</td></tr>
+        <tr><td>Responsibilities 职责说明</td><td>宪章同目录 duties/（一个职责一个文件）：目标/完成/载体/知识/资源/工具/技能/接单/步骤/常见坑</td><td>✅</td></tr>
         <tr><td>Task 任务</td><td>Kanban 卡片：duty:/kind:/repo: 标签 + assignee；唯一任务来源</td><td>✅</td></tr>
         <tr><td>Pipeline 流程</td><td>看板列（价值流）+ 宪章流程语义 + 职责步骤；复杂分支仍靠文档表达</td><td>🚧 无流程引擎</td></tr>
         <tr><td>Duty / 工单</td><td>Ticket：接受时创建，携带 Mandate、Duty brief、宪章版本；随交付结束</td><td>✅</td></tr>
@@ -187,7 +187,7 @@ slide('initialization', { sectionClass: '', html: `
             <div><i>✓</i>初始化宪章仓库（Gitea）</div>
             <div><i>✓</i>确认目标与客户价值（宪章 Objectives）</div>
             <div><i>✓</i>登记岗位（AI 成员）与 Human 参与方式</div>
-            <div><i>✓</i>明确岗位职责（duties.md + 承接岗位）</div>
+            <div><i>✓</i>明确岗位职责（duties/ + 岗位下拉选择）</div>
           </div>
         </div>
         <div class="card"><span class="bar"></span><div class="num">06 — 10</div>
@@ -281,7 +281,7 @@ slide('knowledge', { sectionClass: 'dense', html: `
         <tr><td>交付物（方案/文档/报告）</td><td>MinIO 对象（固定 key，可回读）</td><td>✅</td></tr>
         <tr><td>SOP 与操作指南</td><td>SOP.md / SOP.html / STORY.md</td><td>✅</td></tr>
         <tr><td>方法论与决策记录</td><td>RD.md / docs/ / TDD/ / HANDOFF.md</td><td>✅</td></tr>
-        <tr><td>规则与职责</td><td>宪章 README.md / duties.md（commit 历史 = 版本）</td><td>✅</td></tr>
+        <tr><td>规则与职责</td><td>宪章 README.md / duties/（一个职责一个文件，commit 历史 = 版本）</td><td>✅</td></tr>
         <tr><td>工具与技能</td><td>仓库内 Agent Skill、提示词、bundle 代码</td><td>✅</td></tr>
         <tr><td>失败案例与改进</td><td>TDD 记录、HANDOFF 修正、story 回归</td><td>🚧 未自动提炼模板</td></tr>
       </table>
