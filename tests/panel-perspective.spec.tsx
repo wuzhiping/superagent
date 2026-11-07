@@ -46,12 +46,28 @@ it('offers the seat picker in 我的岗位设置 and then shows only that post',
   await settle()
   // The seat picker moved here: without a chosen seat the page asks which post the reader is.
   expect(text()).toContain(zh.postsWhoAreYou)
-  const seat = [...document.querySelectorAll<HTMLElement>('.dt-open')].find(item => item.textContent?.includes('SuperAgent PM (FDEP)'))
-  await click(seat!)
+  const seat = () => [...document.querySelectorAll<HTMLElement>('.dt-open')].find(item => item.textContent?.includes('SuperAgent PM (FDEP)'))!
+  await click(seat())
   await settle()
-  // The reader is that post: its Kanban account is on screen and the picker is gone.
+  // The reader is that post: its Kanban account is on screen and the picker marks the choice.
   expect(text()).toContain('pm@example.com')
   expect(all('.dt-post-name').length).toBe(0)
+  expect(seat().getAttribute('aria-pressed')).toBe('true')
+  expect(text()).toContain(zh.postsSeatSelected)
+  // The choice can be taken back: clicking the selected post again clears it.
+  await click(seat())
+  await settle()
+  expect(seat().getAttribute('aria-pressed')).toBe('false')
+  expect(text()).not.toContain(zh.postsCurrentSeat.replace('{post}', 'SuperAgent PM (FDEP)'))
+  // An explicit action does the same, without having to find the selected row again.
+  await click(seat())
+  await settle()
+  await click(zh.postsClearSeat)
+  await settle()
+  expect(seat().getAttribute('aria-pressed')).toBe('false')
+  // Choose it again for the rest of the check: the tasks tab lists that seat's own tickets.
+  await click(seat())
+  await settle()
   // 我的任务 lists the seat's own tickets and says where to pick a seat while none is chosen.
   await click(tab(zh['tab.execution.post']))
   await settle()

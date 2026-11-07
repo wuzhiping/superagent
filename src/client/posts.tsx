@@ -95,25 +95,33 @@ function ExceptionLine({ row }: { row: ExceptionRow }) {
   </li>
 }
 
-/** The seat picker of the post perspective: which post the reader is. */
+/** The seat picker of the post perspective: which post the reader is; the choice can be taken back. */
 export function PostChooser({ posts }: { posts: PostView[] }) {
   const { t } = usePanel()
   const { postId, setPostId } = usePerspective()
-  return <Section title={t('postsWhoAreYou')} hint={t('postsWhoAreYouHint')}>
+  const current = posts.find(post => post.postId === postId)
+  return <Section title={t('postsWhoAreYou')} hint={t('postsWhoAreYouHint')}
+    action={current ? <Button variant="ghost" size="sm" onClick={() => setPostId('')}>{t('postsClearSeat')}</Button> : undefined}>
     <ul className="dt-list">
-      {posts.map(post => <li key={post.postId} className="dt-row dt-link">
-        <div className="dt-row-main">
-          <div className="dt-att-what">
-            <button type="button" className="dt-open" onClick={() => setPostId(post.postId)}>
-              <span className={`dt-role dt-role-${post.role}`}>{post.role === 'pm' ? t('postsRolePm') : t('postsRoleWorker')}</span>
-              {post.name}
-            </button>
+      {posts.map(post => {
+        const selected = post.postId === postId
+        return <li key={post.postId} className={`dt-row dt-link${selected ? ' dt-seat-selected' : ''}`}>
+          <div className="dt-row-main">
+            <div className="dt-att-what">
+              <button type="button" className="dt-open" aria-pressed={selected}
+                onClick={() => setPostId(selected ? '' : post.postId)}>
+                <span className={`dt-role dt-role-${post.role}`}>{post.role === 'pm' ? t('postsRolePm') : t('postsRoleWorker')}</span>
+                {post.name}
+                {selected && <span className="dt-hint"> · {t('postsSeatSelected')}</span>}
+              </button>
+            </div>
+            <p className="dt-hint">{kanbanIdentity(post) || t('postsUnset')} · {t('postsWip')} {post.dutyCount} / {post.wipLimit}</p>
           </div>
-          <p className="dt-hint">{kanbanIdentity(post) || t('postsUnset')} · {t('postsWip')} {post.dutyCount} / {post.wipLimit}</p>
-        </div>
-      </li>)}
+        </li>
+      })}
     </ul>
-    {postId && <p className="dt-hint">{t('postsCurrentSeat', { post: posts.find(post => post.postId === postId)?.name ?? postId })}</p>}
+    {current && <p className="dt-hint">{t('postsCurrentSeat', { post: current.name })}
+      {' · '}{t('postsSeatClearHint')}</p>}
   </Section>
 }
 
