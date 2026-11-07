@@ -48,6 +48,26 @@ it('brings the chosen project name and slug into their fields', async () => {
   expect(inputByLabel(zh.projectSlug)?.value).toBe('RSI')
 })
 
+it('keeps the post id field focused while a new post id is typed', async () => {
+  await mount()
+  await click(tab(zh['tab.settings']))
+  await click(find(zh['settingsGroup.project'], '.dt-settings-link'))
+  await settle()
+  await click(zh.projectAddPost)
+  const postIdInputs = () => [...document.querySelectorAll<HTMLLabelElement>('label')]
+    .filter(label => label.textContent?.startsWith(zh.projectPostId))
+    .map(label => label.querySelector<HTMLInputElement>('input')!)
+  const input = postIdInputs().at(-1)!
+  input.focus()
+  expect(document.activeElement).toBe(input)
+  await type(input, 'w1-story')
+  const after = postIdInputs().at(-1)!
+  expect(after.value).toBe('w1-story')
+  // The editor must stay mounted while the id changes, otherwise every character would drop the focus.
+  expect(after).toBe(input)
+  expect(document.activeElement).toBe(input)
+})
+
 it('keeps the current project selectable when the account cannot see it any more', async () => {
   server.choices = { workspaces: [], projects: [], problem: 'the server refused the request' }
   await mount()

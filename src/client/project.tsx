@@ -242,7 +242,7 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
     <div className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{scoped ? t('settingsMyPost') : t('projectPosts')}</span>
         <span className="dt-count">{posts.length}</span></h3>
-      {posts.map((post, index) => <PostEditor key={post.postId || index} post={post} duties={duties?.duties} members={members}
+      {posts.map((post, index) => <PostEditor key={index} post={post} duties={duties?.duties} members={members}
         onChange={next => onChange({ ...project, posts: project.posts.map(item => item.postId === post.postId ? next : item) })}
         onRemove={() => onChange({ ...project, posts: project.posts.filter(item => item.postId !== post.postId) })} />)}
       {!scoped && <Button variant="outline" size="sm" icon={<Icon name="plus" size={14} />}
