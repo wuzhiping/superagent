@@ -48,6 +48,53 @@ it('brings the chosen project name and slug into their fields', async () => {
   expect(inputByLabel(zh.projectSlug)?.value).toBe('RSI')
 })
 
+it('starts a new project with one PM post and one worker post, each removable', async () => {
+  await mount()
+  await click(tab(zh['tab.settings']))
+  await click(find(zh['settingsGroup.project'], '.dt-settings-link'))
+  await settle()
+  const editors = () => [...document.querySelectorAll('.dt-post-editor')]
+  const start = editors().length
+  await click(zh.projectAdd)
+  await settle()
+  expect(editors()).toHaveLength(start + 2)
+  const added = editors().slice(-2)
+  // One of each kind, and their names say which is which.
+  expect(added.map(editor => editor.querySelector<HTMLSelectElement>('select')!.value).sort()).toEqual(['pm', 'worker'])
+  expect(added.map(editor => editor.querySelectorAll<HTMLInputElement>('input')[1]!.value)).toEqual([zh.postsRolePm, zh.postsRoleWorker])
+  // The default posts are not forced: each card can be removed, leaving the archive as it was.
+  const remove = (editor: Element) => [...editor.querySelectorAll('button')].find(button => button.textContent === zh.projectRemovePost)!
+  await click(remove(added[0]!))
+  await settle()
+  expect(editors()).toHaveLength(start + 1)
+  await click(remove(editors().at(-1)!))
+  await settle()
+  expect(editors()).toHaveLength(start)
+})
+
+it('says what is missing before a project with the default posts can be saved', async () => {
+  await mount()
+  await click(tab(zh['tab.settings']))
+  await click(find(zh['settingsGroup.project'], '.dt-settings-link'))
+  await settle()
+  await click(zh.projectAdd)
+  await settle()
+  const saves = () => server.requests.filter(request => request.path === 'project-archive' && request.method === 'PUT')
+  const before = saves().length
+  await click(zh.projectSave)
+  await settle()
+  // The new project has no project picked yet, so the message names that first, and nothing was written.
+  expect(document.body.textContent).toContain(zh.projectValidationProject)
+  expect(saves()).toHaveLength(before)
+  // Once the project and the posts are filled in, the same button saves the archive.
+  const projectRow = [...document.querySelectorAll('.dt-project-settings .dt-archive-card')].at(-1)!
+  const select = projectRow.querySelector<HTMLSelectElement>('select')!
+  await type(select, 'p1')
+  const postRows = [...projectRow.querySelectorAll('.dt-post-editor')]
+  for (const [index, post] of postRows.entries()) await type(post.querySelectorAll<HTMLInputElement>('input')[0]!, `p-${index}`)
+  expect(document.body.textContent).not.toContain(zh.projectValidationProject)
+})
+
 it('keeps the post id field focused while a new post id is typed', async () => {
   await mount()
   await click(tab(zh['tab.settings']))

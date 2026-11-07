@@ -118,7 +118,7 @@ slide('project-posts', '', `
     <div class="content">
       <div class="grid g2 fill">
         <div class="card"><span class="bar"></span><h3>项目</h3><p>下拉里<b>选</b>项目，名称与 slug 自动带出；主题集可留空。</p><p class="small">别手抄项目 id。</p></div>
-        <div class="card"><span class="bar"></span><h3>两个岗位</h3><p><b>PM 岗位</b>：id <code>pm-&lt;项目&gt;</code>、角色 PM、登录邮箱。</p><p><b>Worker 岗位</b>：id <code>w1-&lt;项目&gt;</code>、角色 Worker、登录邮箱。</p><p class="small">监听列 ready、WIP 默认；页面底部保存档案。</p></div>
+        <div class="card"><span class="bar"></span><h3>两个岗位</h3><p>新增项目时<b>默认已带一个 PM 岗位和一个 Worker 岗位</b>；用不上的可删除。</p><p>只补三项：id <code>pm-/w1-&lt;项目&gt;</code>、登录邮箱；角色已选好。</p><p class="small">监听列 ready、WIP 默认；页面底部保存档案。</p></div>
       </div>
       <p class="small">OK 的样子：每张岗位卡下方出现「已映射到 Kanban 使用者 id：…」。</p>
     </div>`)

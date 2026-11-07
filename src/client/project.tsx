@@ -13,15 +13,31 @@ import { usePoll, type ProjectArchive, type ProjectChoices } from './api.ts'
 import { Button, Icon, Input } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
 import { useAction, usePanel } from './provider.tsx'
+import type { T } from './text.ts'
 import { Hint, Section } from './widgets.tsx'
 
 type Post = ProjectArchive['projects'][number]['posts'][number]
 type Project = ProjectArchive['projects'][number]
 
-const emptyPost = (): Post => ({ postId: '', role: 'worker', name: '', kaneoUser: '', kaneoUserId: '', giteaUser: '', ntfySender: '',
-  wipLimit: 3, instance: '', watchColumns: '' })
+const emptyPost = (role: Post['role'], name = ''): Post => ({ postId: '', role, name, kaneoUser: '', kaneoUserId: '',
+  giteaUser: '', ntfySender: '', wipLimit: 3, instance: '', watchColumns: '' })
 const emptyCharter = () => ({ version: 0, publishedAt: '', publishedBy: '', text: '', draft: '', history: [] })
-const emptyProject = (): Project => ({ id: '', name: '', slug: '', charter: emptyCharter(), topics: [], posts: [] })
+
+/** What must be fixed before the archive can be saved: a project id, and each post's own id (they start empty). */
+function archiveProblem (archive: ProjectArchive, t: T): string | undefined {
+  for (const project of archive.projects) {
+    if (!project.id.trim()) return t('projectValidationProject')
+    const seen = new Set<string>()
+    for (const post of project.posts) {
+      const id = post.postId.trim()
+      if (!id) return t('projectValidationPostId', { project: project.name || project.id })
+      if (seen.has(id)) return t('projectValidationPostDuplicate', { post: id, project: project.name || project.id })
+      seen.add(id)
+    }
+  }
+  return undefined
+}
+const emptyProject = (posts: Post[] = []): Project => ({ id: '', name: '', slug: '', charter: emptyCharter(), topics: [], posts })
 
 /** A text field that keeps its own draft so typing does not rebuild the whole archive. */
 function Field({ label, value, onChange, placeholder, readOnly, required }: {
@@ -196,7 +212,8 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
 }) {
   const { t } = usePanel()
   // In the post perspective the project belongs to the PM: it is shown, not edited.
-  const posts = scoped ? project.posts.filter(post => post.postId === seat) : project.posts
+  const rows = project.posts.map((post, index) => ({ post, index }))
+    .filter(row => !scoped || row.post.postId === seat)
   // The project is picked from what the Kanban account can see; the choice brings its own name, slug and, when the topic
   // list is empty or still the previous project's default, the topic `pub_<chosen project id>` along with it.
   const pick = (id: string) => {
@@ -241,12 +258,12 @@ function ProjectEditor({ project, onChange, onRemove, onPublished, scoped, seat,
     </div>
     <div className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{scoped ? t('settingsMyPost') : t('projectPosts')}</span>
-        <span className="dt-count">{posts.length}</span></h3>
-      {posts.map((post, index) => <PostEditor key={index} post={post} duties={duties?.duties} members={members}
-        onChange={next => onChange({ ...project, posts: project.posts.map(item => item.postId === post.postId ? next : item) })}
-        onRemove={() => onChange({ ...project, posts: project.posts.filter(item => item.postId !== post.postId) })} />)}
+        <span className="dt-count">{rows.length}</span></h3>
+      {rows.map(({ post, index }) => <PostEditor key={index} post={post} duties={duties?.duties} members={members}
+        onChange={next => onChange({ ...project, posts: project.posts.map((item, at) => at === index ? next : item) })}
+        onRemove={() => onChange({ ...project, posts: project.posts.filter((_item, at) => at !== index) })} />)}
       {!scoped && <Button variant="outline" size="sm" icon={<Icon name="plus" size={14} />}
-        onClick={() => onChange({ ...project, posts: [...project.posts, emptyPost()] })}>{t('projectAddPost')}</Button>}
+        onClick={() => onChange({ ...project, posts: [...project.posts, emptyPost('worker')] })}>{t('projectAddPost')}</Button>}
     </div>
     {!scoped && <Button variant="ghost" size="sm" icon={<Icon name="trash" size={14} />} onClick={onRemove}>{t('projectRemove')}</Button>}
   </div>
@@ -291,7 +308,11 @@ export function ProjectSettings() {
     return () => { active = false }
   }, [call, projectIds])
 
+  const [saveError, setSaveError] = useState<string>()
   const save = useAction(async () => {
+    const problem = archiveProblem(archive, t)
+    if (problem) { setSaveError(problem); return }
+    setSaveError(undefined)
     const result = await call('PUT project-archive', { body: { archive, revision } })
     setRevision(result.revision)
     notify(t('projectSaved'))
@@ -300,8 +321,10 @@ export function ProjectSettings() {
   if (error) return <p className="dt-error" role="alert">{error}</p>
   if (!loaded) return <p className="dt-hint">{t('loading')}</p>
 
-  const update = (index: number, project: Project) =>
+  const update = (index: number, project: Project) => {
+    setSaveError(undefined)
     setArchive(current => ({ ...current, projects: current.projects.map((item, at) => at === index ? project : item) }))
+  }
 
   // The post perspective edits only its own seat; the project it belongs to stays as the PM left it.
   const scoped = perspective === 'post'
@@ -315,9 +338,12 @@ export function ProjectSettings() {
     {shown.map(({ project, index }) => <ProjectEditor key={index} project={project} scoped={scoped} seat={postId} duties={duties} onDutiesChanged={loadDuties} members={members[project.id]}
       onChange={next => update(index, next)} onPublished={() => { void save.run() }} choices={choices}
       onRemove={() => setArchive(current => ({ ...current, projects: current.projects.filter((_item, at) => at !== index) }))} />)}
+    {!scoped && <Hint>{t('projectAddDefaultPosts')}</Hint>}
+    {saveError && <p className="dt-error" role="alert">{saveError}</p>}
     {!scoped && <div className="dt-row-buttons">
       <Button variant="outline" icon={<Icon name="plus" size={14} />}
-        onClick={() => setArchive(current => ({ ...current, projects: [...current.projects, emptyProject()] }))}>{t('projectAdd')}</Button>
+        onClick={() => setArchive(current => ({ ...current, projects: [...current.projects,
+          emptyProject([emptyPost('pm', t('postsRolePm')), emptyPost('worker', t('postsRoleWorker'))])] }))}>{t('projectAdd')}</Button>
       <Button variant="primary" icon={<Icon name="decision" size={14} />} disabled={save.busy} onClick={() => { void save.run() }}>{t('projectSave')}</Button>
     </div>}
     {scoped && <div className="dt-row-buttons">
