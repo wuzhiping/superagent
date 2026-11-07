@@ -59,7 +59,7 @@ export function SettingsReadiness({ state, compact = false }: { state: StateView
     if (scoped) {
       const mine = postId ? project?.posts.find(post => post.postId === postId) : undefined
       items.push({ key: 'myPost', group: 'project', label: t('readiness.myPost'),
-        detail: mine?.kaneoUserId ? t('readinessMappedOne', { post: mine.postId }) : t('readinessNoPost'),
+        detail: mine?.kaneoUserId ? t('readinessMappedOne', { post: mine.kaneoUser || mine.postId }) : t('readinessNoPost'),
         state: mine?.kaneoUserId ? 'done' : 'warning' })
       if (sources.length) items.push({ key: 'sourcesScoped', group: 'source', label: t('readiness.sourcesScoped'),
         detail: t('readinessSourcesDetail', { ready: String(ready), total: String(homes.length) }),

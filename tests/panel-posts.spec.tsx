@@ -18,7 +18,9 @@ it('shows each project with its charter, posts, WIP and the exception queue', as
   expect(all('.dt-role').map(role => role.textContent)).toEqual(['PM 岗位'])
   expect(all('.dt-post-name').map(name => name.textContent)).toEqual(['SuperAgent PM (FDEP)'])
   expect(text()).toContain('在飞职责')
-  expect(text()).toContain('u-pm')
+  // The identity reads as the login e-mail; the raw board id is not what the panel shows.
+  expect(text()).toContain('pm@example.com')
+  expect(text()).not.toContain('u-pm')
   expect(text()).toContain('pub_fdep_pm')
   // The value stream: the board's columns with the meaning the charter gave them.
   expect(text()).toContain('待开工')

@@ -145,7 +145,7 @@ function PostEditor({ post, onChange, onRemove, readOnly, duties, members }: {
       </label>
     </div>
     <p className="dt-hint">{post.kaneoUserId
-      ? t('projectPostKanbanMapped', { id: post.kaneoUserId })
+      ? t('projectPostKanbanMapped', { email: post.kaneoUser || t('postsUnset'), id: post.kaneoUserId })
       : t('projectPostKanbanHint')}</p>
     {post.postId && (mine.length > 0
       ? <p className="dt-hint">{t('projectPostDuties', { duties: mine.map(duty => duty.name || duty.id).join('、') })}</p>

@@ -16,6 +16,9 @@ export interface PostView {
   name: string
   projectId: string
   projectName: string
+  /** The post's Kanban login e-mail: the identity a person recognises. */
+  kaneoUser: string
+  /** The Kanban user id the e-mail maps to, kept for diagnostics. */
   kaneoUserId: string
   giteaUser: string
   ntfySender: string
@@ -90,7 +93,7 @@ export async function narrativeView (store: Store, sources: SourceRegistry, stat
       const own = dutiesOfPost(duties, post.postId)
       return {
         postId: post.postId, role: post.role, name: post.name, projectId: project.id, projectName: project.name,
-        kaneoUserId: post.kaneoUserId, giteaUser: post.giteaUser, ntfySender: post.ntfySender,
+        kaneoUser: post.kaneoUser, kaneoUserId: post.kaneoUserId, giteaUser: post.giteaUser, ntfySender: post.ntfySender,
         wipLimit: post.wipLimit, instance: post.instance, watchColumns: post.watchColumns,
         dutyCount: own.length, duties: own, overLimit: own.length > post.wipLimit,
       }

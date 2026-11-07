@@ -136,7 +136,7 @@ function PostSeatSummary({ narrative, postId }: { narrative: NarrativeView; post
       <span className="dt-stat"><span className="dt-stat-label">{t('postsExceptionsCount')}</span>
         <span className="dt-stat-value">{exceptions.length}</span></span>
       <span className="dt-stat"><span className="dt-stat-label">{t('postsKanbanIdentity')}</span>
-        <span className="dt-stat-value">{post.kaneoUserId || t('postsUnset')}</span></span>
+        <span className="dt-stat-value">{post.kaneoUser || post.kaneoUserId || t('postsUnset')}</span></span>
     </div>
   </Section>
 }
