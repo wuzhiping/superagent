@@ -5,6 +5,7 @@ import { LIMITS } from '../limits.ts'
 import { usePoll, type SettingsView, type SourceView, type StateView } from './api.ts'
 import { DisclosureRow, Icon, InfoTip, Input, Pill } from './controls.tsx'
 import { SaveBar } from './draft.tsx'
+import { usePerspective } from './perspective.tsx'
 import { usePanel } from './provider.tsx'
 import { TicketLine } from './rows.tsx'
 import { ConfigHistory, Field, Fields, ModelField, numberOf, useBlockDraft, useSettings } from './settings-kit.tsx'
@@ -15,8 +16,11 @@ export function ExecutionStatus({ filter: current, state, reload }: {
   filter: TicketFilter; state: StateView; reload: () => Promise<void>
 }) {
   const { t, call, navigate } = usePanel()
+  const { perspective, postId } = usePerspective()
   const [limit, setLimit] = useState(20)
   const { data, error, reload: reloadTickets } = usePoll(() => call('GET tickets', { query: { state: current, limit } }), [current, limit])
+  // In the post perspective this list is the reader's own queue: the Tickets their seat owns.
+  const doing = data ? perspective === 'post' ? data.items.filter(ticket => !!postId && ticket.postId === postId) : data.items : undefined
   const { paused, load: { maxWorkers } } = state
   // Pausing uses its own block revision so toggling pause does not invalidate an open Execution settings draft.
   const pause = async () => { await call('POST executor/pause', { body: { paused: !paused } }); await reload() }
@@ -42,11 +46,13 @@ export function ExecutionStatus({ filter: current, state, reload }: {
           true) }}>{t(`ticketFilter.${value}`)}</Pill>)}
     </div>
     {current === 'idle' && <Hint>{t('idleHint')}</Hint>}
+    {perspective === 'post' && !postId && <Hint>{t('seatFirstHint')}</Hint>}
     <LoadState error={error} loading={!data} />
-    {data && (data.items.length ? <ul className="dt-list">{data.items.map(ticket => ticket.stage === 'person'
+    {doing && (doing.length ? <ul className="dt-list">{doing.map(ticket => ticket.stage === 'person'
       ? <TicketLine key={ticket.id} ticket={ticket} question
-        onChanged={reloadTickets} /> : <TicketLine key={ticket.id} ticket={ticket} />)}</ul> : <Hint>{t('none')}</Hint>)}
-    {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 20)} />}
+        onChanged={reloadTickets} /> : <TicketLine key={ticket.id} ticket={ticket} />)}</ul>
+      : perspective === 'post' && !postId ? null : <Hint>{t('none')}</Hint>)}
+    {data?.next_offset != null && perspective !== 'post' && <LoadMore onMore={() => setLimit(limit + 20)} />}
   </>
 }
 

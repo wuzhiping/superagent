@@ -26,7 +26,7 @@ import { When } from './widgets.tsx'
 
 /** The tab label each perspective shows; the post perspective names things by its own seat. */
 export const tabLabel = (t: T, perspective: Perspective, tab: Tab): string =>
-  perspective === 'post' && (tab === 'posts' || tab === 'execution') ? t(`tab.${tab}.post`) : t(`tab.${tab}`)
+  perspective === 'post' && tab === 'execution' ? t('tab.execution.post') : t(`tab.${tab}`)
 
 export interface AppProps {
   t: T; openSession: (sessionId: string) => Promise<void>

@@ -155,9 +155,15 @@ try {
   console.log('post perspective:', await clickTab('^(崗位視角|岗位视角)$'))
   await sleep(2500)
   await capture('b1-panel-post.png', { x: 280, y: 0, width: 1304, height: 905 }, 1.45)
-  console.log('my post:', await clickTab('我的崗位|我的岗位'))
+  // The seat and its reach live under Settings → 我的岗位设置 now (the old 我的岗位 tab is gone).
+  console.log('settings:', await clickTab('^(設定|设置)$'))
+  await evaluate(`(async () => {
+    for (let i = 0; i < 40; i += 1) { if (document.querySelector('.dt-settings-link')) return true; await new Promise(r => setTimeout(r, 500)) }
+    return false
+  })()`)
+  console.log('my post settings:', await clickGroup('我的崗?位設(定|置)|我的岗位设(定|置)'))
   await sleep(1500)
-  await capture('b2-my-post.png', await clipFromText('監聽列|监听列', 620, '.dt-page'))
+  await capture('b2-my-post.png', await clipFromText('我是哪個崗位|我是哪个岗位|監聽列|监听列', 620, '.dt-page'))
 } finally {
   socket.close()
   child.kill()

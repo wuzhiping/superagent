@@ -96,7 +96,7 @@ function ExceptionLine({ row }: { row: ExceptionRow }) {
 }
 
 /** The seat picker of the post perspective: which post the reader is. */
-function PostChooser({ posts }: { posts: PostView[] }) {
+export function PostChooser({ posts }: { posts: PostView[] }) {
   const { t } = usePanel()
   const { postId, setPostId } = usePerspective()
   return <Section title={t('postsWhoAreYou')} hint={t('postsWhoAreYouHint')}>
@@ -109,7 +109,7 @@ function PostChooser({ posts }: { posts: PostView[] }) {
               {post.name}
             </button>
           </div>
-          <p className="dt-hint">{post.kaneoUserId || t('postsUnset')} · {t('postsWip')} {post.dutyCount} / {post.wipLimit}</p>
+          <p className="dt-hint">{kanbanIdentity(post) || t('postsUnset')} · {t('postsWip')} {post.dutyCount} / {post.wipLimit}</p>
         </div>
       </li>)}
     </ul>

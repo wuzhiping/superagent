@@ -12,7 +12,7 @@ export type SettingsGroup = typeof SETTINGS_GROUPS[number]
 /** The tabs each perspective offers: the PM watches the whole project, a post watches its own duties. */
 export const TABS_BY_PERSPECTIVE: Record<Perspective, readonly Tab[]> = {
   pm: TABS,
-  post: ['overview', 'execution', 'posts', 'source', 'trigger', 'settings'],
+  post: ['overview', 'execution', 'source', 'trigger', 'settings'],
 }
 /** The settings groups each perspective offers; a post does not judge work, so it has no Eval group. */
 export const SETTINGS_GROUPS_BY_PERSPECTIVE: Record<Perspective, readonly SettingsGroup[]> = {

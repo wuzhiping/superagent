@@ -4,6 +4,8 @@ import { PermissionBanner } from './capabilities.tsx'
 import { DeploymentPage, type DeploymentForm } from './deployment.tsx'
 import { EvalSettings } from './eval.tsx'
 import { ExecutionSettings } from './execution.tsx'
+import { usePoll } from './api.ts'
+import { PostChooser } from './posts.tsx'
 import { ProjectSettings } from './project.tsx'
 import { PromptsPage } from './prompts.tsx'
 import { usePanel } from './provider.tsx'
@@ -14,6 +16,17 @@ import { SettingsReadiness } from './readiness.tsx'
 import { SourceSettings } from './source.tsx'
 
 const STAGE_GROUPS: readonly SettingsGroup[] = ['source', 'eval', 'execution']
+
+/**
+ * In the post perspective the project group is the reader's own seat: first say which post you are, then read its
+ * settings (the seat picker used to live on a tab of its own).
+ */
+function ProjectGroup () {
+  const { call } = usePanel()
+  const { perspective } = usePerspective()
+  const { data } = usePoll(() => perspective === 'post' ? call('GET narrative') : Promise.resolve(undefined), [perspective])
+  return <>{perspective === 'post' && data && <PostChooser posts={data.posts ?? []} />}<ProjectSettings /></>
+}
 export function SettingsPage({ group, query, state, deploymentForm }: {
   group: SettingsGroup; query: { source?: string; version?: string }; state: StateView; deploymentForm: DeploymentForm
 }) {
@@ -27,7 +40,7 @@ export function SettingsPage({ group, query, state, deploymentForm }: {
   const groupHint = perspective === 'post' && group === 'project' ? t('settingsGroupHint.myPost') : t(`settingsGroupHint.${group}`)
   const content = (() => {
     switch (group) {
-      case 'project': return <ProjectSettings />
+      case 'project': return <ProjectGroup />
       case 'source': return <SourceSettings {...query.source ? { focus: query.source } : {}} readOnly={perspective === 'post'} />
       case 'eval': return <EvalSettings version={query.version} />
       case 'execution': return <ExecutionSettings />

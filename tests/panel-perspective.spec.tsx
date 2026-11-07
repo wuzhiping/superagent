@@ -21,7 +21,7 @@ it('opens in the PM perspective with every tab and settings group', async () => 
 it('switches to the post perspective: fewer tabs, its own names, and it lands on the duties', async () => {
   await mount()
   await click(find(zh['perspective.post'], '.dt-perspective-option'))
-  expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['概览', '我的职责', '我的岗位', '来源', '触发', '设置'])
+  expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['概览', '我的任务', '来源', '触发', '设置'])
   expect(tab(zh['tab.execution.post']).getAttribute('aria-selected')).toBe('true')
   await click(tab(zh['tab.settings']))
   expect(all('.dt-settings-link').map(link => link.textContent)).toEqual([zh.settingsMyPost, '来源', '执行', '提示词', '部署'])
@@ -38,19 +38,24 @@ it('keeps one host behind both perspectives', async () => {
   expect(new Set(paths.filter(path => path.startsWith('project'))).size).toBeLessThanOrEqual(1)
 })
 
-it('shows the seat picker in the post perspective and then only that post', async () => {
+it('offers the seat picker in 我的岗位设置 and then shows only that post', async () => {
   await mount()
   await click(find(zh['perspective.post'], '.dt-perspective-option'))
-  await click(tab(zh['tab.posts.post']))
+  await click(tab(zh['tab.settings']))
+  await click(find(zh.settingsMyPost, '.dt-settings-link'))
   await settle()
-  // Without a chosen seat the page asks which post the reader is.
+  // The seat picker moved here: without a chosen seat the page asks which post the reader is.
   expect(text()).toContain(zh.postsWhoAreYou)
   const seat = [...document.querySelectorAll<HTMLElement>('.dt-open')].find(item => item.textContent?.includes('SuperAgent PM (FDEP)'))
   await click(seat!)
   await settle()
-  expect(all('.dt-post-name').map(name => name.textContent)).toEqual(['SuperAgent PM (FDEP)'])
-  expect(text()).not.toContain('SuperAgent Worker 1 (FDEP)')
-  expect(text()).toContain(zh.postsMyExceptions)
+  // The reader is that post: its Kanban account is on screen and the picker is gone.
+  expect(text()).toContain('pm@example.com')
+  expect(all('.dt-post-name').length).toBe(0)
+  // 我的任务 lists the seat's own tickets and says where to pick a seat while none is chosen.
+  await click(tab(zh['tab.execution.post']))
+  await settle()
+  expect(text()).toContain('修复回归')
 })
 
 it('shows the whole team in the PM perspective', async () => {
@@ -65,7 +70,7 @@ it('names the perspectives in English too', async () => {
   await mount(en)
   expect(all('.dt-perspective-option').map(item => item.textContent)).toEqual([en['perspective.pm'], en['perspective.post']])
   await click(find(en['perspective.post'], '.dt-perspective-option'))
-  expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['Overview', 'My duties', 'My post', 'Source', 'Trigger', 'Settings'])
+  expect(all('[role="tab"]').map(item => item.textContent)).toEqual(['Overview', 'My tasks', 'Source', 'Trigger', 'Settings'])
 })
 
 it('asks before it lets a reader whose account may not manage the board into the PM seat', async () => {
