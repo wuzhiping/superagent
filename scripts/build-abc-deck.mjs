@@ -158,6 +158,25 @@ slide('duties', '', `
       </div>
     </div>`)
 
+slide('card-rules', '', `
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>建卡 4 条 · 派卡的人看</div>
+      <h2>标签先挂，最后才拖进监听列</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><h3>顺序</h3>
+          <div class="list">
+            <div class="li"><span class="mk dot">1</span><div><b>先挂标签</b>：<code>duty:</code> / <code>kind:</code> / <code>repo:</code></div></div>
+            <div class="li"><span class="mk dot">2</span><div><b>负责人</b> = 岗位的 Kanban 账号</div></div>
+            <div class="li"><span class="mk dot">3</span><div><b>描述</b>写清验收口径与交付到哪</div></div>
+            <div class="li"><span class="mk ok">4</span><div><b>最后</b>才拖进监听列（<code>to-do</code>）</div></div>
+          </div>
+        </div>
+        <div class="card g"><span class="bar"></span><h3>为什么</h3><p>标签在<b>触发那一刻</b>读取。后挂标签的工单会缺少产出类型/职责（实测 #45）。</p><p class="small">对照实验 #46：标签先挂 → 工单直接带「产出类型：文档」。</p><p class="small">演练见 A-I.md §11。</p></div>
+      </div>
+    </div>`)
+
 slide('evaluation', 'dense', `
     <div class="head">
       <div class="kicker"><span class="dot"></span>TAB 3 · 评估</div>

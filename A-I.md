@@ -4,7 +4,7 @@
 > **给谁看**：第一次接手的人（PM 20 分钟通读）；任何人想确认"现在卡在哪一步"时按节查。
 > **前提**：本机设置检查全绿（ABC）。文中所有"事实"都来自当前部署与代码；演练数据见 §11。
 > **分册**：需要细节时看对应长文——[ABC.md](ABC.md) · [DEF.md](DEF.md) · [GHI.md](GHI.md) · [SOP.md](SOP.md) · [AIOS.md](AIOS.md)。
-> 演示稿：[ABC.html](ABC.html) · [DEF.html](DEF.html) · [GHI.html](GHI.html)。
+> 演示稿：[A-I.html](A-I.html) · [A-I.pdf](A-I.pdf)；分册演示稿：[ABC.html](ABC.html) · [DEF.html](DEF.html) · [GHI.html](GHI.html)。
 
 ---
 
