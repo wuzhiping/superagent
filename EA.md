@@ -3,6 +3,7 @@
 > **这份文件解决什么**：宪章仓库现在只有 `README.md`（规则）和 `duties/`（职责），太单薄——复盘流失、上下文断裂、知识不可复用、技能靠个人。EA 把它升级成一台**持续供给能力**的系统：六层模型（契约 + 五层能力资产）+ PM 运营节奏 + 可验收的迭代路线。
 > **给谁看**：PM（主责）、项目负责人（验收）、Worker（知道东西放哪）。
 > **演示稿**：16:9 叙事版见 [EA.html](EA.html) · [EA.pdf](EA.pdf)（受众：PM / 项目负责人）。
+> **PM 岗位的安置、来源与定期复盘**：[PM.md](PM.md)（岗位配置、分诊/分派、Gitea Issue 与定时复盘的落地路线）。
 > **关系**：宪章仓库的落地物在 [shawoo/rsi_superagent](https://git.feg.cn/shawoo/rsi_superagent) 的 [PR #1 · ea/capability-supply](https://git.feg.cn/shawoo/rsi_superagent/pulls/1)；运行机制见 [A-I.md](A-I.md)，岗位职责见 [SOP.md](SOP.md) §4。
 > **原则**：少而准、可执行、可验收；**没有 Owner 的资产不算落地**。
 
@@ -53,14 +54,14 @@
 | 状态 | 事实 | 证据 |
 | --- | --- | --- |
 | 已落地 | A-I 流水线可运行：演练卡建卡→接单→工单→MinIO 交付→done，建卡到结束 1 分 48 秒 | [A-I.md](A-I.md) §11（卡 #45/#46，可点开核对） |
-| 已落地 | 宪章仓库 PR #1：28 个文件（README v14、CAPABILITY、reviews/、context/、KE/、skills/、4 条 PM 职责） | [PR #1](https://git.feg.cn/shawoo/rsi_superagent/pulls/1) |
-| 已落地 | 4 条 PM 职责按 folder 模式解析通过（id/name/goal/done/steps/carrier/posts） | 临时解析测试 4/4 通过（测试文件已删） |
-| 待决策 | PR Review/合并；面板发布 README v14；注册 PM 岗位并选中 4 条职责；第一次周复盘 | 本文件 §10、§14 |
+| 已落地 | 宪章仓库 PR #1：29 个文件（README v14、CAPABILITY、reviews/、context/、KE/、skills/、5 条 PM 职责） | [PR #1](https://git.feg.cn/shawoo/rsi_superagent/pulls/1) |
+| 已落地 | 5 条 PM 职责按 folder 模式编写并解析通过（4 条运营职责 4/4，`pm-dispatch` 单独验证） | 临时解析测试通过（测试文件已删） |
+| 待决策 | PR Review/合并；面板发布 README v14；注册 PM 岗位并选中 5 条职责；第一次周复盘 | 本文件 §10、§14 |
 | 愿景（12 周） | KE ≥10 条、技能 ≥2 个 published、本体 v1、能力地图版本化、5 项指标连续 4 周达标 | 本文件 §11–§12（目标，不是现状） |
 
 **目标**（12 周内可验收）
 1. 宪章仓库有**六层模型**（契约 + 五层能力资产），每层有 Owner、模板、节奏、验收标准（`README`/`CAPABILITY`、`duties/`、`reviews/`、`context/`、`KE/`、`skills/`）。
-2. PM 有**4 条可实作职责**（宪章、复盘、上下文、知识+技能），能在看板上派工、有完成定义。
+2. PM 有**5 条可实作职责**（宪章、复盘、上下文、知识+技能、任务分析与分派），能在看板上派工、有完成定义。
 3. 复盘按日/周/月跑起来；`context/retrospectives.md` 永远指向最新总结；KE 有索引且可检索；至少 1 个技能走完"提取→测试→发布"。
 4. 指标可见：复盘按时率、上下文新鲜度、KE 条目与复用、技能发布数、返工率。
 
@@ -189,9 +190,10 @@
 
 ---
 
-## 9. PM 职责设计（4 条，可实作、可派工、可验收）
+## 9. PM 职责设计（5 条，可实作、可派工、可验收）
 
-> 已写入宪章仓库 `duties/`；`duty:pm-*` 标签 + 指派 PM 岗位即可派工。四条都按"输入 → 动作 → 载体 → 完成定义"设计。
+> 已写入宪章仓库 `duties/`；`duty:pm-*` 标签 + 指派 PM 岗位即可派工。五条都按"输入 → 动作 → 载体 → 完成定义"设计。
+> `pm-dispatch` 的**自动建卡/指派**依赖 Kanban 写工具与 Gitea Issue 来源，落地路线见 [PM.md](PM.md)；在此之前它只产出分解方案。
 
 | 职责 id | 名称 | 频次 | 输入 | 输出（载体） | 完成定义 | 失败/升级 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -199,15 +201,16 @@
 | `pm-retro-curator` | 复盘主持与公共上下文 | 日/周/月 | 看板/工单/异常/交付数据 | `reviews/<周期>/` + `context/retrospectives.md`（Gitea PR） | 复盘按时产出、≤3 条改进有 Owner、24h 内更新 context | 数据缺失 → 标注缺口并升级；连续两周漏复盘 → PM 自身异常 |
 | `pm-context-curator` | 领域知识与组织本体 | 每周/每月 | 复盘、工单、领域问题 | `context/domain/` + `context/ontology/`（Gitea PR） | 新增/更新 ≥1 个对象或本体节点，有来源与有效期，索引已更 | 无法验证来源 → 不收录；本体与岗位不一致 → 先改职责 |
 | `pm-knowledge-curator` | 知识库与技能库运营 | 每周 | 复盘、context、真实工单经验 | `KE/` + `skills/` + 索引/登记表（Gitea PR） | KE ≥1 条过 MAKE 并登记；技能至少推进一个状态 | 不合格拒收并写理由；技能无测试不得发布 |
+| `pm-dispatch` | 任务分析与分派 | 按需（分诊） | 分诊卡、职责与岗位映射、历史同类卡 | 父卡评论：≤5 个子任务（承接岗位/duty/载体/验收/依赖）；工具就绪后建卡指派 | 方案能直接照做、owner 明确；人类已指派的卡不改派 | 需要澄清 → blocked；越权/无承接 → 退回并写理由 |
 
 **分工原则**
 - **宪章 steward 管"规则对"**：不写具体知识，保证目录与版本健康。
 - **retro 管"看见"**：用数据复盘，产生改进项与知识候选。
 - **context 管"共同认知"**：把复盘结论变成对象/本体，短而准。
 - **knowledge 管"沉淀与复用"**：把认知变成 KE 条目与可执行技能。
-- 四条按顺序喂料：retro → context → KE → skills → 宪章（规则沉淀）。**PM 不是"写文档的人"，而是"让资产流动的人"。**
+- 五条按顺序喂料：retro → context → KE → skills → 宪章（规则沉淀）；分派（dispatch）在分诊入口处，把"待判断"变成"可执行"。**PM 不是"写文档的人"，而是"让资产流动的人"。**
 
-**与现有职责的关系**：PM 仍负责派工/异常/验收（现有宪章），这 4 条是**新增的运营层**；执行类职责（ui/api/doc/req-analysis）保持不变。若 PM 岗位暂缺，可由项目负责人兼任并映射到 `pm-rsi`，但职责归属不变。
+**与现有职责的关系**：PM 仍负责派工/异常/验收（现有宪章），这 5 条是**新增的运营层**；执行类职责（ui/api/doc/req-analysis）保持不变。若 PM 岗位暂缺，可由项目负责人兼任并映射到 `pm-rsi`，但职责归属不变。
 
 ---
 
@@ -222,7 +225,7 @@
 | 复用现有分析 | 复盘数据来自面板 API / 卡片 / 工单页，不手工抄 |
 | 知识/技能落地 | KE 与 skills 都在同一仓库，走 PR；技能发布后由 PM 同步到 DSH 技能目录（或在仓库内被岗位按需读取），**不会自动加载** |
 
-**落地前置（Phase 0）**：① 建好 4 个目录与模板；② 注册 PM 岗位（或负责人兼任）；③ 岗位卡选中 4 条 `pm-*` 职责；④ 用 `repo:shawoo/rsi_superagent` 的卡牌试跑一次。
+**落地前置（Phase 0）**：① 建好 4 个目录与模板；② 注册 PM 岗位（或负责人兼任）；③ 岗位卡选中 5 条 `pm-*` 职责；④ 用 `repo:shawoo/rsi_superagent` 的卡牌试跑一次。
 
 ---
 
@@ -230,7 +233,7 @@
 
 | 阶段 | 周期 | 范围 | 验收（Definition of Done） | 回滚 |
 | --- | --- | --- | --- | --- |
-| **P0 骨架** | 本周 | 建 `reviews/` `context/` `KE/` `skills/` + README + 模板 + 4 条 PM 职责；更新宪章 README 增"能力供给"节 | 目录/模板齐；`duties/` 解析通过；README 版本 +1；PM 能派 1 张 `duty:pm-retro-curator` 卡走完 | 删除新增目录/职责，宪章回退上一版 |
+| **P0 骨架** | 本周 | 建 `reviews/` `context/` `KE/` `skills/` + README + 模板 + 5 条 PM 职责；更新宪章 README 增"能力供给"节 | 目录/模板齐；`duties/` 解析通过；README 版本 +1；PM 能派 1 张 `duty:pm-retro-curator` 卡走完 | 删除新增目录/职责，宪章回退上一版 |
 | **P1 复盘跑通** | 第 2–3 周 | 每日 10 分钟、每周 30 分钟复盘；`context/retrospectives.md` 有 2 周记录 | 连续 2 周日复盘按时率 ≥80%；周复盘有 ≤3 条改进且有关闭记录 | 降为"每周一次"，记录原因 |
 | **P2 上下文成形** | 第 4–6 周 | 3 个领域对象卡 + 1 版本体（六层）；context 新鲜度可查 | 对象卡有来源/有效期；本体与 duties 一致；月度审一次不过期 | 本体降为"草案"，保留字段 |
 | **P3 知识+技能** | 第 7–10 周 | KE 6 条（每周至少 1 条，P4 末累计 ≥10）+ 索引；1–2 个技能发布（含测试） | KE 索引可检索、季度复核机制；技能有版本/测试/Owner | 技能退回 testing；KE 条目降草稿 |
@@ -260,7 +263,7 @@
 | 风险 | 表现 | 对策 |
 | --- | --- | --- |
 | 形式主义 | 建了目录没人用、复盘变流水账 | 每阶段删无用资产；复盘必须有行动项；PM 职责有完成定义 |
-| PM 负荷过重 | 4 条职责变成负担 | 先跑 retro + knowledge 两条；日复盘 10 分钟封顶；可用 Worker 分担数据整理 |
+| PM 负荷过重 | 多职责变成负担 | 先跑 retro + knowledge 两条；日复盘 10 分钟封顶；可用 Worker 分担数据整理 |
 | 与面板/卡片重复 | 仓库和面板两份真相 | README 以面板发布为准；仓库只做"提炼资产"，原文链接回卡 |
 | 知识质量差 | 收藏夹式堆积 | MAKE 四性 + 查重 + 季度复核；不合格拒收并写理由 |
 | 技能不可信 | 没测试就发布 | 发布门槛：测试证据 + 版本 + Owner；draft/testing 不得被引用 |
@@ -296,16 +299,17 @@ duties/pm-charter-steward.md
 duties/pm-retro-curator.md
 duties/pm-context-curator.md
 duties/pm-knowledge-curator.md
+duties/pm-dispatch.md
 ```
 
 **合并后第一步（PM 第一周 runbook）**
-1. 周一：读本 EA + 宪章 README；在面板确认岗位与职责映射（PM 岗位选中 4 条 `pm-*`）。
+1. 周一：读本 EA + 宪章 README；在面板确认岗位与职责映射（PM 岗位选中 5 条 `pm-*`；`pm-dispatch` 在 P1 工具就绪后启用）。
 2. 周二：建一张 `duty:pm-retro-curator` 卡（`repo:shawoo/rsi_superagent`），跑第一次周复盘，产出 `reviews/weekly/2026-W46.md` + 更新 `context/retrospectives.md`。
 3. 周三：建 `duty:pm-knowledge-curator` 卡，从复盘里提炼 3 条 KE 候选，过 MAKE，登记索引。
 4. 周四：建 `duty:pm-context-curator` 卡，写 1 个领域对象 + 更新本体草案。
 5. 周五：`duty:pm-charter-steward` 卡，把本周改进写进 README（版本 +1）并同步面板；15 分钟复盘。
 
-**验收方式**：看板 4 条 PM 卡全部 `done` 且评论里有 PR 链接；仓库有对应文件；`KE/index.md` 有登记；`context/retrospectives.md` 指向本周复盘。
+**验收方式**：看板 4 张首周 PM 卡全部 `done` 且评论里有 PR 链接；仓库有对应文件；`KE/index.md` 有登记；`context/retrospectives.md` 指向本周复盘。
 
 ---
 

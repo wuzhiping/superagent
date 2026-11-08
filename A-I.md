@@ -3,7 +3,7 @@
 > **这份文件做什么**：把 [ABC.md](ABC.md)（准备）、[DEF.md](DEF.md)（需求 → 工单）、[GHI.md](GHI.md)（执行 → 交付）串成一条线，用 **A–I 九节**讲完一个项目从零到交付的完整一轮，并在最后附上**本机真实跑过的演练卡**（截图 + 时间 + 数字）。
 > **给谁看**：第一次接手的人（PM 20 分钟通读）；任何人想确认"现在卡在哪一步"时按节查。
 > **前提**：本机设置检查全绿（ABC）。文中所有"事实"都来自当前部署与代码；演练数据见 §11。
-> **分册**：需要细节时看对应长文——[ABC.md](ABC.md) · [DEF.md](DEF.md) · [GHI.md](GHI.md) · [SOP.md](SOP.md) · [AIOS.md](AIOS.md)；宪章仓库的能力供给与 PM 运营职责见 [EA.md](EA.md)。
+> **分册**：需要细节时看对应长文——[ABC.md](ABC.md) · [DEF.md](DEF.md) · [GHI.md](GHI.md) · [SOP.md](SOP.md) · [AIOS.md](AIOS.md)；宪章仓库的能力供给与 PM 运营职责见 [EA.md](EA.md)，PM 岗位安置/来源/分派见 [PM.md](PM.md)。
 > 演示稿：[A-I.html](A-I.html) · [A-I.pdf](A-I.pdf)；分册演示稿：[ABC.html](ABC.html) · [DEF.html](DEF.html) · [GHI.html](GHI.html)。
 
 ---
@@ -78,7 +78,7 @@ A 准备环境 ─▶ B 登记项目/岗位/宪章/职责 ─▶ C 触发 ─▶
 
 **看到什么算 OK**：岗位卡显示"已映射为 Kanban 账号：邮箱"；职责列表条数对；宪章版本 ≥ v1。
 
-> **宪章仓库不只是规则**：除 `duties/`，还承载 `reviews/`（日/周/月复盘）、`context/`（复盘总结 / 领域对象 / 组织本体）、`KE/`（P/A/R/T + MAKE 知识库）、`skills/`（技能生命周期）五层能力资产，加上契约层（`README` / `CAPABILITY`）共六层；落地路线与 PM 运营职责见 [EA.md](EA.md)。
+> **宪章仓库不只是规则**：除 `duties/`，还承载 `reviews/`（日/周/月复盘）、`context/`（复盘总结 / 领域对象 / 组织本体）、`KE/`（P/A/R/T + MAKE 知识库）、`skills/`（技能生命周期）五层能力资产，加上契约层（`README` / `CAPABILITY`）共六层；落地路线与 PM 运营职责见 [EA.md](EA.md)；PM 岗位怎么装、来源与分派见 [PM.md](PM.md)。
 > **从 0 开始的新项目 / 缺内容的老仓库**：用通用模板 30 分钟起跑（只补缺、不覆盖），见 [CHARTER-QUICKSTART.md](CHARTER-QUICKSTART.md)。
 **注意**：`doc`/`req-analysis` 仍写着承接岗位 `pm-rsi`，但本机当前没有 PM 岗位——它们暂时无人承接，等 PM 岗位加回来或改绑定（这是数据现状，不是故障）。
 
