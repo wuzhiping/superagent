@@ -102,7 +102,7 @@ d.slide('d1', '', `
         <tr><td>标签</td><td><code>duty:ui</code></td><td>声明职责，闸门要用</td></tr>
         <tr><td>所在列</td><td><code>to-do</code>（监听列）</td><td>不在这列，系统看不见</td></tr>
       </table>
-      <p class="small">看什么算 OK：卡有负责人、有 <code>duty:</code> 标签、落在监听列。</p>
+      <p class="small">看什么算 OK：卡有负责人、有 <code>duty:</code> 标签、落在监听列。标签要在进监听列之前挂好（触发时读取）。</p>
     </div>`)
 
 d.slide('d2', '', `
