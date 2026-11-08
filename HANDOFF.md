@@ -540,5 +540,5 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-08 09:40 | DEF/GHI 16:9 演示稿：[DEF.html](DEF.html)/[DEF.pdf](DEF.pdf)（16 页）与 [GHI.html](GHI.html)/[GHI.pdf](GHI.pdf)（21 页），同一套 SOP deck 样式；新增共用 `scripts/lib/deck-shell.mjs` 与两个生成脚本 |
 | 2026-11-08 10:20 | 新增 [A-I.md](A-I.md)：把 ABC/DEF/GHI 整合成 A–I 九节完整流水线；附**真实演练卡 #45/#46**（截图 + 时间 + 数据：建卡→接单→工单→MinIO 交付→done，1 分 48 秒），并核对叙述一致性（修 ABC 编号、GHI 准备命令重试语义、补"标签先挂再进监听列"）。 |
 | 2026-11-08 10:35 | A-I 16:9 演示稿（22 页）与 PDF；ABC 增加「建卡 4 条」（标签先挂、负责人、描述、最后进监听列）并同步到 ABC deck（16 页）；A-I 头部链接演示稿。 |
-| 2026-11-08 13:15 | 新增 [EA.md](EA.md)：宪章仓库升级为能力供给系统（五层资产 + PM 四条运营职责 + 四阶段落地 + 指标）；宪章仓库分支 `ea/capability-supply` 已推送并开 [PR #1](https://git.feg.cn/shawoo/rsi_superagent/pulls/1)（README v14 · CAPABILITY · reviews/ · context/ · KE/ · skills/ · 4 条 PM 职责）。A-I/ABC/SOP 已链接。 |
+| 2026-11-08 13:15 | 新增 [EA.md](EA.md) 与 16:9 演示稿 [EA.html](EA.html)/[EA.pdf](EA.pdf)：宪章仓库升级为能力供给系统（六层模型 + PM 四条运营职责 + P0–P4 路线 + 指标）；宪章仓库分支 `ea/capability-supply` 已推送并开 [PR #1](https://git.feg.cn/shawoo/rsi_superagent/pulls/1)（README v14 · CAPABILITY · reviews/ · context/ · KE/ · skills/ · 4 条 PM 职责）。A-I/ABC/SOP 已链接。 |
 | 2026-11-08 10:20 | 演练发现写回文档：`kind:` / `duty:` / `repo:` 必须在卡进入监听列前挂好，#45（后挂）工单缺产出类型、#46（先挂）带 doc；已在 DEF §D1 与 GHI 常见问题写明。 |

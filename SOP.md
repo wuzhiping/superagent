@@ -263,7 +263,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 ## 4. 岗位（Worker）的日常 SOP
 
-> PM 的运营职责（宪章维护、复盘、上下文、知识与技能）与宪章仓库五层能力供给：见 [EA.md](EA.md)。
+> PM 的运营职责（宪章维护、复盘、上下文、知识与技能）与宪章仓库六层模型（契约 + 五层能力资产）：见 [EA.md](EA.md)。
 
 > 工单被领走之后怎么执行、提示词怎么起作用、异常与交付怎么走：见 [GHI.md](GHI.md)。
 
