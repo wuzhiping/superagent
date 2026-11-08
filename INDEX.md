@@ -26,7 +26,7 @@
 
 **按问题找**：环境→ABC；卡为什么没接→DEF；工单卡住→GHI；复盘/知识/技能→EA；每天怎么干→SOP；讲给别人→STORY→AIOS。
 
-**维护**：PDF 由同名 `.md` / `.html` 生成（`node scripts/build-<name>-deck.mjs`，再 `node scripts/html-to-pdf.mjs <name>.html <name>.pdf`）；新增或删除 PDF 时同步本表。演示版：[INDEX.html](INDEX.html) · [INDEX.pdf](INDEX.pdf)（1 页）。
+**维护**：PDF 由同名 `.md` / `.html` 生成（`node scripts/build-<name>-deck.mjs`，再 `node scripts/html-to-pdf.mjs <name>.html <name>.pdf`）；新增或删除 PDF 时同步本表。演示版：[INDEX.html](INDEX.html) · [INDEX.pdf](INDEX.pdf)（5 页：阅读地图 + 本次实测故事）。
 
 ---
 
