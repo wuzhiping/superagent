@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEF · 一个需求怎么变成工单</title>
+<style>
+  :root{
+    --bg0:#070b16; --bg1:#0c1224; --panel:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.12); --text:#eef2ff; --dim:#a6b1cc; --faint:#7c87a3;
+    --kaneo:#7c8cff; --gitea:#41c98a; --ntfy:#f5a524; --accent:#8b7bff; --danger:#ff6b7a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1400px 900px at 82% -10%, rgba(124,140,255,.20), transparent 60%),
+      radial-gradient(1200px 800px at -10% 110%, rgba(65,201,138,.13), transparent 55%),
+      radial-gradient(1000px 700px at 50% 120%, rgba(245,165,36,.10), transparent 55%),
+      linear-gradient(160deg,var(--bg0),var(--bg1));
+    color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",system-ui,sans-serif;
+    overflow:hidden;
+  }
+  .viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  /* Fixed 1280x720 design canvas, scaled to the viewport, so every proportion and font size stays PPT-like. */
+  .stage{width:1280px;height:720px;flex:none;position:relative;transform-origin:center center}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:46px 64px 40px;
+    border-radius:20px;overflow:hidden;
+    background:linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.028) 45%, rgba(255,255,255,.05));
+    border:1px solid var(--line);
+    box-shadow:0 40px 90px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 100% 0%, rgba(139,123,255,.14), transparent 55%)}
+  .slide.active{display:flex;animation:in .45s cubic-bezier(.2,.7,.2,1)}
+  @keyframes in{from{opacity:0;transform:translateY(14px) scale(.995)}to{opacity:1;transform:none}}
+
+  .head{flex:none;position:relative;z-index:1}
+  .content{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px;justify-content:center;position:relative;z-index:1;margin-top:16px}
+  .slide.airy .content{margin-top:34px}
+
+  .kicker{display:flex;align-items:center;gap:10px;font-size:14px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;font-weight:700}
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  h1{font-size:74px;line-height:1.05;letter-spacing:-.025em;font-weight:800}
+  h2{font-size:42px;line-height:1.12;letter-spacing:-.015em;font-weight:800;margin-top:14px}
+  h3{font-size:22px;font-weight:700;line-height:1.25}
+  p.lead{font-size:20px;line-height:1.5;color:var(--dim);margin-top:12px}
+  .accent{background:linear-gradient(100deg,#a99bff,#7c8cff 45%,#41c98a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .small{font-size:16px;color:var(--faint);line-height:1.5}
+  .tag{display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:999px;font-size:15px;
+    border:1px solid var(--line);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap}
+  .tag.kaneo{color:#c9cfff;border-color:rgba(124,140,255,.45);background:rgba(124,140,255,.13)}
+  .tag.gitea{color:#b6f5d4;border-color:rgba(65,201,138,.42);background:rgba(65,201,138,.12)}
+  .tag.ntfy{color:#ffdfaa;border-color:rgba(245,165,36,.42);background:rgba(245,165,36,.12)}
+  .tag.pm{color:#ffd9a1;border-color:rgba(245,165,36,.5);background:rgba(245,165,36,.14)}
+  .tag.worker{color:#c9cfff;border-color:rgba(124,140,255,.5);background:rgba(124,140,255,.14)}
+
+  .grid{display:grid;gap:18px}
+  .grid.fill{flex:1;min-height:0;grid-auto-rows:minmax(0,1fr);align-content:stretch}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+  .card h3{margin-bottom:8px}
+  .card .num{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--faint);letter-spacing:.14em;margin-bottom:10px}
+  .card p{color:var(--dim);font-size:18px;line-height:1.5}
+  .card p + p{margin-top:6px}
+  .card .bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+  .card.k .bar{background:var(--kaneo)} .card.g .bar{background:var(--gitea)} .card.n .bar{background:var(--ntfy)}
+  .card.pm .bar{background:var(--ntfy)} .card.w .bar{background:var(--kaneo)}
+
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+  .step{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:14px 10px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+  .step b{display:block;font-size:17px;font-weight:700;line-height:1.25}
+  .step span{display:block;font-size:13px;color:var(--faint);margin-top:5px;letter-spacing:.02em}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:20px;padding:0 2px}
+
+  .timeline{display:flex;flex-direction:column;justify-content:space-evenly;flex:1;min-height:0}
+  .tl{display:grid;grid-template-columns:96px 26px 1fr;gap:16px;align-items:start}
+  .tl .time{font-family:"SF Mono",Consolas,monospace;font-size:18px;color:var(--kaneo);font-weight:700;padding-top:2px;text-align:right}
+  .tl .rail{position:relative;display:flex;justify-content:center;align-self:stretch}
+  .tl .rail::before{content:"";position:absolute;top:0;bottom:-20px;width:2px;background:linear-gradient(var(--line),transparent)}
+  .tl .rail i{width:11px;height:11px;border-radius:50%;background:var(--kaneo);margin-top:5px;box-shadow:0 0 0 4px rgba(124,140,255,.16);z-index:1}
+  .tl:last-child .rail::before{display:none}
+  .tl .body h3{font-size:20px}
+  .tl .body p{font-size:17px;color:var(--dim);line-height:1.5;margin-top:3px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .chip{font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--dim);font-family:"SF Mono",Consolas,monospace}
+
+  table{width:100%;border-collapse:collapse;font-size:17px}
+  th{text-align:left;color:var(--faint);font-weight:700;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.07);color:var(--dim);vertical-align:top;line-height:1.4}
+  td:first-child{color:var(--text);font-weight:700;white-space:nowrap}
+  table.tight td, table.tight th{padding:6px 9px;font-size:16px}
+
+  .list{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+  .li{display:flex;gap:10px;align-items:flex-start;font-size:18px;color:var(--dim);line-height:1.45}
+  .li b{color:var(--text);font-weight:700}
+  .li .mk{flex:none;width:24px;text-align:center;font-weight:800}
+  .mk.ok{color:var(--gitea)} .mk.no{color:var(--danger)} .mk.dot{color:var(--accent)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+  .cols .card{padding:26px 28px}
+  /* Checklist: the same green check as the other lists, aligned to the first line of every item. */
+  .check{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .check div{display:flex;gap:10px;align-items:flex-start;font-size:16.5px;color:var(--dim);line-height:1.45}
+  .check i{flex:none;width:16px;text-align:center;font-style:normal;font-size:15px;font-weight:800;color:var(--gitea);line-height:1.45}
+  pre{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    font-family:"SF Mono",Consolas,monospace;font-size:15px;line-height:1.65;color:var(--dim);overflow:hidden}
+  pre b{color:var(--text)}
+  /* Inline commands and keys: monospace, and a long git URL breaks anywhere instead of pushing out of its card. */
+  code{font-family:"SF Mono",Consolas,monospace;font-size:14px;line-height:1.55;color:var(--text);
+    background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:1px 7px;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+
+  /* cover */
+  .cover{justify-content:center;gap:8px}
+  .cover .glow{position:absolute;right:-6%;top:-22%;width:55%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(139,123,255,.34),transparent 62%);filter:blur(6px)}
+  .cover .ghost{position:absolute;right:60px;bottom:30px;font-size:150px;font-weight:900;letter-spacing:-.05em;
+    color:rgba(255,255,255,.035);line-height:1;user-select:none;white-space:nowrap;z-index:0}
+  .cover h1{max-width:15em;margin-top:10px}
+  .cover .sub{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .cover .meta{margin-top:40px;display:flex;gap:56px;flex-wrap:wrap;padding-top:20px;border-top:1px solid var(--line);width:100%}
+  .cover .meta div{font-size:14px;color:var(--faint)}
+  .cover .meta b{display:block;color:var(--text);font-size:18px;margin-top:6px;font-weight:700}
+  .cover .head,.cover .content{position:relative;z-index:2}
+
+  /* chrome */
+  .nav{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.06);z-index:20}
+  .nav .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#41c98a);transition:width .3s ease;box-shadow:0 0 14px rgba(139,123,255,.7)}
+  .hint{position:fixed;right:16px;bottom:16px;font-size:13px;color:var(--faint);background:rgba(0,0,0,.35);
+    border:1px solid var(--line);border-radius:999px;padding:8px 14px;z-index:21;transition:opacity .5s;backdrop-filter:blur(8px)}
+  .hint.hide{opacity:0}
+  .ctrls{position:fixed;left:16px;bottom:14px;display:flex;gap:8px;z-index:21;opacity:.55}
+  .ctrls button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);
+    color:var(--dim);font-size:18px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s}
+  .ctrls button:hover{color:#fff;border-color:rgba(255,255,255,.4);transform:translateY(-1px)}
+  .dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:21}
+  .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:.25s;display:block}
+  .dots i.on{background:var(--accent);box-shadow:0 0 10px var(--accent);transform:scale(1.3)}
+  .pageno{position:absolute;right:64px;bottom:22px;font-family:"SF Mono",Consolas,monospace;font-size:13px;color:var(--faint);z-index:2}
+  .brand{position:absolute;left:64px;bottom:22px;font-size:12px;letter-spacing:.2em;color:var(--faint);text-transform:uppercase;z-index:2}
+
+  @media print{
+    html,body{height:auto;background:#0b1020;overflow:visible;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .viewport{position:static;display:block}
+    /* One 16:9 slide per page: the page itself is exactly the 1280x720 design canvas, so nothing is rescaled or clipped. */
+    .stage{width:1280px;height:auto;transform:none!important}
+    .slide{position:relative!important;display:flex!important;width:1280px;height:720px;margin:0;border-radius:0;
+      border:none;box-shadow:none;break-after:page;page-break-after:always;animation:none}
+    .slide:last-child{break-after:auto;page-break-after:auto}
+    .nav,.hint,.ctrls,.dots{display:none}
+    @page{size:1280px 720px;margin:0}
+  }
+  /* Dense slides: the same look with less vertical growth, so nothing runs into the footer. */
+  .slide.dense .content{gap:12px}
+  .slide.dense table.tight td, .slide.dense table.tight th{padding:5px 8px;font-size:15px}
+  .slide.dense .card p{font-size:15.5px;line-height:1.45}
+  .slide.dense .card p + p{margin-top:4px}
+  .slide.dense .check div{font-size:15px;line-height:1.4}
+  .slide.dense .small{font-size:14.5px;line-height:1.5}
+  /* Timeline rows keep their height instead of shrinking and overlapping; their type is a little smaller. */
+  .timeline{justify-content:flex-start;gap:18px}
+  .timeline .tl{flex:none}
+  .tl .time{font-size:16px;padding-top:1px}
+  .tl .body h3{font-size:19px;line-height:1.3}
+  .tl .body p{font-size:16px;line-height:1.45;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="viewport"><div class="stage" id="stage">
+  <!-- 1 cover -->
+  <section class="slide cover active">
+
+    <div class="glow"></div><div class="ghost">DEF</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DEF · 需求的一生 · 触发 → 评估 → 工单</div>
+      <h1>一个需求，<span class="accent">怎么变成工单</span></h1>
+      <p class="lead" style="max-width:46em">跟着一张看板卡或一条聊天消息走完它的一生：被看见、被判断、过闸门、变成可执行的工作单。<br>不配环境、不讲交付——只讲这一步。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap"><span class="tag">DEF.md · 配图走一遍</span><span class="tag">ABC.md · 先备环境</span><span class="tag">GHI.md · 接下来执行</span></div>
+      <div class="meta"><div>目标<b>看懂需求怎么变工单</b></div><div>给谁看<b>PM 5–10 分钟</b></div><div>前提<b>设置检查全绿</b></div></div>
+    </div>
+  </section>
+
+  <!-- 2 overview -->
+  <section class="slide airy">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>30 秒全貌</div>
+      <h2>需求 → 触发 → 判断 → 闸门 → 工单</h2>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step"><b>① 需求</b><span>看板卡 / 聊天消息</span></div><div class="arrow">→</div>
+        <div class="step"><b>② 触发</b><span>系统"看见"了它</span></div><div class="arrow">→</div>
+        <div class="step"><b>③ 判断</b><span>接 / 不接</span></div><div class="arrow">→</div>
+        <div class="step"><b>④ 闸门</b><span>宪章 / 职责 / 岗位</span></div><div class="arrow">→</div>
+        <div class="step"><b>⑤ 工单</b><span>可执行、有授权</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="card g"><span class="bar"></span><h3>看板卡 = 显式请求</h3><p>人把卡放进监听列并指派岗位，就是明确请求 → <b>直接路由</b>，不经模型研判。</p></div>
+        <div class="card"><span class="bar"></span><h3>推断候选才研判</h3><p>聊天里<b>没点名</b>、但发送人在名单里 → 进评估：按规则判断接不接。</p></div>
+      </div>
+      <p class="small">闸门不过就没有工单：决定里写明理由，卡片不动。</p>
+    </div>
+  </section>
+
+  <!-- 3 vocabulary -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>术语 · 面板里就用这些词</div>
+      <h2>先把八个词对齐</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>词</th><th>在这里的意思</th></tr>
+        <tr><td>触发 Trigger</td><td>系统"看见"的一条需求：卡进入监听列，或聊天里来了一条消息</td></tr>
+        <tr><td>线程 Thread</td><td>需求的上下文：一张卡 = 一个线程；一段对话 = 一个线程</td></tr>
+        <tr><td>评估 Eval</td><td>判断这条需求该不该接；只有"推断的候选"才需要模型研判</td></tr>
+        <tr><td>决定 Decision</td><td>评估的结论：接单 / 忽略 / 未完成，每条都有理由</td></tr>
+        <tr><td>工单 Ticket</td><td>变成可执行的工作：有标题、范围、授权依据和归属岗位</td></tr>
+        <tr><td>授权 Mandate</td><td>凭什么干：谁发起、以什么方式（明确/推断）、按哪版策略</td></tr>
+        <tr><td>职责 Duty</td><td>这类活怎么干：卡片用 <code>duty:&lt;id&gt;</code> 声明，规格在宪章仓库</td></tr>
+        <tr><td>岗位 Post</td><td>谁来干：本机 Team 里登记的岗位；工单有"归属岗位"</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4 settings -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>依赖 · ABC 已经备好</div>
+      <h2>这一步用到的设置，各自管什么</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>设置</th><th>在"需求 → 工单"里管什么</th></tr>
+        <tr><td>来源 → 看板</td><td>监听哪些列（<code>to-do</code>）、发起人名单、接收范围</td></tr>
+        <tr><td>来源 → 看板（标签）</td><td>只收带指定标签的卡（默认不限）</td></tr>
+        <tr><td>评估 → 规则</td><td>"这条消息像不像一件该干的活"的规则（copy / visual…）</td></tr>
+        <tr><td>评估 → 接单模式</td><td><b>只影响推断的候选</b>；看板卡不受影响</td></tr>
+        <tr><td>评估 → 时限 / 模型</td><td>一次研判最多 120 秒、用哪个模型</td></tr>
+        <tr><td>宪章 / 职责 / 岗位</td><td>三道闸门的依据：有规矩、怎么干、谁承接、PM 能不能干</td></tr>
+        <tr><td>执行 → 并行数 / 模型</td><td>工单建好后同时能跑几个、谁来跑（下一份 GHI）</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5 paths -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>判断 · 两条路</div>
+      <h2>需求从哪来，决定它走哪条路</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>需求从哪来</th><th>系统的处理</th><th>会产生"评估"吗</th></tr>
+        <tr><td>看板卡（含 ntfy 入库卡）</td><td><b>显式请求</b> → 主 Session 直接<b>接单路由</b></td><td>不研判，但记一条决定：接单</td></tr>
+        <tr><td>聊天消息 · 名单内的人点名</td><td><b>显式请求</b> → 直接路由</td><td>不研判</td></tr>
+        <tr><td>聊天消息 · 名单内、没点名</td><td><b>推断的候选</b> → 进评估</td><td>会研判：接单 / 忽略 / 未完成</td></tr>
+        <tr><td>聊天消息 · 发送人不在名单</td><td>在策略层就被过滤</td><td>不评估；来源页显示原因</td></tr>
+      </table>
+      <p class="small">本机现状：来源只有看板 / Gitea / ntfy / MinIO，ntfy 消息先入库成卡 → 需求都是看板卡 = 路由；模型研判要接聊天来源（如飞书）后才会出现。</p>
+    </div>
+  </section>
+
+  <!-- 6 d1 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D1 · 需求上板</div>
+      <h2>先有一张像样的卡</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>卡上的东西</th><th>示例</th><th>为什么重要</th></tr>
+        <tr><td>标题</td><td>登录页按钮颜色改成品牌色</td><td>会变成工单标题</td></tr>
+        <tr><td>描述</td><td>现状截图 + 期望 + 验收口径</td><td>评估/派工的依据</td></tr>
+        <tr><td>负责人</td><td>前端岗位的 Kanban 账号</td><td>决定"发起人"</td></tr>
+        <tr><td>标签</td><td><code>duty:ui</code></td><td>声明职责，闸门要用</td></tr>
+        <tr><td>所在列</td><td><code>to-do</code>（监听列）</td><td>不在这列，系统看不见</td></tr>
+      </table>
+      <p class="small">看什么算 OK：卡有负责人、有 <code>duty:</code> 标签、落在监听列。</p>
+    </div>
+  </section>
+
+  <!-- 7 d2 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D2 · 触发</div>
+      <h2>系统"看见"了它：一张卡 = 一个线程</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card" style="padding:10px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="images/def/d1-trigger.png" alt="触发页" style="max-width:100%;max-height:300px;border-radius:10px;display:block" /></div>
+        <div class="card"><span class="bar"></span><h3>发生什么</h3>
+          <div class="list">
+            <div class="li"><span class="mk dot">·</span><div>来源每 <b>60 秒</b> 轮询一次看板</div></div>
+            <div class="li"><span class="mk dot">·</span><div>卡进入监听列、发起人在名单 → 生成一条<b>触发</b></div></div>
+            <div class="li"><span class="mk dot">·</span><div>一张卡 = 一个<b>线程</b>；卡上新消息也落在这个线程</div></div>
+            <div class="li"><span class="mk ok">✓</span><div>看什么算 OK：<b>1 分钟内</b>触发页出现线程</div></div>
+          </div>
+          <p class="small">看不到？看「来源」页 24 小时统计与过滤原因。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 d2-detail -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D2 · 看哪里、看什么</div>
+      <h2>触发页与线程的去向</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>你看到的</th><th>含义</th><th>下一步</th></tr>
+        <tr><td>已被订阅</td><td>这个线程有活在看</td><td>等评估/工单</td></tr>
+        <tr><td>评估中</td><td>正在研判</td><td>等决定</td></tr>
+        <tr><td>24 小时内有新触发</td><td>最近有消息进来</td><td>按时间翻</td></tr>
+        <tr><td>线程里有"排队 N"</td><td>还有 N 条等评估</td><td>等它消化</td></tr>
+      </table>
+      <p class="small">线程上后续消息：<b>已有工单</b> → 直接送达工单，不经评估、不产生新决定；<b>没有工单</b> → 回到队列评估。</p>
+    </div>
+  </section>
+
+  <!-- 9 d3 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D3 · 评估 / 路由</div>
+      <h2>接，还是不接：四问 + 三决定</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><h3>推断的候选判四件事</h3>
+          <div class="check">
+            <div><i>✓</i>是不是在要"实现/修"</div>
+            <div><i>✓</i>目标是否明确（截图/既有规范）</div>
+            <div><i>✓</i>要不要产品/设计决定</div>
+            <div><i>✓</i>有没有证据（能引原话）</div>
+          </div>
+          <p class="small">再对照启用的规则；结论每条都写理由。</p>
+        </div>
+        <div class="card g"><span class="bar"></span><h3>三种决定</h3>
+          <div class="list">
+            <div class="li"><span class="mk ok">●</span><div><b>接单</b> → 变成工单</div></div>
+            <div class="li"><span class="mk dot">●</span><div><b>忽略</b> → 不接，写理由</div></div>
+            <div class="li"><span class="mk dot">●</span><div><b>未完成</b> → 超时/策略变更</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 d3-eval -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D3 · 评估页</div>
+      <h2>每条决定：结果、理由、命中的规则</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card" style="padding:10px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="images/def/d2-eval.png" alt="评估页" style="max-width:100%;max-height:300px;border-radius:10px;display:block" /></div>
+        <div class="card"><span class="bar"></span><h3>接单模式三档（只管推断）</h3>
+          <div class="list">
+            <div class="li"><span class="mk dot">·</span><div><b>关闭</b>：不评估，直接忽略</div></div>
+            <div class="li"><span class="mk dot">·</span><div><b>仅观察</b>：记录"可接单"，不建单</div></div>
+            <div class="li"><span class="mk ok">✓</span><div><b>自动接单</b>：评估通过就建单</div></div>
+          </div>
+          <p class="small">看什么算 OK：出现一行决定，理由一句话能读懂，点开回到线程/工单。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 d4 -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D4 · 四道闸门</div>
+      <h2>过不了就不建单（决定里写明理由）</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>闸门（按检查顺序）</th><th>不通过时显示</th><th>怎么修</th></tr>
+        <tr><td>项目已发布宪章</td><td>这个项目还没有发布宪章，不能开工</td><td>项目与岗位 → 发布宪章</td></tr>
+        <tr><td>PM 不执行工人职责</td><td>PM 岗位默认不执行工人职责…</td><td>改派给 Worker；或在宪章写 <code>PM 可执行职责</code></td></tr>
+        <tr><td>职责已定义</td><td>卡片声明的职责在职责说明里没有定义</td><td>在 <code>duties/</code> 里加这个 <code>duty:&lt;id&gt;</code></td></tr>
+        <tr><td>岗位承接这个职责</td><td>这个职责由别的岗位承接</td><td>岗位卡「接哪些职责」下拉选中它</td></tr>
+      </table>
+      <p class="small">这四道闸门就是"没有宪章不可开工 / 职责必须先定义 / 岗位必须承接 / PM 不给自己派活"。闸门不过，卡不动、也不建单。</p>
+    </div>
+  </section>
+
+  <!-- 12 d5 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>D5 · 工单</div>
+      <h2>它变成了什么：有授权、有范围、有归属岗位</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card" style="padding:10px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="images/def/d4-ticket.png" alt="工单页" style="max-width:100%;max-height:300px;border-radius:10px;display:block" /></div>
+        <div class="card"><span class="bar"></span><h3>工单上有</h3>
+          <div class="list">
+            <div class="li"><span class="mk dot">·</span><div><b>标题 / 范围</b>：一件可执行的事</div></div>
+            <div class="li"><span class="mk dot">·</span><div><b>授权</b>：强度、发起人、决定、规则、政策版本</div></div>
+            <div class="li"><span class="mk dot">·</span><div><b>归属岗位</b>：WIP 按它算</div></div>
+            <div class="li"><span class="mk dot">·</span><div><b>职责简报</b>：有 <code>duty:</code> 时开工先读</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 states -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>之后</div>
+      <h2>工单状态与去哪里看</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>状态</th><th>含义</th></tr>
+        <tr><td>排队中</td><td>已建单，等执行器名额</td></tr>
+        <tr><td>执行中</td><td>岗位在干（详见 GHI）</td></tr>
+        <tr><td>待验收</td><td>做完了，等人看结果/合并</td></tr>
+        <tr><td>已结束</td><td>完成 / 合并 / 关闭 / 人工停止 / 无需处理</td></tr>
+      </table>
+      <p class="small">在哪看：触发页（线程与触发）· 评估页（决定与理由）· 执行页（工单）· 编队页（在飞职责 / WIP）· 卡片评论（进度与结果）。</p>
+    </div>
+  </section>
+
+  <!-- 14 drill -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>演练 · 约 3 分钟</div>
+      <h2>三种安全程度不同的走法</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>方式</th><th>怎么做</th><th>看什么算 OK</th></tr>
+        <tr><td>A 只看历史</td><td>触发 → 评估 → 执行（已结束）→ 点开一张工单</td><td>看清"需求 → 触发 → 决定 → 工单"的对应</td></tr>
+        <tr><td>B 看板卡演练</td><td>先暂停执行器，再建测试卡（<code>duty:ui</code>）拖进监听列</td><td>触发出现 → 决定=接单 → 工单排队中；看完停止并删卡</td></tr>
+        <tr><td>C 评估演练</td><td>临时关掉「其它来源先入库成卡」，仅观察模式发一条不点名消息</td><td>评估页出现「忽略（可接单，仅观察）」或规则不符；不建单</td></tr>
+      </table>
+      <p class="small">时间线：T+0 上板/发消息 → T+0～1 分钟触发 → T+1 分钟决定 → 紧接着工单（闸门不过则只有带理由的忽略）。</p>
+    </div>
+  </section>
+
+  <!-- 15 problems -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>常见 · 没变成工单</div>
+      <h2>对着面板找原因</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>现象</th><th>多半原因</th><th>怎么办</th></tr>
+        <tr><td>触发页根本没有</td><td>不在监听列 / 名单外 / 标签不符 / 来源没跑</td><td>看「来源」页 24 小时与过滤原因</td></tr>
+        <tr><td>有触发，没有决定</td><td>排队等主 Session / 评估中 / 暂停处理</td><td>稍等；查评估中与执行器暂停</td></tr>
+        <tr><td>忽略 · 名单外</td><td>卡负责人/创建者不在名单</td><td>评估 → 来源分节加人；或改负责人</td></tr>
+        <tr><td>忽略 · 仅观察</td><td>接单模式是"仅观察"</td><td>正式运行改「自动接单」</td></tr>
+        <tr><td>忽略 · 无宪章 / 职责 / 岗位 / PM</td><td>四道闸门之一</td><td>按 D4 修</td></tr>
+        <tr><td>未完成</td><td>评估超时 / 策略变更</td><td>线程再来一条触发会重新评估</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 16 closing -->
+  <section class="slide cover">
+
+    <div class="glow" style="left:-10%;right:auto"></div><div class="ghost">→</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>DEF · 一句话</div>
+      <h1>需求上板或进聊天 →<br><span class="accent">一张有授权的工单</span></h1>
+      <p class="lead" style="max-width:46em">看板卡直接路由、聊天候选按规则评估 → 过宪章/职责/岗位闸门 → 工单排队执行。<br>接下来它怎么被干完、怎么反馈与交付：见 GHI。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
+        <span class="tag">DEF.md · 完整说明</span><span class="tag">GHI.md · 执行与交付</span><span class="tag">ABC.md · 环境</span><span class="tag">SOP.md · 日常</span>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+
+<div class="nav"><div class="bar" id="bar"></div></div>
+<div class="dots" id="dots"></div>
+<div class="ctrls"><button id="prev" title="上一页">‹</button><button id="next" title="下一页">›</button></div>
+<div class="hint" id="hint">← → 翻页 · F 全屏</div>
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var index = 0, dots = document.getElementById('dots'), bar = document.getElementById('bar');
+  var hint = document.getElementById('hint');
+
+  // Fit the fixed 1280x720 canvas into the viewport without breaking any proportion.
+  function fit(){
+    var scale = Math.min((window.innerWidth - 28) / 1280, (window.innerHeight - 28) / 720);
+    stage.style.transform = 'scale(' + scale + ')';
+  }
+  window.addEventListener('resize', fit);
+
+  // Page number and brand for every slide.
+  slides.forEach(function(slide, i){
+    var p = document.createElement('span'); p.className = 'pageno'; p.textContent = (i+1) + ' / ' + slides.length;
+    var b = document.createElement('span'); b.className = 'brand'; b.textContent = 'SuperAgent · DEF';
+    slide.appendChild(b); slide.appendChild(p);
+  });
+
+  slides.forEach(function(_, i){
+    var el = document.createElement('i');
+    el.title = '第 ' + (i+1) + ' 页';
+    el.addEventListener('click', function(){ go(i); });
+    dots.appendChild(el);
+  });
+  var marks = Array.prototype.slice.call(dots.children);
+
+  function go(i){
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, n){ s.classList.toggle('active', n === index); });
+    marks.forEach(function(m, n){ m.classList.toggle('on', n === index); });
+    bar.style.width = ((index + 1) / slides.length * 100) + '%';
+    location.hash = 'slide-' + (index + 1);
+  }
+  function next(){ if(index < slides.length - 1) go(index + 1); }
+  function prev(){ if(index > 0) go(index - 1); }
+
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if(k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter'){ e.preventDefault(); next(); }
+    else if(k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace'){ e.preventDefault(); prev(); }
+    else if(k === 'Home'){ e.preventDefault(); go(0); }
+    else if(k === 'End'){ e.preventDefault(); go(slides.length - 1); }
+    else if(k === 'f' || k === 'F'){ toggleFullscreen(); }
+    hint.classList.add('hide');
+  });
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  function toggleFullscreen(){
+    if(document.fullscreenElement) document.exitFullscreen();
+    else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  }
+
+  var x0 = null, y0 = null;
+  document.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? next() : prev();
+    x0 = y0 = null;
+  }, {passive:true});
+
+  fit();
+  var start = (location.hash.match(/slide-(\d+)/) || [])[1];
+  go(start ? Number(start) - 1 : 0);
+  setTimeout(function(){ hint.classList.add('hide'); }, 6000);
+})();
+</script>
+</body>
+</html>
