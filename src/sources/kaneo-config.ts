@@ -36,6 +36,7 @@ export const KaneoConfigSchema = z.object({
   doneColumn: z.string().trim().default('').describe('Column a task moves to when the post delivers its result; empty to never move'),
   blockedColumn: z.string().trim().default('').describe('Column a task moves to while its ticket waits for a person (blocked/failed); empty to never move'),
   holdLabel: z.string().trim().default('blocked').describe('Label a card carries while its ticket waits for a person; removing it on the board resumes the ticket'),
+  cancelColumns: z.string().trim().default('canceled,cancelled').describe('Column slugs that mean the request was canceled; a ticket whose card lands there is stopped'),
   observeUpdates: z.boolean().default(true).describe('Watch the card of a live ticket for comment, title, description or column changes and deliver them as inputs'),
   bootstrap: z.enum(['skip', 'trigger']).default('skip').describe('First poll: record tasks already in the watched columns, or treat them as requests'),
   requiredLabels: z.string().trim().default('').describe('Only tasks with one of these labels (comma separated); empty accepts every task'),
@@ -51,6 +52,8 @@ const split = (value: string): string[] => value.split(',').map(item => item.tri
 export const watchColumnsOf = (config: Pick<KaneoConfig, 'watchColumns'>): string[] => split(config.watchColumns)
 /** Required task labels from the comma-separated config field. */
 export const requiredLabelsOf = (config: Pick<KaneoConfig, 'requiredLabels'>): string[] => split(config.requiredLabels)
+/** Column slugs that mean "canceled on the board" from the comma-separated config field. */
+export const cancelColumnsOf = (config: Pick<KaneoConfig, 'cancelColumns'>): string[] => split(config.cancelColumns)
 /** The claim column a task moves to when the post starts working on it; empty means the task never moves. */
 export const claimColumnOf = (config: Pick<KaneoConfig, 'claimColumn'> | undefined): string => config?.claimColumn.trim() ?? ''
 /** The column a task moves to when the post delivers its result; empty means the task never moves. */

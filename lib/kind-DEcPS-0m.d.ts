@@ -1,4 +1,4 @@
-import { B as Ticket, I as Thread, L as ThreadFact, S as ChannelRef, W as Trigger, h as SourceScope, l as OutboundMessage, m as ScopeResult, t as ReceiveResult, ut as Deployment, v as AdmissionCell, z as ThreadRef } from "./intake-CtttTOHM.js";
+import { B as Ticket, I as Thread, L as ThreadFact, S as ChannelRef, W as Trigger, h as SourceScope, l as OutboundMessage, m as ScopeResult, t as ReceiveResult, ut as Deployment, v as AdmissionCell, z as ThreadRef } from "./intake-CMGpbNbA.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 import { DatabaseSync } from "node:sqlite";
@@ -722,6 +722,8 @@ interface SourceContext {
   config<C extends Record<string, unknown>>(kind: string): C | undefined;
   /** Ingests a trigger into the Engine and schedules the next evaluation pass; callers should await completion before advancing read cursors. */
   receive(trigger: Trigger): ReceiveResult | Promise<ReceiveResult>;
+  /** Ends an open ticket because the Source's own state says it was canceled (a card canceled/deleted on the board). */
+  cancel(ticketId: string, reason?: string): void;
   atomic<T>(work: () => T): T;
   /** Source-scoped KV records (such as read cursors); setting `undefined` removes an entry. */
   state: {

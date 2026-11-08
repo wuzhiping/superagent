@@ -54,7 +54,9 @@ The Sources page holds four cards, each with one job (2026-11-06):
   delivered as an input to that running Session instead of opening a second ticket. When a ticket waits for a person
   (`blocked`/`failed`), its card is marked with the **hold label** (`holdLabel`, default `blocked`); the person writes the
   decision as a comment and removes the label, and that removal resumes the **same** worker Session under the same ticket —
-  the decision is made on the board, not in the panel.
+  the decision is made on the board, not in the panel. A card that lands in a cancel column (`cancelColumns`, default
+  `canceled,cancelled`) or is deleted stops its ticket (`stopped`, reason `card_canceled`/`card_deleted`), so the board and
+  the SuperAgent agree on cancellation.
 - **ntfy** — the realtime message channel. Only messages carrying one of the **ingest tags** (`ingestTags`) become cards or requests; an empty filter takes every message. The host's own replies carry `dsh-superagent`, so a filter set to `dsh` never files them back.
 - **MinIO / S3** — the supplemental carrier for a project's data assets (documents, plans, reports, exports). It produces no tasks: it is configured and reports whether its bucket is readable.
 

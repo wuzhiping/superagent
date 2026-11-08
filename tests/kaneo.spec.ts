@@ -6,7 +6,7 @@ import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
-import { kaneoKind, observeCards, pollRound, SOURCE, syncBlockedColumns, syncHoldLabels } from '../src/sources/kaneo.ts'
+import { kaneoKind, observeCards, pollRound, SOURCE, syncBlockedColumns, syncCancellations, syncHoldLabels } from '../src/sources/kaneo.ts'
 import { DEFAULT_PROJECT, KaneoConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
 import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
@@ -23,11 +23,12 @@ const stubFetch = (handler: (url: string, init?: RequestInit) => Response | Prom
 const task = (id: string, overrides: Record<string, unknown> = {}): Record<string, unknown> => ({ id, title: `Task ${id}`, number: Number(id.replace(/\D/g, '')) || 1,
   description: 'Do the work', status: 'ready', assigneeId: 'user-1', updatedAt: '2026-11-03T00:00:00.000Z', labels: [], ...overrides })
 
-interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[] }
+interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[]
+  cancels: { ticketId: string; reason?: string }[] }
 /** A SourceContext whose Store lives in a Map and whose only observations are recorded. */
 function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[] } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
   const state = new Map<string, unknown>()
-  const recorded: Recorded = { triggers: [], described: new Map(), reports: [] }
+  const recorded: Recorded = { triggers: [], described: new Map(), reports: [], cancels: [] }
   const ctx: SourceContext = {
     deployment: {} as Deployment,
     commands: {} as Commands,
@@ -35,6 +36,7 @@ function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Tri
     configured: () => true,
     config: <C extends Record<string, unknown>>(id: string) => (id === SOURCE ? cfg as unknown as C : undefined),
     receive: async trigger => { recorded.triggers.push(trigger); return 'stored' as const },
+    cancel: (ticketId, reason) => { recorded.cancels.push({ ticketId, ...reason ? { reason } : {} }) },
     atomic: work => work(),
     state: {
       get: <V,>(name: Key<V>) => state.get(name) as V | undefined,
@@ -448,3 +450,29 @@ describe('kaneo hold label', () => {
   })
 })
 function stringOf (value: string | URL): string { return String(value) }
+
+describe('kaneo cancellation', () => {
+  const cfg = config()
+  const origin = (): Trigger => kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
+  const ticket = (): Ticket => ({ id: 'ticket-1', origin: { triggerId: origin().id, triggerIds: [origin().id] },
+    assignments: [{ id: 'a-1', state: 'running' }] } as unknown as Ticket)
+  it('stops the ticket when the card lands in a cancel column, and when the card is deleted', async () => {
+    const { ctx, recorded } = context(cfg, { tickets: [ticket()], triggers: [origin()] })
+    const canceled = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => url.endsWith('/task/t1')
+      ? response(task('t1', { status: 'canceled' }))
+      : response({})))
+    await syncCancellations(ctx, cfg, canceled)
+    expect(recorded.cancels).toEqual([{ ticketId: 'ticket-1', reason: 'card_canceled' }])
+    const deleted = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async () => response({ error: 'not found' }, 404)))
+    await syncCancellations(ctx, cfg, deleted)
+    expect(recorded.cancels.at(-1)).toEqual({ ticketId: 'ticket-1', reason: 'card_deleted' })
+  })
+  it('leaves a card in another column alone', async () => {
+    const { ctx, recorded } = context(cfg, { tickets: [ticket()], triggers: [origin()] })
+    const running = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => url.endsWith('/task/t1')
+      ? response(task('t1', { status: 'in-progress' }))
+      : response({})))
+    await syncCancellations(ctx, cfg, running)
+    expect(recorded.cancels).toEqual([])
+  })
+})

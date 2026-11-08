@@ -35,6 +35,7 @@ declare const KaneoConfigSchema: z.ZodObject<{
   doneColumn: z.ZodDefault<z.ZodString>;
   blockedColumn: z.ZodDefault<z.ZodString>;
   holdLabel: z.ZodDefault<z.ZodString>;
+  cancelColumns: z.ZodDefault<z.ZodString>;
   observeUpdates: z.ZodDefault<z.ZodBoolean>;
   bootstrap: z.ZodDefault<z.ZodEnum<{
     skip: "skip";

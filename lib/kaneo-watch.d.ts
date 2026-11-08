@@ -1,11 +1,16 @@
-import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-CtttTOHM.js";
-import { n as SourceKind, r as SourceContext } from "./kind-CRUQmIYh.js";
+import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-CMGpbNbA.js";
+import { n as SourceKind, r as SourceContext } from "./kind-DEcPS-0m.js";
 import { t as KaneoClient } from "./kaneo-api-BvU5fGZP.js";
 import { Context } from "@deepseek-ai/cordis";
 //#region src/sources/kaneo.d.ts
 declare const SOURCE = "kaneo";
 /** The Source kind declaration: configuration form, policy part, Channel, Thread context, environment and health. */
 declare const kaneoKind: SourceKind<KaneoConfig>;
+/**
+ * Cancels a ticket whose request disappeared on the board: the card lands in a cancel column, or the card itself is gone
+ * (404). The ticket ends as a person-stopped duty with the reason, so the SuperAgent side matches the board.
+ */
+declare function syncCancellations(ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<void>;
 /**
  * Marks a card whose ticket waits for a person with the hold label, so the board shows the hold and the release is a board
  * action: the person writes the decision on the card and removes the label. The host never removes it itself.
@@ -34,4 +39,4 @@ declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, pollRound, syncBlockedColumns, syncHoldLabels };
+export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, pollRound, syncBlockedColumns, syncCancellations, syncHoldLabels };

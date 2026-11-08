@@ -11,7 +11,7 @@ import { storedKaneoAccount } from './bdd-storage.ts'
 import { health, sourceContext, type Health, type SourceContext } from './host.ts'
 import { KaneoClient } from './kaneo-api.ts'
 import { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, DEFAULT_WATCH_COLUMNS, KaneoConfigSchema, kaneoTaskUrl,
-  requiredLabelsOf, watchColumnsOf, type KaneoConfig } from './kaneo-config.ts'
+  requiredLabelsOf, watchColumnsOf, cancelColumnsOf, type KaneoConfig } from './kaneo-config.ts'
 import { kaneoLink, sendKaneo } from './kaneo-channel.ts'
 import { kaneoThreadContext } from './kaneo-read.ts'
 import { kaneoActorId, kaneoChannel, labelled, kaneoThreadKey, kaneoTrigger, KaneoCommentSchema,
@@ -58,6 +58,8 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
       hint: { zh: '工单报告 blocked/failed、等 PM 裁决时把卡移到这里；裁决到达、工单恢复后移回认领列。留空表示不移动（裁决仍可通过评论/描述送达）。', en: 'While a ticket reports blocked/failed and waits for a decision the card moves here; it moves back to the claim column once the ticket runs again. Empty never moves the card (a decision can still arrive through comments/description).' } },
     { key: 'holdLabel', type: 'text', label: { zh: '等待标签（hold label）', en: 'Hold label' },
       hint: { zh: '工单等 PM 裁决时给卡自动打上这个标签（默认 blocked）；PM 在卡上写裁决、然后移除该标签，工单会用同一个 Session 恢复。留空表示不使用标签。', en: 'While a ticket waits for a decision the card gets this label (default blocked); the person writes the decision on the card and removes the label, which resumes the ticket in the same Session. Empty disables the label.' } },
+    { key: 'cancelColumns', type: 'text', label: { zh: '取消列（slug，逗号分隔）', en: 'Cancel columns (slugs, comma separated)' },
+      hint: { zh: '卡进入这些列即视为看板侧取消，对应工单会被停止（默认 canceled,cancelled）；卡被删除时同样停止。留空表示不监听取消。', en: 'A card in one of these columns counts as canceled on the board and its ticket is stopped (default canceled,cancelled); a deleted card stops it too. Empty disables cancellation.' } },
     { key: 'observeUpdates', type: 'switch', label: { zh: '观察执行中的卡片变化', en: 'Watch cards while they run' },
       hint: { zh: '打开（默认）：已有运行中工单的卡片若新增评论、改了标题或描述，会作为输入投递给运行中的 Session，不丢失最新反馈；关闭：只在卡片进入监听列时触发。', en: 'On (default): a comment, title or description change on a card whose ticket is running is delivered as an input to the running Session; off: only a card entering a watched column triggers.' } },
     { key: 'bootstrap', type: 'select', label: { zh: '首次轮询', en: 'First poll' },
@@ -207,6 +209,28 @@ function kaneoUpdateTrigger (task: KaneoTask, config: KaneoConfig, text: string,
 }
 
 /**
+ * Cancels a ticket whose request disappeared on the board: the card lands in a cancel column, or the card itself is gone
+ * (404). The ticket ends as a person-stopped duty with the reason, so the SuperAgent side matches the board.
+ */
+export async function syncCancellations (ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<void> {
+  const columns = cancelColumnsOf(config)
+  if (!columns.length) return
+  for (const ticket of ctx.tickets.open()) {
+    if (signal?.aborted || !ctx.config(SOURCE)) return
+    const origin = ctx.triggers.get(ticket.origin.triggerId)
+    const thread = origin?.threads.find(ref => ref.source === SOURCE)
+    if (!thread) continue
+    try {
+      const parsed = KaneoTaskSchema.safeParse(await client.task(thread.id, { signal }))
+      if (parsed.success && columns.includes(parsed.data.status)) ctx.cancel(ticket.id, 'card_canceled')
+    } catch (error) {
+      // A deleted card means the request is gone; a transient read failure does not.
+      if ((error as { status?: number }).status === 404) ctx.cancel(ticket.id, 'card_deleted')
+    }
+  }
+}
+
+/**
  * Marks a card whose ticket waits for a person with the hold label, so the board shows the hold and the release is a board
  * action: the person writes the decision on the card and removes the label. The host never removes it itself.
  */
@@ -338,6 +362,8 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
     try { await syncHoldLabels(ctx, config, client, signal) }
     catch (error) { if (!signal?.aborted) failures.push(`hold: ${String(error)}`) }
   }
+  try { await syncCancellations(ctx, config, client, signal) }
+  catch (error) { if (!signal?.aborted) failures.push(`cancel: ${String(error)}`) }
   for (const slug of watched) {
     try {
       const raw = await client.columnTasks(config.projectId, slug, config.maxTasksPerColumn, { signal })
