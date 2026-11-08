@@ -546,4 +546,5 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-08 15:40 | **清理页重做**：①新增「同时清理 Session」勾选（默认关，删除该工单的 Session 目录；运行中/无 artifact/路径不符会拒绝）；②审计只列仍有残留（目录/登记/Session）的工单，清完后行消失，只清一部分可再次清理；③行显示 Session 数+大小，未勾选时提示可再清。实测：67 行全部可清理；清掉 1 个 Session-only 工单后 67→66 且该行消失；不勾选项返回 nothingToDo。docs/010、SOP、GHI、A-I 与演示稿同步更新。 |
 | 2026-11-08 16:10 | INDEX 精简为一页：INDEX.md 30 行（三条路 + 8 份 PDF 表 + 维护一行）、INDEX.html/INDEX.pdf 各 1 页；原来的 11 页演示版与长文说明移除。 |
 | 2026-11-08 16:40 | 新增 [PM.md](PM.md)：PM 岗位安置（身份/队列/五职责/WIP）、来源矩阵（Kaneo、Gitea Issue、定时复盘、人）、任务分解与分派规则、日周月复盘触发方案、现状差距与 P0–P2 路线。宪章 PR #1 增加 `duties/pm-dispatch.md`（29 文件）；EA/A-I 已链接。 |
+| 2026-11-08 17:20 | **最小迭代实测**（场景故事已 append 到 INDEX.md）：项目 `at8xrho45bisco2umjzgl1xp` + 宪章仓 `shawoo/rsi_superagent`；4 源 ready；新增 PM 岗位 `pm-rsi`（WIP 2，5 条 pm-* 职责）+ 两个 Worker；PM 发布宪章 v14 与职责 10 条，派单卡 #47 → `ux-fdep`；闸门先拒 `dutyUnsupported`（漏映射）→ PM 修正后 requeue → 接单 → 2m53s 完成，MinIO 交付 1928B 已回读；手动复盘完成并记录方法与改进项。截图 6 张在 `images/scenario/`。 |
 | 2026-11-08 10:20 | 演练发现写回文档：`kind:` / `duty:` / `repo:` 必须在卡进入监听列前挂好，#45（后挂）工单缺产出类型、#46（先挂）带 doc；已在 DEF §D1 与 GHI 常见问题写明。 |
