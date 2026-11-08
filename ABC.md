@@ -242,5 +242,5 @@
 
 ## 9. 一句话
 
-**4 个 tab、9 个动作、8 项自检——运行环境就绪。** 下一步：一个需求怎么变成工单，见 [DEF.md](DEF.md)；干活与交付，见 [SOP.md](SOP.md)。
+**4 个 tab、9 个动作、8 项自检——运行环境就绪。** 下一步：一个需求怎么变成工单，见 [DEF.md](DEF.md)；工单怎么被执行与交付，见 [GHI.md](GHI.md)；完整 SOP 见 [SOP.md](SOP.md)。
 配套世界观：[AIOS.md](AIOS.md)；完整故事：[STORY.md](STORY.md)。

@@ -263,6 +263,8 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 ## 4. 岗位（Worker）的日常 SOP
 
+> 工单被领走之后怎么执行、提示词怎么起作用、异常与交付怎么走：见 [GHI.md](GHI.md)。
+
 ### 4.1 接单
 
 0. **开工第一步：读宪章。** 用 `orchestrator_read charter` 读本期宪章（返回 `version`、`carrier`/`carrier_ref` 与正文），
