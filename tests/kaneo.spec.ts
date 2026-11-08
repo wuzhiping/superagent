@@ -6,7 +6,7 @@ import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
-import { kaneoKind, observeCards, pollRound, SOURCE } from '../src/sources/kaneo.ts'
+import { kaneoKind, observeCards, pollRound, SOURCE, syncBlockedColumns, syncHoldLabels } from '../src/sources/kaneo.ts'
 import { DEFAULT_PROJECT, KaneoConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
 import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
@@ -353,3 +353,98 @@ describe('kaneo card observation', () => {
     expect(recorded.triggers).toHaveLength(0)
   })
 })
+
+describe('kaneo blocked columns', () => {
+  const waitTrigger = (cfg: KaneoConfig): Trigger => kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
+  const waitingTicket = (cfg: KaneoConfig): Ticket => {
+    const origin = waitTrigger(cfg)
+    return { id: 'ticket-1', origin: { triggerId: origin.id, triggerIds: [origin.id] },
+      attention: { id: 'a1', question: 'Approve the extra budget?' },
+      assignments: [{ id: 'a-1', state: 'ended', report: { state: 'blocked', summary: 'needs a decision', at: '2026-11-03T00:02:00.000Z' } }] } as unknown as Ticket
+  }
+  it('delivers a card column change to the running ticket', async () => {
+    const cfg = config()
+    const { ticket, trigger } = { ticket: waitingTicket(cfg), trigger: waitTrigger(cfg) }
+    const { ctx, recorded, state } = context(cfg, { tickets: [ticket], triggers: [trigger] })
+    state.set(KV.kaneo.observe('t1'), JSON.stringify({ title: 'Task t1', description: 'Do the work', status: 'blocked', comments: [] }))
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {
+      if (url.endsWith('/task/t1')) return response(task('t1', { status: 'in-progress' }))
+      if (url.endsWith('/comment/t1')) return response([])
+      if (url.endsWith('/user/me')) return response({ id: 'host-1', name: 'Host' })
+      return response({})
+    }))
+    expect(await observeCards(ctx, cfg, client)).toBe(1)
+    expect(recorded.triggers[0]!.text).toContain('卡片列更新：blocked → in-progress')
+  })
+
+  it('moves a waiting card to the blocked column and a running one back to the claim column', async () => {
+    const cfg = config({ blockedColumn: 'blocked', claimColumn: 'in-progress' })
+    const waiting = waitingTicket(cfg)
+    const origin = waitTrigger(cfg)
+    const moves: { status?: string }[] = []
+    const client = (status: string) => new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async (_url, init) => {
+      if ((init?.method ?? 'GET') === 'PUT') { moves.push({ status: JSON.parse(String(init?.body)).status }); return response({}) }
+      return response(task('t1', { status }))
+    }))
+    const blocked = context(cfg, { tickets: [waiting], triggers: [origin] })
+    await syncBlockedColumns(blocked.ctx, cfg, client('in-progress'))
+    expect(moves.at(-1)?.status).toBe('blocked')
+    const running = { ...waiting, attention: undefined, assignments: [{ id: 'a-2', state: 'running' }] } as unknown as Ticket
+    const resumed = context(cfg, { tickets: [running], triggers: [origin] })
+    await syncBlockedColumns(resumed.ctx, cfg, client('blocked'))
+    expect(moves.at(-1)?.status).toBe('in-progress')
+  })
+})
+
+describe('kaneo hold label', () => {
+  const cfg = config()
+  const origin = (): Trigger => kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
+  const waiting = (): Ticket => ({ id: 'ticket-1', origin: { triggerId: origin().id, triggerIds: [origin().id] },
+    attention: { id: 'a1', question: 'Continue?' },
+    assignments: [{ id: 'a-1', state: 'ended', report: { state: 'blocked', summary: 'needs a decision', at: '2026-11-03T00:02:00.000Z' } }] } as unknown as Ticket)
+  const base = JSON.stringify({ title: 'Task t1', description: 'Do the work', status: 'blocked', labels: [], comments: [] })
+  it('holds the card until the label goes away, then delivers the decision as one lifting trigger', async () => {
+    const { ctx, recorded, state } = context(cfg, { tickets: [waiting()], triggers: [origin()] })
+    state.set(KV.kaneo.observe('t1'), base)
+    // Holding: a comment written while blocked stays on the card and the baseline is not advanced.
+    const held = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {
+      if (url.endsWith('/task/t1')) return response(task('t1', { labels: [{ name: 'blocked' }] }))
+      if (url.endsWith('/comment/t1')) return response([{ id: 'c1', userId: 'user-2', user: { name: 'PM' }, content: 'Approved: continue with option B' }])
+      if (url.endsWith('/user/me')) return response({ id: 'host-1' })
+      return response({})
+    }))
+    expect(await observeCards(ctx, cfg, held)).toBe(0)
+    expect(recorded.triggers).toHaveLength(0)
+    // Released: the label is gone, so the decision and the lift arrive together.
+    const released = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {
+      if (url.endsWith('/task/t1')) return response(task('t1'))
+      if (url.endsWith('/comment/t1')) return response([{ id: 'c1', userId: 'user-2', user: { name: 'PM' }, content: 'Approved: continue with option B' }])
+      if (url.endsWith('/user/me')) return response({ id: 'host-1' })
+      return response({})
+    }))
+    expect(await observeCards(ctx, cfg, released)).toBe(1)
+    expect(recorded.triggers[0]!.meta).toMatchObject({ holdLifted: true })
+    expect(recorded.triggers[0]!.text).toContain('Approved: continue with option B')
+    expect(recorded.triggers[0]!.text).toContain('解除「blocked」标记')
+  })
+
+  it('attaches the hold label to a waiting card once and reuses the label id', async () => {
+    const calls: string[] = []
+    let labels: unknown[] = []
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async (url, init) => {
+      calls.push(stringOf(url))
+      if (url.endsWith('/label') && init?.method === 'POST') return response({ id: 'label-1', name: 'blocked' })
+      if (url.endsWith('/label/label-1/task')) { labels = [{ name: 'blocked' }]; return response({}) }
+      if (url.endsWith('/task/t1')) return response(task('t1', { workspaceId: 'ws-1', labels }))
+      return response({})
+    }))
+    const { ctx, state } = context(cfg, { tickets: [waiting()], triggers: [origin()] })
+    await syncHoldLabels(ctx, cfg, client)
+    expect(calls.some(call => call.includes('/label/label-1/task'))).toBe(true)
+    expect(state.get(KV.kaneo.holdLabel('ws-1'))).toBe('label-1')
+    calls.length = 0
+    await syncHoldLabels(ctx, cfg, client)
+    expect(calls.some(call => call.includes('/label'))).toBe(false)
+  })
+})
+function stringOf (value: string | URL): string { return String(value) }

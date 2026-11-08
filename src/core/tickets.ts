@@ -167,8 +167,12 @@ export class Tickets extends EnginePart {
    */
   retry(ticketId: string): Ticket {
     const ticket = this.require(ticketId)
-    const latest = latestAssignment(ticket)
-    if (!canRetry(ticket) || !latest) throw new UserError('notRetryable')
+    if (!canRetry(ticket) || !latestAssignment(ticket)) throw new UserError('notRetryable')
+    return this.resume(ticket)
+  }
+  /** Ends the stalled Assignment and starts a new one for the same ticket, so the worker Session continues where it stopped. */
+  private resume(ticket: Ticket): Ticket {
+    const latest = latestAssignment(ticket)!
     this.endAssignment(ticket, latest, 'retried')
     this.requeueUntaken(ticket, latest)
     const assignment = this.newAssignment(ticket)
@@ -233,6 +237,7 @@ export class Tickets extends EnginePart {
    */
   addInput(ticket: Ticket, input: TicketInput): void {
     if (ticket.inputs.some(existing => existing.id === input.id)) return
+    const waiting = waitsForPerson(ticket)
     ticket.inputs.push(input); ticket.updatedAt = this.now()
     // Hold back automated inputs while the worker is waiting on a person.
     const held = liveTicket(ticket) && automatic(input) && waitsForPerson(ticket)
@@ -240,7 +245,10 @@ export class Tickets extends EnginePart {
     this.repo.tickets.save(ticket)
     if (!liveTicket(ticket) || held) return
     const running = runningAssignment(ticket), latest = latestAssignment(ticket)
-    if (running) this.options.executor.deliver(ticket, running)
+    // Removing the board's hold label is the person's release: resume the stalled Assignment under the same Mandate, so the
+    // worker Session (worker-<ticketId>) continues with its context instead of waiting for a manual retry.
+    if (waiting && latest && input.kind === 'trigger' && this.repo.triggers.get(input.triggerId)?.meta.holdLifted === true) this.resume(ticket)
+    else if (running) this.options.executor.deliver(ticket, running)
     else if (latest?.state === 'pending' && !waitsForPerson(ticket)) this.options.executor.start(ticket, latest)
   }
   /**

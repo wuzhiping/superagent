@@ -54,6 +54,10 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
       hint: { zh: '岗位第一次就这张卡回写时把任务移到这里，默认 in-progress（進行中）；留空表示不移动。', en: 'The task moves here when the post first writes to it; defaults to in-progress. Empty never moves a task.' } },
     { key: 'doneColumn', type: 'text', label: { zh: '交付列（slug）', en: 'Delivery column (slug)' },
       hint: { zh: '岗位交付结果（回写工作日志）后把任务移到这里，按看板流程填 done 或 in-review；留空表示不移动。', en: 'The task moves here when the post delivers its result; fill in done or in-review to match the board flow. Empty never moves a task.' } },
+    { key: 'blockedColumn', type: 'text', label: { zh: '待裁决列（slug）', en: 'Waiting-for-decision column (slug)' },
+      hint: { zh: '工单报告 blocked/failed、等 PM 裁决时把卡移到这里；裁决到达、工单恢复后移回认领列。留空表示不移动（裁决仍可通过评论/描述送达）。', en: 'While a ticket reports blocked/failed and waits for a decision the card moves here; it moves back to the claim column once the ticket runs again. Empty never moves the card (a decision can still arrive through comments/description).' } },
+    { key: 'holdLabel', type: 'text', label: { zh: '等待标签（hold label）', en: 'Hold label' },
+      hint: { zh: '工单等 PM 裁决时给卡自动打上这个标签（默认 blocked）；PM 在卡上写裁决、然后移除该标签，工单会用同一个 Session 恢复。留空表示不使用标签。', en: 'While a ticket waits for a decision the card gets this label (default blocked); the person writes the decision on the card and removes the label, which resumes the ticket in the same Session. Empty disables the label.' } },
     { key: 'observeUpdates', type: 'switch', label: { zh: '观察执行中的卡片变化', en: 'Watch cards while they run' },
       hint: { zh: '打开（默认）：已有运行中工单的卡片若新增评论、改了标题或描述，会作为输入投递给运行中的 Session，不丢失最新反馈；关闭：只在卡片进入监听列时触发。', en: 'On (default): a comment, title or description change on a card whose ticket is running is delivered as an input to the running Session; off: only a card entering a watched column triggers.' } },
     { key: 'bootstrap', type: 'select', label: { zh: '首次轮询', en: 'First poll' },
@@ -121,8 +125,8 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
 /** The health entry of consecutive poll failures. */
 const failing = (count: number, error: unknown): Health => health('error', 'pollFailures', { count: String(count), error: String(error) })
 
-/** One card's observed state: title, description, and a content hash per comment so a poll can diff it cheaply. */
-interface ObservedCard { title: string; description: string; comments: { id: string; hash: string }[] }
+/** One card's observed state: title, description, column, labels, and a content hash per comment so a poll can diff it. */
+interface ObservedCard { title: string; description: string; status: string; labels: string[]; comments: { id: string; hash: string }[] }
 
 const commentHash = (comment: Pick<KaneoComment, 'id' | 'updatedAt' | 'content'>): string =>
   key('kaneo-comment', comment.id, comment.updatedAt ?? '', comment.content)
@@ -130,6 +134,8 @@ const commentHash = (comment: Pick<KaneoComment, 'id' | 'updatedAt' | 'content'>
 const observedCard = (task: KaneoTask, comments: readonly KaneoComment[]): ObservedCard => ({
   title: task.title,
   description: task.description ?? '',
+  status: task.status,
+  labels: task.labels.map(label => label.name),
   comments: comments.map(comment => ({ id: comment.id, hash: commentHash(comment) })),
 })
 
@@ -143,7 +149,8 @@ const parseObservedCard = (value: string | undefined): ObservedCard | undefined 
     if (typeof parsed?.title !== 'string' || typeof parsed?.description !== 'string' || !Array.isArray(parsed.comments)) return undefined
     const comments = parsed.comments.flatMap(item => typeof item?.id === 'string' && typeof item?.hash === 'string'
       ? [{ id: item.id, hash: item.hash }] : [])
-    return { title: parsed.title, description: parsed.description, comments }
+    return { title: parsed.title, description: parsed.description, status: typeof parsed.status === 'string' ? parsed.status : '',
+      labels: Array.isArray(parsed.labels) ? parsed.labels.filter((label): label is string => typeof label === 'string') : [], comments }
   } catch { return undefined }
 }
 
@@ -160,8 +167,10 @@ function cardChanges (previous: ObservedCard, current: ObservedCard, comments: r
     && known.get(comment.id) !== commentHash(comment))
   const titleChanged = previous.title !== current.title
   const descriptionChanged = previous.description !== current.description
-  if (!titleChanged && !descriptionChanged && !fresh.length) return undefined
+  const statusChanged = !!previous.status && previous.status !== current.status
+  if (!titleChanged && !descriptionChanged && !statusChanged && !fresh.length) return undefined
   const parts: string[] = []
+  if (statusChanged) parts.push(`卡片列更新：${previous.status} → ${current.status}`)
   if (titleChanged) parts.push(`标题更新：${current.title}`)
   if (descriptionChanged) parts.push(`描述更新：\n${current.description.trim() || '(空)'}`)
   if (fresh.length) parts.push(fresh.map(comment => `${comment.user?.name ?? comment.userId ?? 'Kanban'}：${comment.content}`).join('\n\n'))
@@ -170,7 +179,7 @@ function cardChanges (previous: ObservedCard, current: ObservedCard, comments: r
 
 /** A Trigger for an update on a card whose ticket is already running: it reaches the ticket as an Input, not as a new request. */
 const UPDATE_CHARS = 4000
-function kaneoUpdateTrigger (task: KaneoTask, config: KaneoConfig, text: string, fingerprint: string, at: string): Trigger {
+function kaneoUpdateTrigger (task: KaneoTask, config: KaneoConfig, text: string, fingerprint: string, at: string, holdLifted = false): Trigger {
   const actor = kaneoActorId(task) ?? config.actorFallback ?? 'kaneo'
   const limited = text.length <= UPDATE_CHARS ? text : `${text.slice(0, UPDATE_CHARS)}…`
   return {
@@ -187,12 +196,71 @@ function kaneoUpdateTrigger (task: KaneoTask, config: KaneoConfig, text: string,
     meta: {
       taskId: task.id,
       update: true,
+      ...holdLifted ? { holdLifted: true } : {},
       projectId: task.projectId ?? config.projectId,
       ...task.number === undefined ? {} : { number: task.number },
       status: task.status,
       labels: task.labels.map(label => label.name),
       ...task.assigneeName ? { assigneeName: task.assigneeName } : {},
     },
+  }
+}
+
+/**
+ * Marks a card whose ticket waits for a person with the hold label, so the board shows the hold and the release is a board
+ * action: the person writes the decision on the card and removes the label. The host never removes it itself.
+ */
+export async function syncHoldLabels (ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<void> {
+  const hold = config.holdLabel
+  if (!hold) return
+  for (const ticket of ctx.tickets.open()) {
+    if (signal?.aborted || !ctx.config(SOURCE)) return
+    const origin = ctx.triggers.get(ticket.origin.triggerId)
+    const thread = origin?.threads.find(ref => ref.source === SOURCE)
+    if (!thread) continue
+    const latest = ticket.assignments.at(-1)
+    const waiting = !!ticket.attention || latest?.report?.state === 'blocked' || latest?.report?.state === 'failed'
+    if (!waiting) continue
+    try {
+      const parsed = KaneoTaskSchema.safeParse(await client.task(thread.id, { signal }))
+      if (!parsed.success) continue
+      const task = parsed.data
+      if (task.labels.some(label => label.name === hold)) continue
+      const workspaceId = task.workspaceId ?? config.workspaceId
+      if (!workspaceId) continue
+      let labelId = ctx.state.get(KV.kaneo.holdLabel(workspaceId))
+      if (!labelId) {
+        const label = await client.createLabel(hold, 'd73a4a', workspaceId, { signal })
+        labelId = label.id
+        ctx.state.set(KV.kaneo.holdLabel(workspaceId), labelId)
+      }
+      await client.attachLabel(labelId, thread.id, { signal })
+    } catch { /* a card that cannot be marked stays as it is */ }
+  }
+}
+
+/**
+ * Keeps the card's column in step with a hold: a ticket that waits for a person moves its card to `blockedColumn`, and one
+ * that runs again moves it back to the claim column. The move is cosmetic — the decision itself reaches the Session as an
+ * Input through observation. Empty `blockedColumn` disables the move entirely.
+ */
+export async function syncBlockedColumns (ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<void> {
+  if (!config.blockedColumn) return
+  for (const ticket of ctx.tickets.open()) {
+    if (signal?.aborted || !ctx.config(SOURCE)) return
+    const origin = ctx.triggers.get(ticket.origin.triggerId)
+    const thread = origin?.threads.find(ref => ref.source === SOURCE)
+    if (!thread) continue
+    const latest = ticket.assignments.at(-1)
+    const waiting = !!ticket.attention || latest?.report?.state === 'blocked' || latest?.report?.state === 'failed'
+    const running = latest?.state === 'running' || latest?.state === 'pending'
+    const target = waiting ? config.blockedColumn : running && config.claimColumn ? config.claimColumn : ''
+    if (!target) continue
+    try {
+      const task = KaneoTaskSchema.safeParse(await client.task(thread.id, { signal }))
+      if (!task.success || task.data.status === target) continue
+      await client.move(thread.id, target)
+    } catch { /* a card that cannot be moved stays where it is */ }
   }
 }
 
@@ -225,11 +293,19 @@ export async function observeCards (ctx: SourceContext, config: KaneoConfig, cli
     if (!comments) continue
     const current = observedCard(task, comments)
     const serialized = serializeCard(current)
+    const hold = config.holdLabel
+    // While the hold keeps the card waiting, keep the pre-hold baseline: the decision written on the card must reach the
+    // worker when the label is removed, not before.
+    if (hold && current.labels.includes(hold)) { ctx.state.set(KV.kaneo.holdSeen(taskId), '1'); continue }
     const previous = parseObservedCard(ctx.state.get(KV.kaneo.observe(taskId)))
     if (!previous) { ctx.state.set(KV.kaneo.observe(taskId), serialized); continue }
-    const text = cardChanges(previous, current, comments, me.id)
+    const heldSeen = ctx.state.get(KV.kaneo.holdSeen(taskId)) === '1'
+    const lifted = !!hold && (heldSeen || previous.labels.includes(hold))
+    if (heldSeen) ctx.state.set(KV.kaneo.holdSeen(taskId), undefined)
+    const changes = cardChanges(previous, current, comments, me.id)
+    const text = lifted ? [changes, `看板已解除「${hold}」标记，工单可以继续。`].filter(Boolean).join('\n\n') : changes
     if (!text) { ctx.state.set(KV.kaneo.observe(taskId), serialized); continue }
-    await ctx.receive(kaneoUpdateTrigger(task, config, text, serialized, new Date().toISOString()))
+    await ctx.receive(kaneoUpdateTrigger(task, config, text, serialized, new Date().toISOString(), lifted))
     ctx.state.set(KV.kaneo.observe(taskId), serialized)
     delivered += 1
   }
@@ -253,6 +329,14 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
   if (config.observeUpdates) {
     try { observed = await observeCards(ctx, config, client, signal) }
     catch (error) { if (!signal?.aborted) failures.push(`observe: ${String(error)}`) }
+  }
+  if (config.blockedColumn) {
+    try { await syncBlockedColumns(ctx, config, client, signal) }
+    catch (error) { if (!signal?.aborted) failures.push(`columns: ${String(error)}`) }
+  }
+  if (config.holdLabel) {
+    try { await syncHoldLabels(ctx, config, client, signal) }
+    catch (error) { if (!signal?.aborted) failures.push(`hold: ${String(error)}`) }
   }
   for (const slug of watched) {
     try {

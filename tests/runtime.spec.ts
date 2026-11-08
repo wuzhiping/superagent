@@ -164,7 +164,9 @@ beforeEach(async () => {
       if (agents.has(sessionId)) return
       const agentCtx = new Context()
       const preset = {}
-      const inherited = ['bash', 'read', 'read_image', 'skill', 'job_output', 'job_list', 'job_kill', 'grep', 'web_search',
+      const inherited = ['bash', 'pwsh', 'read', 'write', 'edit', 'read_image', 'glob', 'grep', 'skill', 'job_output', 'job_list',
+        'job_kill', 'web_search', 'web_fetch', 'todo_write', 'subagent', 'list_subagent_models', 'send_message', 'list_agents',
+        'interrupt_agent', 'minio_list', 'minio_read', 'minio_write', 'minio_bucket',
         'ask_user_question', 'plugin_manager', 'schedule_create', 'create_goal', 'session_create', 'session_send_message', 'feishu_doc_edit']
       const sessionTools = new Map<string, RegisteredTool>()
       tools.set(sessionId, sessionTools)
@@ -1793,4 +1795,18 @@ it('keeps the Policy the main Session judges by in its prompt, after admission a
   await runtime.settings.save('policy', { ...saved.policy, rules: rules.map(rule => ({ ...rule, enabled: false })) }, runtime.store.blockRevision('policy'), 'panel')
   expect(policy()).toContain('No rule is enabled: a proactive candidate can only be ignored.')
   expect(policy()).toContain('The accept mode and the rules decide proactive candidates only')
+})
+
+it('resumes a blocked ticket in its own Session when the board removes the hold label', async () => {
+  const { ticket } = await acceptedTicket()
+  const origin = runtime.store.triggers.get(ticket.origin.triggerId)!
+  await runTool(`worker-${ticket.id}`, 'orchestrator_report', { state: 'blocked', summary: 'need a decision', human_action: 'Continue?' })
+  expect(waitsForPerson(runtime.store.tickets.get(ticket.id)!)).toBe(true)
+  const lifted: Trigger = { ...origin, id: key('test', 'hold-lifted'), at: new Date().toISOString(), human: true,
+    addressed: 'direct', text: '看板已解除 blocked 标记，工单可以继续。', meta: { ...origin.meta, holdLifted: true } }
+  await receive(lifted)
+  const after = runtime.store.tickets.get(ticket.id)!
+  expect(after.id).toBe(ticket.id)
+  expect(after.assignments.map(item => item.state)).toEqual(['ended', 'running'])
+  expect(waitsForPerson(after)).toBe(false)
 })

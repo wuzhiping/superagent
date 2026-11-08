@@ -1,11 +1,22 @@
-import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-ilgXfm6V.js";
-import { n as SourceKind, r as SourceContext } from "./kind-B876vTuF.js";
+import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-CtttTOHM.js";
+import { n as SourceKind, r as SourceContext } from "./kind-CRUQmIYh.js";
 import { t as KaneoClient } from "./kaneo-api-BvU5fGZP.js";
 import { Context } from "@deepseek-ai/cordis";
 //#region src/sources/kaneo.d.ts
 declare const SOURCE = "kaneo";
 /** The Source kind declaration: configuration form, policy part, Channel, Thread context, environment and health. */
 declare const kaneoKind: SourceKind<KaneoConfig>;
+/**
+ * Marks a card whose ticket waits for a person with the hold label, so the board shows the hold and the release is a board
+ * action: the person writes the decision on the card and removes the label. The host never removes it itself.
+ */
+declare function syncHoldLabels(ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<void>;
+/**
+ * Keeps the card's column in step with a hold: a ticket that waits for a person moves its card to `blockedColumn`, and one
+ * that runs again moves it back to the claim column. The move is cosmetic — the decision itself reaches the Session as an
+ * Input through observation. Empty `blockedColumn` disables the move entirely.
+ */
+declare function syncBlockedColumns(ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<void>;
 /**
  * Polls the cards of live tickets and turns a comment, title or description change into an Input for the running
  * assignment. Kanban itself only requests a task when it enters a watched column, so this is what keeps feedback written
@@ -23,4 +34,4 @@ declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, pollRound };
+export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, pollRound, syncBlockedColumns, syncHoldLabels };

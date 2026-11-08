@@ -33,6 +33,8 @@ declare const KaneoConfigSchema: z.ZodObject<{
   ingestEvents: z.ZodDefault<z.ZodBoolean>;
   claimColumn: z.ZodDefault<z.ZodString>;
   doneColumn: z.ZodDefault<z.ZodString>;
+  blockedColumn: z.ZodDefault<z.ZodString>;
+  holdLabel: z.ZodDefault<z.ZodString>;
   observeUpdates: z.ZodDefault<z.ZodBoolean>;
   bootstrap: z.ZodDefault<z.ZodEnum<{
     skip: "skip";
