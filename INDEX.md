@@ -45,6 +45,22 @@
 | Team 两角色 | **PM** `pm-rsi`（1 个，WIP 2）+ **Worker** `ux-fdep` / `api-fdep` |
 | PM 初始化 | 发布宪章 **v14**；发布职责 **10 条**（新增 `rehearsal → ux-fdep`）；PM 岗位入册并选中 5 条 `pm-*` 职责 |
 
+**先有项目 id 与宪章仓库，再按顺序配 4 个源**（面板「设置 → 来源」，每张卡填完点「测试连接」→「保存」）：
+
+| 源 | 必填 | 本次值 |
+| --- | --- | --- |
+| Kanban | 服务器、API key、项目 | `pl.feg.cn`（key 由本机存储记录读取）；项目 = 上面的项目 id；监听列 `to-do` |
+| Gitea | 服务器、宪章仓库、宪章文件 | `git.feg.cn`；`shawoo/rsi_superagent`；`README.md` |
+| ntfy | 服务器、主题 | `msn.feg.cn`；`pub_at8xrho45bisco2umjzgl1xp`（公开主题） |
+| MinIO | 地址、桶、Access/Secret | 本机 MinIO；桶 `ateam`（密钥由本机存储记录读取） |
+
+**再设两种角色**（面板「设置 → 项目与岗位」；每个岗位必须映射一个 Kanban 账号）：
+
+| 角色 | 本次岗位 | 关键字段 |
+| --- | --- | --- |
+| PM | `pm-rsi` | 角色 PM、WIP **2**、监听 `to-do`、职责选 5 条 `pm-*` |
+| Worker | `ux-fdep` / `api-fdep` | 角色 Worker、WIP 3、监听 `to-do`、职责 `ui`+`rehearsal` / `api` |
+
 ![4 个源](images/scenario/s1-sources.png)
 
 *图 1：四个源都已接通（Gitea / Kanban / ntfy / MinIO）。*
