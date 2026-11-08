@@ -60,7 +60,11 @@ export function MaintenancePage() {
       setOverrides({})
       setRemoveFiles(false)
       setRemoveSessions(false)
-      notify(t('maintenanceCleaned', { cleaned: result.cleaned.length, skipped: result.skipped.length }))
+      const reasons = [...new Set(result.skipped.flatMap(item => item.reasons))]
+      const skippedText = reasons.length
+        ? ` ${t('maintenanceSkippedReasons', { reasons: reasons.map(reason => t(`maintenance.reason.${reason}`)).join(t('listSeparator')) })}`
+        : ''
+      notify(t('maintenanceCleaned', { cleaned: result.cleaned.length, skipped: result.skipped.length }) + skippedText)
       await reload()
     } catch (failure) {
       notify(failure instanceof Error ? failure.message : String(failure))

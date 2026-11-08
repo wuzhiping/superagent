@@ -50,6 +50,7 @@ export type MaintenanceReason = 'ended' | 'directoryExists' | 'unreferenced' | '
   | 'unknown' | 'notPlanned' | 'nothingToDo'
   | 'missing' | 'notDirectory' | 'outsideRoot' | 'stateDir' | 'root'
   | 'removeFailed' | 'registryFailed' | 'sessionRemovalFailed'
+  | 'sessionRunning' | 'sessionUnlocatable' | 'sessionPathMismatch' | 'sessionRemoveFailed'
 
 /** A short note the audit returns; the panel words each code. */
 export type MaintenanceNote = 'sessionsOptional' | 'filesOptional' | 'endedOnly'
@@ -122,8 +123,11 @@ export interface MaintenanceHost {
   /** The runtime state directory, which removal must never touch. */
   stateDir(): string
 }
-/** What removing Sessions did: the ids that were deleted, and the ids the host refused or failed to delete. */
-export interface SessionRemovalResult { deleted: string[]; failed: string[] }
+/** Why one Session could not be deleted; the host reports it so a skip can name its cause. */
+export type SessionRemovalFailureReason = 'running' | 'noLocation' | 'pathMismatch' | 'removeFailed'
+export interface SessionRemovalFailure { id: string; reason: SessionRemovalFailureReason }
+/** What removing Sessions did: the ids that were deleted, and why the host refused or failed the rest. */
+export interface SessionRemovalResult { deleted: string[]; failed: SessionRemovalFailure[] }
 /** A host that can also unregister a workspace, remove a directory, and remove stored Sessions. */
 export interface CleanHost extends MaintenanceHost {
   /** Unregister one workspace (`workspaceRegistry.delete(id)`); resolves whether a record was deleted. */
@@ -304,6 +308,13 @@ export async function audit(host: MaintenanceHost, options: { limits?: ScanLimit
   return { workspaces: rows, totals, notes: ['sessionsOptional', 'filesOptional', 'endedOnly'], plan: { removable, skipped } }
 }
 
+/** The panel code for one Session removal refusal, so a skipped row names its cause instead of a generic failure. */
+const sessionFailureReason = (reason: SessionRemovalFailureReason): MaintenanceReason =>
+  reason === 'running' ? 'sessionRunning'
+    : reason === 'noLocation' ? 'sessionUnlocatable'
+      : reason === 'pathMismatch' ? 'sessionPathMismatch'
+        : 'sessionRemoveFailed'
+
 /**
  * Cleans the safely removable residue a person selected: delete the stored Sessions when asked, remove the workspace
  * directory when asked, and always unregister the workspace registration when one exists. Requests outside the safe plan
@@ -337,7 +348,11 @@ export async function clean(host: CleanHost, request: CleanRequest): Promise<Mai
         const result = await host.deleteSessions(ticketSessions.map(session => session.id))
         sessionsDeleted = result.deleted.length
         // Refusing every requested Session leaves the row as it was; refusing one reports a partial failure.
-        if (sessionsDeleted === 0) { skipped.push({ ticketId, reasons: ['sessionRemovalFailed'] }); continue }
+        if (sessionsDeleted === 0) {
+          const reasons = [...new Set(result.failed.map(failure => sessionFailureReason(failure.reason)))]
+          skipped.push({ ticketId, reasons: reasons.length ? reasons : ['sessionRemovalFailed'] })
+          continue
+        }
         if (result.failed.length) {
           // Keep the successful deletions and report the rest on the next audit.
           cleaned.push({ ticketId, title: item.title, sizeBytes: item.sizeBytes, workspaceDeleted: false,

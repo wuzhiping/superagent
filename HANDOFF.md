@@ -548,4 +548,5 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-08 16:40 | 新增 [PM.md](PM.md)：PM 岗位安置（身份/队列/五职责/WIP）、来源矩阵（Kaneo、Gitea Issue、定时复盘、人）、任务分解与分派规则、日周月复盘触发方案、现状差距与 P0–P2 路线。宪章 PR #1 增加 `duties/pm-dispatch.md`（29 文件）；EA/A-I 已链接。 |
 | 2026-11-08 17:20 | **最小迭代实测**（场景故事已 append 到 INDEX.md）：项目 `at8xrho45bisco2umjzgl1xp` + 宪章仓 `shawoo/rsi_superagent`；4 源 ready；新增 PM 岗位 `pm-rsi`（WIP 2，5 条 pm-* 职责）+ 两个 Worker；PM 发布宪章 v14 与职责 10 条，派单卡 #47 → `ux-fdep`；闸门先拒 `dutyUnsupported`（漏映射）→ PM 修正后 requeue → 接单 → 2m53s 完成，MinIO 交付 1928B 已回读；手动复盘完成并记录方法与改进项。截图 6 张在 `images/scenario/`。 |
 | 2026-11-08 18:20 | INDEX.html / INDEX.pdf 同步 INDEX.md：由 1 页扩为 5 页（阅读地图 + 实测场景与 4 源/两角色 + 时间线 + 数据截图 + 手动复盘与自动化路径）；版式检查通过，PDF 5 页，图片 5 张全部加载。 |
+| 2026-11-08 18:45 | 清理跳过原因可见：Session 删除结果细分为 sessionRunning / sessionUnlocatable / sessionPathMismatch / sessionRemoveFailed，面板 toast 直接写出 Skip reason；实测 3 项跳过的原因是 **Session 仍被宿主打开**（最近三个工单各有 1 个 DSH 会话仍挂载）。docs/010 补说明；21 项测试通过，插件已重装。 |
 | 2026-11-08 10:20 | 演练发现写回文档：`kind:` / `duty:` / `repo:` 必须在卡进入监听列前挂好，#45（后挂）工单缺产出类型、#46（先挂）带 doc；已在 DEF §D1 与 GHI 常见问题写明。 |

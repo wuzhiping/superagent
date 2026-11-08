@@ -426,17 +426,23 @@ export function registerHttp(ctx: Context, runtime: HttpHost): () => void {
     deleteSessions: async ids => {
       const snapshots = await ctx.sessionPersistence.list()
       const byId = new Map(snapshots.map(snapshot => [String(snapshot.header.id), snapshot]))
-      const deleted: string[] = [], failed: string[] = []
+      const deleted: string[] = []
+      const failed: { id: string; reason: 'running' | 'noLocation' | 'pathMismatch' | 'removeFailed' }[] = []
       for (const id of ids) {
         const snapshot = byId.get(id)
         // Newer persistence builds expose the artifact location; an older service or an unmaterialized Session has none,
         // so the host refuses instead of guessing at a path.
         const location = (snapshot as { location?: { path?: string } } | undefined)?.location?.path
-        if (!snapshot || !location || ctx.agents.get(id as SessionId)) { failed.push(id); continue }
+        if (!snapshot || !location) { failed.push({ id, reason: 'noLocation' }); continue }
+        if (ctx.agents.get(id as SessionId)) { failed.push({ id, reason: 'running' }); continue }
         const directory = dirname(location)
         const artifact = basename(location)
-        if (basename(directory) !== id || !/^session\..*\.jsonl(?:\.zstd)?$/.test(artifact)) { failed.push(id); continue }
-        try { await rm(directory, { recursive: true, force: true }); deleted.push(id) } catch { failed.push(id) }
+        if (basename(directory) !== id || !/^session\..*\.jsonl(?:\.zstd)?$/.test(artifact)) {
+          failed.push({ id, reason: 'pathMismatch' })
+          continue
+        }
+        try { await rm(directory, { recursive: true, force: true }); deleted.push(id) }
+        catch { failed.push({ id, reason: 'removeFailed' }) }
       }
       return { deleted, failed }
     },

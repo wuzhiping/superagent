@@ -37,7 +37,7 @@ function host(input: { tickets: MaintenanceTicket[]; root: string; stateDir: str
     deleteSessions: async ids => {
       const deleted = ids.filter(id => !input.failedSessions?.includes(id))
       input.deletedSessions?.push(...deleted)
-      return { deleted, failed: ids.filter(id => input.failedSessions?.includes(id)) }
+      return { deleted, failed: ids.filter(id => input.failedSessions?.includes(id)).map(id => ({ id, reason: 'removeFailed' as const })) }
     },
   }
 }
@@ -119,6 +119,16 @@ it('lists a duty whose only residue is Sessions, and cleans those Sessions when 
   expect(result.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 0, workspaceDeleted: false, filesDeleted: false,
     sessionsDeleted: 2 }])
   expect(deletedSessions.sort()).toEqual(['worker-t1', 'worker-t1b'])
+})
+
+it('names why every Session was refused instead of a generic failure', async () => {
+  const base = await temp(), root = join(base, 'work'), stateDir = join(base, 'state')
+  await mkdir(root); await mkdir(stateDir)
+  const directory = join(root, 'gone')
+  const cleaner = host({ tickets: [ticket('t1', directory, { ended: ended() })], root, stateDir,
+    sessions: [{ id: 'worker-t1', cwd: directory }], failedSessions: ['worker-t1'] })
+  const result = await clean(cleaner, { ticketIds: ['t1'], removeSessions: true })
+  expect(result.skipped).toEqual([{ ticketId: 't1', reasons: ['sessionRemoveFailed'] }])
 })
 
 it('refuses when no requested action can clean anything', async () => {
