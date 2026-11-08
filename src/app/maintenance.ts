@@ -50,7 +50,7 @@ export type MaintenanceReason = 'ended' | 'directoryExists' | 'unreferenced' | '
   | 'unknown' | 'notPlanned' | 'nothingToDo'
   | 'missing' | 'notDirectory' | 'outsideRoot' | 'stateDir' | 'root'
   | 'removeFailed' | 'registryFailed' | 'sessionRemovalFailed'
-  | 'sessionRunning' | 'sessionUnlocatable' | 'sessionPathMismatch' | 'sessionRemoveFailed'
+  | 'sessionRunning' | 'sessionIdle' | 'sessionUnlocatable' | 'sessionPathMismatch' | 'sessionRemoveFailed'
 
 /** A short note the audit returns; the panel words each code. */
 export type MaintenanceNote = 'sessionsOptional' | 'filesOptional' | 'endedOnly'
@@ -124,7 +124,7 @@ export interface MaintenanceHost {
   stateDir(): string
 }
 /** Why one Session could not be deleted; the host reports it so a skip can name its cause. */
-export type SessionRemovalFailureReason = 'running' | 'noLocation' | 'pathMismatch' | 'removeFailed'
+export type SessionRemovalFailureReason = 'running' | 'idle' | 'noLocation' | 'pathMismatch' | 'removeFailed'
 export interface SessionRemovalFailure { id: string; reason: SessionRemovalFailureReason }
 /** What removing Sessions did: the ids that were deleted, and why the host refused or failed the rest. */
 export interface SessionRemovalResult { deleted: string[]; failed: SessionRemovalFailure[] }
@@ -136,10 +136,10 @@ export interface CleanHost extends MaintenanceHost {
    * Remove the stored Sessions named by `ids`; the host deletes each Session's own artifact and refuses one that is
    * still running or whose artifact it cannot locate.
    */
-  deleteSessions(ids: string[]): Promise<SessionRemovalResult>
+  deleteSessions(ids: string[], options?: { includeIdle?: boolean }): Promise<SessionRemovalResult>
 }
 /** The clean action's request. */
-export interface CleanRequest { ticketIds: string[]; removeFiles?: boolean; removeSessions?: boolean }
+export interface CleanRequest { ticketIds: string[]; removeFiles?: boolean; removeSessions?: boolean; forceSessions?: boolean }
 /** What the clean action did, and what it refused. */
 export interface MaintenanceCleanResult {
   cleaned: { ticketId: string; title: string; sizeBytes: number; workspaceDeleted: boolean; filesDeleted: boolean;
@@ -311,9 +311,10 @@ export async function audit(host: MaintenanceHost, options: { limits?: ScanLimit
 /** The panel code for one Session removal refusal, so a skipped row names its cause instead of a generic failure. */
 const sessionFailureReason = (reason: SessionRemovalFailureReason): MaintenanceReason =>
   reason === 'running' ? 'sessionRunning'
-    : reason === 'noLocation' ? 'sessionUnlocatable'
-      : reason === 'pathMismatch' ? 'sessionPathMismatch'
-        : 'sessionRemoveFailed'
+    : reason === 'idle' ? 'sessionIdle'
+      : reason === 'noLocation' ? 'sessionUnlocatable'
+        : reason === 'pathMismatch' ? 'sessionPathMismatch'
+          : 'sessionRemoveFailed'
 
 /**
  * Cleans the safely removable residue a person selected: delete the stored Sessions when asked, remove the workspace
@@ -345,7 +346,7 @@ export async function clean(host: CleanHost, request: CleanRequest): Promise<Mai
     let sessionsDeleted = 0
     if (asksSessions) {
       try {
-        const result = await host.deleteSessions(ticketSessions.map(session => session.id))
+        const result = await host.deleteSessions(ticketSessions.map(session => session.id), { includeIdle: request.forceSessions === true })
         sessionsDeleted = result.deleted.length
         // Refusing every requested Session leaves the row as it was; refusing one reports a partial failure.
         if (sessionsDeleted === 0) {

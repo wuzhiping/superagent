@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { registerHttp, type HttpHost } from '../src/app/http.ts'
-import { audit, checkRemovable, clean, scanWorkspace, type CleanHost, type MaintenanceTicket
-} from '../src/app/maintenance.ts'
+import { audit, checkRemovable, clean, scanWorkspace, type CleanHost, type MaintenanceTicket,
+  type SessionRemovalFailureReason } from '../src/app/maintenance.ts'
 import { SettingsSchema } from '../src/policy.ts'
 
 const roots: string[] = []
@@ -26,7 +26,7 @@ const ticket = (id: string, directory: string, fields: Partial<MaintenanceTicket
 })
 function host(input: { tickets: MaintenanceTicket[]; root: string; stateDir: string; workspaces?: { id: string; path: string }[]
   sessions?: { id: string; cwd?: string; bytes?: number }[]; deleted?: string[]; deletedSessions?: string[]
-  failedSessions?: string[] }): CleanHost {
+  failedSessions?: string[]; idleSessions?: string[]; sessionFailureReason?: SessionRemovalFailureReason }): CleanHost {
   return {
     tickets: () => input.tickets,
     workspaces: async () => input.workspaces ?? [],
@@ -34,10 +34,14 @@ function host(input: { tickets: MaintenanceTicket[]; root: string; stateDir: str
     executionRoot: () => input.root,
     stateDir: () => input.stateDir,
     deleteWorkspace: async id => { input.deleted?.push(id); return true },
-    deleteSessions: async ids => {
-      const deleted = ids.filter(id => !input.failedSessions?.includes(id))
+    deleteSessions: async (ids, options) => {
+      const hard = new Set(input.failedSessions ?? [])
+      const idle = new Set(input.idleSessions ?? [])
+      const deleted = ids.filter(id => !hard.has(id) && (!idle.has(id) || options?.includeIdle === true))
       input.deletedSessions?.push(...deleted)
-      return { deleted, failed: ids.filter(id => input.failedSessions?.includes(id)).map(id => ({ id, reason: 'removeFailed' as const })) }
+      const failed = ids.filter(id => !deleted.includes(id)).map(id => ({
+        id, reason: hard.has(id) ? (input.sessionFailureReason ?? 'removeFailed' as const) : 'idle' as const }))
+      return { deleted, failed }
     },
   }
 }
@@ -131,6 +135,23 @@ it('names why every Session was refused instead of a generic failure', async () 
   expect(result.skipped).toEqual([{ ticketId: 't1', reasons: ['sessionRemoveFailed'] }])
 })
 
+it('refuses an idle loaded Session unless forced, and always refuses a running one', async () => {
+  const base = await temp(), root = join(base, 'work'), stateDir = join(base, 'state')
+  await mkdir(root); await mkdir(stateDir)
+  const directory = join(root, 'gone')
+  const sessions = [{ id: 'worker-t1', cwd: directory }]
+  const idle = host({ tickets: [ticket('t1', directory, { ended: ended() })], root, stateDir, sessions, idleSessions: ['worker-t1'] })
+  expect((await clean(idle, { ticketIds: ['t1'], removeSessions: true })).skipped)
+    .toEqual([{ ticketId: 't1', reasons: ['sessionIdle'] }])
+  const forced = host({ tickets: [ticket('t1', directory, { ended: ended() })], root, stateDir, sessions, idleSessions: ['worker-t1'] })
+  expect((await clean(forced, { ticketIds: ['t1'], removeSessions: true, forceSessions: true })).cleaned)
+    .toEqual([expect.objectContaining({ ticketId: 't1', sessionsDeleted: 1 })])
+  const running = host({ tickets: [ticket('t1', directory, { ended: ended() })], root, stateDir, sessions,
+    failedSessions: ['worker-t1'], sessionFailureReason: 'running' })
+  expect((await clean(running, { ticketIds: ['t1'], removeSessions: true, forceSessions: true })).skipped)
+    .toEqual([{ ticketId: 't1', reasons: ['sessionRunning'] }])
+})
+
 it('refuses when no requested action can clean anything', async () => {
   const base = await temp(), root = join(base, 'work'), stateDir = join(base, 'state')
   await mkdir(root); await mkdir(stateDir); await mkdir(join(root, 'w1'))
@@ -183,6 +204,45 @@ it('keeps the directory unless the person asks for the folder removal', async ()
   expect(deleted).toEqual(['ws1'])
   expect(await realpath(join(root, 'w1'))).toBeTruthy()
 })
+
+it('forwards forceSessions through the route so an idle Session can be cleaned', async () => {
+  const base = await temp(), stateDir = join(base, 'state'), root = join(stateDir, 'work'), workspace = join(root, 'w2')
+  await mkdir(workspace, { recursive: true })
+  const sessionDir = join(workspace, 'worker-t2')
+  await mkdir(sessionDir)
+  const artifact = join(sessionDir, 'session.v4.jsonl.zstd')
+  await writeFile(artifact, 'x')
+  type Handler = (req: unknown, res: unknown) => Promise<void>
+  let handler: Handler = async () => {}
+  const ctx = {
+    webServer: { host: '127.0.0.1', port: 3082, register: (route: { handler: Handler }) => { handler = route.handler; return () => {} } },
+    workspaceRegistry: { list: () => [], delete: async () => false },
+    sessionPersistence: { list: async () => [{ header: { id: 'worker-t2', cwd: workspace },
+      location: { kind: 'jsonl', path: artifact } }] },
+    agents: { get: () => ({ status: 'idle' }) },
+  }
+  const runtime = {
+    ready: Promise.resolve(),
+    store: { tickets: { list: () => [ticket('t2', workspace, { ended: ended() })] }, settings: () => SettingsSchema.parse({}) },
+    machine: { stateDir },
+  } as unknown as HttpHost
+  registerHttp(ctx as never, runtime)
+  const send = async (body: unknown) => {
+    let status = 0, text = ''
+    const req = { method: 'POST', url: '/orchestrator/api/maintenance/clean',
+      headers: { host: '127.0.0.1:3082', 'x-orchestrator-request': '1' },
+      async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(body)) } }
+    await handler(req, { writeHead: (code: number) => { status = code }, end: (data: string) => { text = data } })
+    return { status, body: JSON.parse(text) as Record<string, unknown> }
+  }
+  const idle = await send({ ticketIds: ['t2'], removeSessions: true })
+  expect(idle.status).toBe(200)
+  expect(idle.body.skipped).toEqual([{ ticketId: 't2', reasons: ['sessionIdle'] }])
+  const forced = await send({ ticketIds: ['t2'], removeSessions: true, forceSessions: true })
+  expect(forced.body.cleaned).toEqual([expect.objectContaining({ ticketId: 't2', sessionsDeleted: 1 })])
+  await expect(realpath(sessionDir)).rejects.toThrow()
+})
+
 
 it('serves the audit and the cleanup through the management routes with the workspace registry and session persistence', async () => {
   const base = await temp(), stateDir = join(base, 'state'), root = join(stateDir, 'work'), workspace = join(root, 'w1')

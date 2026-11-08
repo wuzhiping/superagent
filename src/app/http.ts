@@ -168,7 +168,7 @@ const SettingsBlockSchema = z.union([z.enum(['policy', 'eval', 'executor']), Sou
 const SaveRequest = z.object({ value: z.unknown(), revision: z.number().int().nonnegative() })
 const TestSourceRequest = z.object({ config: z.record(z.string(), z.unknown()) })
 const CleanRequest = z.object({ ticketIds: z.array(z.string().min(1)).max(1000), removeFiles: z.boolean().optional(),
-  removeSessions: z.boolean().optional() })
+  removeSessions: z.boolean().optional(), forceSessions: z.boolean().optional() })
 
 /** Merge a source card's hidden secret fields with the stored values: an empty field means "keep the saved secret". */
 function mergedSourceConfig(runtime: HttpHost, id: string, submitted: Record<string, unknown>): Record<string, unknown> {
@@ -423,18 +423,22 @@ export function registerHttp(ctx: Context, runtime: HttpHost): () => void {
     // so deleting that directory removes the Session without touching the database, and the query index reconciles the
     // missing Session on its next pass. A running Session, a missing location, or a path that is not the Session's own
     // directory is refused instead of guessed at.
-    deleteSessions: async ids => {
+    deleteSessions: async (ids, options) => {
       const snapshots = await ctx.sessionPersistence.list()
       const byId = new Map(snapshots.map(snapshot => [String(snapshot.header.id), snapshot]))
       const deleted: string[] = []
-      const failed: { id: string; reason: 'running' | 'noLocation' | 'pathMismatch' | 'removeFailed' }[] = []
+      const failed: { id: string; reason: 'running' | 'idle' | 'noLocation' | 'pathMismatch' | 'removeFailed' }[] = []
       for (const id of ids) {
         const snapshot = byId.get(id)
         // Newer persistence builds expose the artifact location; an older service or an unmaterialized Session has none,
         // so the host refuses instead of guessing at a path.
         const location = (snapshot as { location?: { path?: string } } | undefined)?.location?.path
         if (!snapshot || !location) { failed.push({ id, reason: 'noLocation' }); continue }
-        if (ctx.agents.get(id as SessionId)) { failed.push({ id, reason: 'running' }); continue }
+        const agent = ctx.agents.get(id as SessionId)
+        // A live Session is left alone unless the person explicitly asks to clean idle ones: the owner has to close a
+        // running Session, while an idle registration only means DSH still holds it in memory.
+        if (agent && agent.status === 'running') { failed.push({ id, reason: 'running' }); continue }
+        if (agent && options?.includeIdle !== true) { failed.push({ id, reason: 'idle' }); continue }
         const directory = dirname(location)
         const artifact = basename(location)
         if (basename(directory) !== id || !/^session\..*\.jsonl(?:\.zstd)?$/.test(artifact)) {

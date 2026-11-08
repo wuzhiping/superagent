@@ -32,6 +32,7 @@ export function MaintenancePage() {
   const [overrides, setOverrides] = useState<Record<string, boolean>>({})
   const [removeFiles, setRemoveFiles] = useState(false)
   const [removeSessions, setRemoveSessions] = useState(false)
+  const [forceSessions, setForceSessions] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const view = data
@@ -55,11 +56,12 @@ export function MaintenancePage() {
     if (!selected.length || busy) return
     setBusy(true)
     try {
-      const result = await call('POST maintenance/clean', { body: { ticketIds: selected.map(row => row.ticketId), removeFiles, removeSessions } })
+      const result = await call('POST maintenance/clean', { body: { ticketIds: selected.map(row => row.ticketId), removeFiles, removeSessions, forceSessions } })
       setConfirming(false)
       setOverrides({})
       setRemoveFiles(false)
       setRemoveSessions(false)
+      setForceSessions(false)
       const reasons = [...new Set(result.skipped.flatMap(item => item.reasons))]
       const skippedText = reasons.length
         ? ` ${t('maintenanceSkippedReasons', { reasons: reasons.map(reason => t(`maintenance.reason.${reason}`)).join(t('listSeparator')) })}`
@@ -78,8 +80,12 @@ export function MaintenancePage() {
     </label>
     <label className="dt-maintenance-option">
       <input type="checkbox" className="dt-maintenance-check" aria-label={t('maintenanceRemoveSessions')} checked={removeSessions}
-        onChange={event => setRemoveSessions(event.target.checked)} />{t('maintenanceRemoveSessions')}
+        onChange={event => { setRemoveSessions(event.target.checked); if (!event.target.checked) setForceSessions(false) }} />{t('maintenanceRemoveSessions')}
     </label>
+    {removeSessions && <label className="dt-maintenance-option">
+      <input type="checkbox" className="dt-maintenance-check" aria-label={t('maintenanceForceSessions')} checked={forceSessions}
+        onChange={event => setForceSessions(event.target.checked)} />{t('maintenanceForceSessions')}
+    </label>}
     <span className="dt-maintenance-count">{t('maintenanceSelected', { count: selected.length })}</span>
     <Button variant="primary" size="sm" icon={<Icon name="trash" size={14} />} disabled={!selected.length} onClick={() => setConfirming(true)}>
       {t('maintenanceClean')}</Button>
@@ -128,6 +134,7 @@ export function MaintenancePage() {
       <p className="dt-hint">{removeSessions
         ? t('maintenanceConfirmRemoveSessions', { count: sessions })
         : t('maintenanceConfirmKeepSessions', { count: sessions })}</p>
+      {removeSessions && forceSessions && <p className="dt-hint">{t('maintenanceConfirmForceSessions', { count: sessions })}</p>}
     </Modal>
   </Section>
 }

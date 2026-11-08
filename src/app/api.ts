@@ -61,7 +61,7 @@ export interface Api {
   'POST tickets/:id/stop': { response: { stopped: true } }
   // The cleanup page: the workspaces ended duties left behind, and the safe cleanup a person confirmed.
   'GET maintenance': { response: MaintenanceView }
-  'POST maintenance/clean': { body: { ticketIds: string[]; removeFiles?: boolean; removeSessions?: boolean }; response: MaintenanceCleanResult }
+  'POST maintenance/clean': { body: { ticketIds: string[]; removeFiles?: boolean; removeSessions?: boolean; forceSessions?: boolean }; response: MaintenanceCleanResult }
   'POST executor/pause': { body: { paused: boolean }; response: { paused: boolean } }
   'PUT settings/:block': { body: { value: unknown; revision: number }; response: { revision: number; restarting: boolean } }
   'GET policy/history': { response: HistoryView }
