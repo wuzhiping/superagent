@@ -106,6 +106,16 @@
 
 > 新增目录在仓库里都要有 `README.md` 说明"放什么、怎么放、谁负责"，否则视为未落地。
 
+### 4.1 通用模板与 Quick Small Start（从 0 到 1）
+
+不是每个项目都要从空仓库开始搭六层。产品仓库提供一份**通用模板 + 合并工具**，用于新项目初始化，或老仓库缺复盘/上下文/知识/技能时补齐：
+
+- 模板：`templates/charter/`（宪章骨架、CAPABILITY、职责样例、复盘模板、context、KE、skills）
+- 合并：`node scripts/apply-charter-template.mjs --target <repo> [--dry-run]` —— **只补缺失文件、绝不覆盖**；已有 README 时用 `--print-section` 手工合并「能力供给」一节
+- 指南：[`CHARTER-QUICKSTART.md`](CHARTER-QUICKSTART.md) —— 30 分钟：合并 → 填 3 处 → 接上面板 → 跑第一张卡 → 第一次周复盘 → 10 项验收
+- 边界：模板是"**最小可运转版**"，不是本文的六层终态；先跑起来，再按 §11 的 P0–P4 长大
+- 测试：`tests/charter-template.spec.ts` 保证模板齐全、合并不覆盖、幂等、下划线职责模板不会被当成职责派工
+
 ---
 
 ## 5. 复盘体系：日 / 周 / 月，各回答一个问题
