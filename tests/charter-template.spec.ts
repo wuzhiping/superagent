@@ -46,7 +46,7 @@ describe('generic charter template', () => {
     const files = listTemplateFiles().filter(path => path.startsWith('duties/_TEMPLATE-'))
     expect(files.length).toBe(3)
     for (const path of files) {
-      const id = path.split('/').pop().replace(/\.md$/, '')
+      const id = (path.split('/').pop() ?? '').replace(/\.md$/, '')
       expect(isDutyId(id)).toBe(false)
     }
   })

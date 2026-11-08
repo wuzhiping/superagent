@@ -268,18 +268,15 @@ const maintenanceView = (): MaintenanceView => ({
   workspaces: [
     { ticketId: 't0', title: '旧工单', state: 'ended', outcome: 'stopped', endedAt: '2026-09-21T00:00:00Z', directory: '/w/t0',
       workspaceId: 'ws-t0', workspaceExists: true, sizeBytes: 3_145_728, sizeCapped: false, lastModified: '2026-09-21T00:00:00Z',
-      sessions: 1, files: ['README.md', 'src'], deliverable: false, removable: true,
-      reasons: ['ended', 'directoryExists', 'unreferenced', 'registered'] },
+      sessions: 1, sessionBytes: 1024, files: ['README.md', 'src'], deliverable: false, removable: true,
+      reasons: ['ended', 'directoryExists', 'unreferenced', 'registered', 'sessionsPresent'] },
     { ticketId: 't3', title: '已合并的工单', state: 'ended', outcome: 'merged', endedAt: '2026-09-20T00:00:00Z', directory: '/w/t3',
       workspaceId: 'ws-t3', workspaceExists: true, sizeBytes: 1_048_576, sizeCapped: false, lastModified: '2026-09-20T00:00:00Z',
-      sessions: 2, files: ['docs'], deliverable: true, deliverableType: 'doc', removable: true,
-      reasons: ['ended', 'directoryExists', 'unreferenced', 'registered'] },
-    { ticketId: 't6', title: '目录已消失', state: 'ended', outcome: 'completed', endedAt: '2026-09-19T00:00:00Z', directory: '/w/t6',
-      workspaceExists: false, sizeBytes: 0, sizeCapped: false, sessions: 0, files: [], deliverable: false, removable: false,
-      reasons: ['missingDirectory'] },
+      sessions: 2, sessionBytes: 2048, files: ['docs'], deliverable: true, deliverableType: 'doc', removable: true,
+      reasons: ['ended', 'directoryExists', 'unreferenced', 'registered', 'sessionsPresent'] },
   ],
-  totals: { count: 3, bytes: 3_145_728 + 1_048_576 },
-  notes: ['sessionsKept', 'filesOptional', 'endedOnly'],
+  totals: { count: 2, bytes: 3_145_728 + 1_048_576 },
+  notes: ['sessionsOptional', 'filesOptional', 'endedOnly'],
 })
 function initial(): PanelServer {
   const settings = SettingsSchema.parse({
@@ -472,19 +469,31 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
   'GET maintenance': { answer: () => server.maintenance },
   'POST maintenance/clean': { body: true, answer: ({ body }) => {
     const ids = new Set(body.ticketIds)
-    const removed = server.maintenance.workspaces.filter(row => ids.has(row.ticketId) && row.removable)
-    const skipped: ApiResponse<'POST maintenance/clean'>['skipped'] = body.ticketIds
-      .filter(id => !removed.some(row => row.ticketId === id))
-      .map(id => ({ ticketId: id, reasons: server.maintenance.workspaces.find(row => row.ticketId === id)?.reasons ?? ['unknown'] }))
-    server.maintenance = {
-      ...server.maintenance,
-      workspaces: server.maintenance.workspaces.filter(row => !removed.some(item => item.ticketId === row.ticketId)),
-      totals: { count: 0, bytes: 0 },
+    const removed: ApiResponse<'POST maintenance/clean'>['cleaned'] = []
+    const skipped: ApiResponse<'POST maintenance/clean'>['skipped'] = []
+    const workspaces: MaintenanceView['workspaces'] = []
+    for (const row of server.maintenance.workspaces) {
+      if (!ids.has(row.ticketId)) { workspaces.push(row); continue }
+      if (!row.removable) { skipped.push({ ticketId: row.ticketId, reasons: row.reasons }); workspaces.push(row); continue }
+      const removeFiles = body.removeFiles === true && row.workspaceExists
+      const removeSessions = body.removeSessions === true && row.sessions > 0
+      if (!removeFiles && !removeSessions && !row.workspaceId) {
+        skipped.push({ ticketId: row.ticketId, reasons: ['nothingToDo'] }); workspaces.push(row); continue
+      }
+      const next: MaintenanceView['workspaces'][number] = { ...row, workspaceId: undefined,
+        workspaceExists: removeFiles ? false : row.workspaceExists, sizeBytes: removeFiles ? 0 : row.sizeBytes,
+        files: removeFiles ? [] : row.files, sessions: removeSessions ? 0 : row.sessions,
+        sessionBytes: removeSessions ? 0 : row.sessionBytes,
+        reasons: [...(removeFiles || !row.workspaceExists ? ['missingDirectory' as const] : ['ended' as const, 'directoryExists' as const]),
+          'unreferenced' as const, 'unregistered' as const, ...(removeSessions || !row.sessions ? [] : ['sessionsPresent' as const])] }
+      // A row leaves the list only when nothing remains: no directory, no registration, no Session.
+      if (next.workspaceExists || next.sessions > 0) workspaces.push({ ...next, removable: true })
+      removed.push({ ticketId: row.ticketId, title: row.title, sizeBytes: row.sizeBytes, workspaceDeleted: !!row.workspaceId,
+        filesDeleted: removeFiles, sessionsDeleted: removeSessions ? row.sessions : 0 })
     }
-    server.maintenance.totals = { count: server.maintenance.workspaces.length,
-      bytes: server.maintenance.workspaces.reduce((sum, row) => sum + row.sizeBytes, 0) }
-    return { cleaned: removed.map(row => ({ ticketId: row.ticketId, title: row.title, sizeBytes: row.sizeBytes,
-      workspaceDeleted: !!row.workspaceId, filesDeleted: !!body.removeFiles })), skipped }
+    server.maintenance = { ...server.maintenance, workspaces,
+      totals: { count: workspaces.length, bytes: workspaces.reduce((sum, row) => sum + row.sizeBytes, 0) } }
+    return { cleaned: removed, skipped }
   } },
   'POST executor/pause': { body: true, answer: ({ body }) => {
     server.settings = { ...server.settings, paused: body.paused }

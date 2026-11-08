@@ -1,11 +1,14 @@
 /**
- * Workspace maintenance for ended duties: audits the directory and Session each Ticket left behind, plans a safe
- * removal, and performs it when a person confirms.
+ * Workspace and Session maintenance for ended duties: audits the directory, the workspace registration and the Sessions a
+ * Ticket left behind, plans a safe removal, and performs it when a person confirms.
  *
  * A Ticket's workspace is a directory under the executor's root plus the DSH workspace registration that points at it
- * (`workspaceRegistry`). The registration only lists the directory, so deleting it is always safe; removing the
- * directory is a separate, explicit choice. Session logs live outside both and have no supported delete API, so this
- * module only counts them: a cleanup unregisters the workspace and never touches a `.jsonl` log or the database.
+ * (`workspaceRegistry`). The registration only lists the directory, so deleting it is always safe; removing the directory
+ * is a separate, explicit choice. Sessions live in DSH's own session store, one directory per Session; a person may ask to
+ * remove them together with the workspace, and the host deletes that Session directory through a guarded hook.
+ *
+ * The audit lists only ended duties that still leave residue: a workspace directory, a registration, or Sessions. A duty
+ * with nothing left is not listed, so a cleaned duty disappears instead of staying in the list forever.
  */
 import { lstat, readdir, realpath, rm, stat } from 'node:fs/promises'
 import { join, parse, resolve, sep } from 'node:path'
@@ -35,7 +38,7 @@ export interface WorkspaceScan {
 /** A registered workspace as the audit reads it (`workspaceRegistry.list()`). */
 export interface WorkspaceRecord { id: string; path: string }
 /** A stored Session as the audit counts it (`sessionPersistence.list()`, flattened to its header). */
-export interface SessionRecord { id: string; cwd?: string }
+export interface SessionRecord { id: string; cwd?: string; bytes?: number }
 
 /** The Ticket fields the audit reads; a full `Ticket` satisfies it. */
 export type MaintenanceTicket = Pick<Ticket, 'id' | 'title' | 'ended' | 'execution'>
@@ -43,15 +46,15 @@ export type MaintenanceTicket = Pick<Ticket, 'id' | 'title' | 'ended' | 'executi
 
 /** Why a row can be removed, or why it is skipped. The panel words each code. */
 export type MaintenanceReason = 'ended' | 'directoryExists' | 'unreferenced' | 'registered' | 'unregistered'
-  | 'open' | 'noDirectory' | 'missingDirectory' | 'referenced' | 'shared'
+  | 'open' | 'noDirectory' | 'missingDirectory' | 'referenced' | 'shared' | 'sessionsPresent'
   | 'unknown' | 'notPlanned' | 'nothingToDo'
   | 'missing' | 'notDirectory' | 'outsideRoot' | 'stateDir' | 'root'
-  | 'removeFailed' | 'registryFailed'
+  | 'removeFailed' | 'registryFailed' | 'sessionRemovalFailed'
 
 /** A short note the audit returns; the panel words each code. */
-export type MaintenanceNote = 'sessionsKept' | 'filesOptional' | 'endedOnly'
+export type MaintenanceNote = 'sessionsOptional' | 'filesOptional' | 'endedOnly'
 
-/** One ended duty with the workspace it left behind. */
+/** One ended duty with the workspace and Sessions it left behind. */
 export interface MaintenanceRow {
   ticketId: string
   title: string
@@ -65,7 +68,10 @@ export interface MaintenanceRow {
   sizeBytes: number
   sizeCapped: boolean
   lastModified?: string
+  /** How many stored Sessions still point at this workspace. */
   sessions: number
+  /** Their stored size, when the persistence backend reports it. */
+  sessionBytes: number
   files: string[]
   /** Whether the duty has a deliverable to confirm by hand before its workspace is cleaned. */
   deliverable: boolean
@@ -91,7 +97,7 @@ export interface MaintenanceSkip {
   directory?: string
   reasons: MaintenanceReason[]
 }
-/** The safe removal plan: only ended duties whose directory exists and no open duty uses. */
+/** The safe removal plan: only ended duties whose workspace or Sessions still remain, and no open duty uses the workspace. */
 export interface RemovalPlan { removable: MaintenancePlanItem[]; skipped: MaintenanceSkip[] }
 
 /** The audit the management API returns. */
@@ -109,23 +115,31 @@ export interface MaintenanceHost {
   tickets(): MaintenanceTicket[]
   /** Registered workspaces (`workspaceRegistry.list()`). */
   workspaces(): Promise<WorkspaceRecord[]>
-  /** Stored Sessions (`sessionPersistence.list()`). */
+  /** Stored Sessions (`sessionPersistence.list()`), flattened to their header. */
   sessions(): Promise<SessionRecord[]>
   /** The directory ticket workspaces are created under (`executionRoot`), which removal must stay below. */
   executionRoot(): string
   /** The runtime state directory, which removal must never touch. */
   stateDir(): string
 }
-/** A host that can also unregister a workspace and remove a directory. */
+/** What removing Sessions did: the ids that were deleted, and the ids the host refused or failed to delete. */
+export interface SessionRemovalResult { deleted: string[]; failed: string[] }
+/** A host that can also unregister a workspace, remove a directory, and remove stored Sessions. */
 export interface CleanHost extends MaintenanceHost {
   /** Unregister one workspace (`workspaceRegistry.delete(id)`); resolves whether a record was deleted. */
   deleteWorkspace(id: string): Promise<boolean>
+  /**
+   * Remove the stored Sessions named by `ids`; the host deletes each Session's own artifact and refuses one that is
+   * still running or whose artifact it cannot locate.
+   */
+  deleteSessions(ids: string[]): Promise<SessionRemovalResult>
 }
 /** The clean action's request. */
-export interface CleanRequest { ticketIds: string[]; removeFiles?: boolean }
+export interface CleanRequest { ticketIds: string[]; removeFiles?: boolean; removeSessions?: boolean }
 /** What the clean action did, and what it refused. */
 export interface MaintenanceCleanResult {
-  cleaned: { ticketId: string; title: string; sizeBytes: number; workspaceDeleted: boolean; filesDeleted: boolean }[]
+  cleaned: { ticketId: string; title: string; sizeBytes: number; workspaceDeleted: boolean; filesDeleted: boolean;
+    sessionsDeleted: number }[]
   skipped: { ticketId: string; reasons: MaintenanceReason[] }[]
 }
 /** The guard a directory removal must pass before anything is deleted. */
@@ -215,9 +229,15 @@ async function groupByDirectory(tickets: readonly MaintenanceTicket[]): Promise<
   return rows
 }
 
+/** The stored Sessions that point at one ticket workspace. */
+export function sessionsOf(sessions: readonly SessionRecord[], directory: string): SessionRecord[] {
+  return sessions.filter(session => !!session.cwd && samePath(session.cwd, directory))
+}
+
 /**
- * Audits every ended Ticket's workspace: directory size, last modification, session count, deliverable signal, and why
- * the safe plan may or may not remove it. Open Tickets are never listed as workspaces; they only block a directory.
+ * Audits every ended Ticket's residue: directory size, last modification, Session count, deliverable signal, and why the
+ * safe plan may or may not remove it. A duty with no workspace directory, no registration and no Sessions is not listed
+ * at all; an open Ticket is never listed, but its workspace blocks removal for any ended duty that recorded it.
  */
 export async function audit(host: MaintenanceHost, options: { limits?: ScanLimits } = {}): Promise<MaintenanceAudit> {
   const limits = options.limits ?? SCAN_LIMITS
@@ -237,10 +257,15 @@ export async function audit(host: MaintenanceHost, options: { limits?: ScanLimit
     const others = (refs.get(key) ?? []).filter(item => item.id !== ticket.id)
     const scan = await scanWorkspace(directory, limits)
     const workspace = workspaces.find(item => samePath(item.path, key) || samePath(item.path, directory))
+    const ticketSessions = sessionsOf(sessions, directory)
     const live = others.some(item => !item.ended)
-    const reasons: MaintenanceReason[] = !scan.exists ? ['missingDirectory']
-      : live ? ['referenced'] : others.length ? ['shared']
-        : ['ended', 'directoryExists', 'unreferenced', ...workspace ? ['registered' as const] : ['unregistered' as const]]
+    // Nothing of this duty remains: no directory, no registration and no Session. It is not listed, so a cleaned duty
+    // leaves the list instead of staying forever as an unusable row.
+    if (!scan.exists && !workspace && !ticketSessions.length) continue
+    const reasons: MaintenanceReason[] = live ? ['referenced']
+      : others.length ? ['shared']
+        : ['ended', ...scan.exists ? ['directoryExists' as const] : ['missingDirectory' as const], 'unreferenced',
+          ...workspace ? ['registered' as const] : ['unregistered' as const], ...ticketSessions.length ? ['sessionsPresent' as const] : []]
     const deliverable = !!ticket.deliverableType || !!ticket.repos?.length || (ticket.follows ?? []).some(follow => follow.own)
     rows.push({
       ticketId: ticket.id,
@@ -255,11 +280,12 @@ export async function audit(host: MaintenanceHost, options: { limits?: ScanLimit
       sizeBytes: scan.sizeBytes,
       sizeCapped: scan.sizeCapped,
       ...scan.lastModified ? { lastModified: scan.lastModified } : {},
-      sessions: sessions.filter(session => !!session.cwd && samePath(session.cwd, directory)).length,
+      sessions: ticketSessions.length,
+      sessionBytes: ticketSessions.reduce((sum, session) => sum + (session.bytes ?? 0), 0),
       files: scan.files,
       deliverable,
       ...ticket.deliverableType ? { deliverableType: ticket.deliverableType } : {},
-      removable: scan.exists && !live && !others.length,
+      removable: !live && !others.length && (scan.exists || !!workspace || ticketSessions.length > 0),
       reasons,
     })
   }
@@ -275,38 +301,57 @@ export async function audit(host: MaintenanceHost, options: { limits?: ScanLimit
       reasons: ticket.ended ? ['noDirectory'] : ['open'] })
   }
   const totals = { count: rows.length, bytes: rows.reduce((sum, row) => sum + row.sizeBytes, 0) }
-  return { workspaces: rows, totals, notes: ['sessionsKept', 'filesOptional', 'endedOnly'], plan: { removable, skipped } }
+  return { workspaces: rows, totals, notes: ['sessionsOptional', 'filesOptional', 'endedOnly'], plan: { removable, skipped } }
 }
 
 /**
- * Cleans the safely removable workspaces a person selected: unregisters each workspace and, when `removeFiles` is set,
- * removes its directory after `checkRemovable` confirms it is below the executor root and away from the state directory.
- * Session logs are never deleted. Requests outside the safe plan are answered in `skipped` without touching anything.
+ * Cleans the safely removable residue a person selected: delete the stored Sessions when asked, remove the workspace
+ * directory when asked, and always unregister the workspace registration when one exists. Requests outside the safe plan
+ * are answered in `skipped` without touching anything.
  */
 export async function clean(host: CleanHost, request: CleanRequest): Promise<MaintenanceCleanResult> {
   const report = await audit(host)
   const planned = new Map(report.plan.removable.map(item => [item.ticketId, item]))
   const reasonsById = new Map(report.plan.skipped.map(item => [item.ticketId, item.reasons]))
+  const sessions = await host.sessions()
   const guard: DeleteGuard = { executionRoot: host.executionRoot(), stateDir: host.stateDir() }
   const cleaned: MaintenanceCleanResult['cleaned'] = []
   const skipped: MaintenanceCleanResult['skipped'] = []
   for (const ticketId of new Set(request.ticketIds)) {
     const item = planned.get(ticketId)
     if (!item) { skipped.push({ ticketId, reasons: reasonsById.get(ticketId) ?? ['unknown'] }); continue }
-    if (!request.removeFiles && !item.workspaceId) { skipped.push({ ticketId, reasons: ['nothingToDo'] }); continue }
+    const ticketSessions = sessionsOf(sessions, item.directory)
+    const asksFiles = request.removeFiles === true && item.reasons.includes('directoryExists')
+    const asksSessions = request.removeSessions === true && ticketSessions.length > 0
+    if (!asksFiles && !asksSessions && !item.workspaceId) { skipped.push({ ticketId, reasons: ['nothingToDo'] }); continue }
     let filesDeleted = false
-    if (request.removeFiles) {
+    if (asksFiles) {
       const check = await checkRemovable(item.directory, guard)
       if (!check.ok) { skipped.push({ ticketId, reasons: [check.reason] }); continue }
       try { await rm(check.path, { recursive: true, force: false }); filesDeleted = true }
       catch { skipped.push({ ticketId, reasons: ['removeFailed'] }); continue }
+    }
+    let sessionsDeleted = 0
+    if (asksSessions) {
+      try {
+        const result = await host.deleteSessions(ticketSessions.map(session => session.id))
+        sessionsDeleted = result.deleted.length
+        // Refusing every requested Session leaves the row as it was; refusing one reports a partial failure.
+        if (sessionsDeleted === 0) { skipped.push({ ticketId, reasons: ['sessionRemovalFailed'] }); continue }
+        if (result.failed.length) {
+          // Keep the successful deletions and report the rest on the next audit.
+          cleaned.push({ ticketId, title: item.title, sizeBytes: item.sizeBytes, workspaceDeleted: false,
+            filesDeleted, sessionsDeleted })
+          continue
+        }
+      } catch { skipped.push({ ticketId, reasons: ['sessionRemovalFailed'] }); continue }
     }
     let workspaceDeleted = false
     if (item.workspaceId) {
       try { workspaceDeleted = await host.deleteWorkspace(item.workspaceId) }
       catch { skipped.push({ ticketId, reasons: ['registryFailed'] }); continue }
     }
-    cleaned.push({ ticketId, title: item.title, sizeBytes: item.sizeBytes, workspaceDeleted, filesDeleted })
+    cleaned.push({ ticketId, title: item.title, sizeBytes: item.sizeBytes, workspaceDeleted, filesDeleted, sessionsDeleted })
   }
   return { cleaned, skipped }
 }

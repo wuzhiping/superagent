@@ -25,7 +25,8 @@ const ticket = (id: string, directory: string, fields: Partial<MaintenanceTicket
   id, title: id, execution: { name: id, directory, assignment: '' }, ...fields,
 })
 function host(input: { tickets: MaintenanceTicket[]; root: string; stateDir: string; workspaces?: { id: string; path: string }[]
-  sessions?: { id: string; cwd?: string }[]; deleted?: string[] }): CleanHost {
+  sessions?: { id: string; cwd?: string; bytes?: number }[]; deleted?: string[]; deletedSessions?: string[]
+  failedSessions?: string[] }): CleanHost {
   return {
     tickets: () => input.tickets,
     workspaces: async () => input.workspaces ?? [],
@@ -33,6 +34,11 @@ function host(input: { tickets: MaintenanceTicket[]; root: string; stateDir: str
     executionRoot: () => input.root,
     stateDir: () => input.stateDir,
     deleteWorkspace: async id => { input.deleted?.push(id); return true },
+    deleteSessions: async ids => {
+      const deleted = ids.filter(id => !input.failedSessions?.includes(id))
+      input.deletedSessions?.push(...deleted)
+      return { deleted, failed: ids.filter(id => input.failedSessions?.includes(id)) }
+    },
   }
 }
 
@@ -47,7 +53,7 @@ it('lists only ended duties, counts their sessions, and keeps an open duty in th
     sessions: [{ id: 'worker-t1', cwd: join(root, 'w1') }, { id: 'other', cwd: join(root, 'w2') }] }))
   expect(auditResult.workspaces.map(row => row.ticketId)).toEqual(['t1'])
   expect(auditResult.workspaces[0]).toMatchObject({ ticketId: 't1', state: 'ended', outcome: 'completed', directory: join(root, 'w1'),
-    workspaceId: 'ws1', workspaceExists: true, sessions: 1, deliverable: true, deliverableType: 'doc', removable: true })
+    workspaceId: 'ws1', workspaceExists: true, sessions: 1, sessionBytes: 0, deliverable: true, deliverableType: 'doc', removable: true })
   expect(auditResult.workspaces[0]!.sizeBytes).toBe(64)
   expect(auditResult.workspaces[0]!.files).toEqual(['result.md'])
   expect(auditResult.totals).toEqual({ count: 1, bytes: 64 })
@@ -86,13 +92,43 @@ it('caps a workspace scan at the byte or file limit instead of walking the whole
   expect(await scanWorkspace(join(base, 'nope'))).toMatchObject({ exists: false, sizeBytes: 0, sizeCapped: false })
 })
 
-it('skips a duty whose directory is already gone, and one that has no directory', async () => {
+it('hides a duty with no residue at all, and skips one that has no directory', async () => {
   const base = await temp(), root = join(base, 'work'), stateDir = join(base, 'state')
   await mkdir(root); await mkdir(stateDir)
+  // t1 has no directory, no registration and no Session: nothing left, so it is not listed (a cleaned duty disappears).
+  // t2 records no directory at all.
   const auditResult = await audit(host({ tickets: [ticket('t1', join(root, 'gone'), { ended: ended() }), ticket('t2', '', { ended: ended() })],
     root, stateDir }))
-  expect(auditResult.workspaces[0]).toMatchObject({ ticketId: 't1', workspaceExists: false, removable: false, reasons: ['missingDirectory'] })
-  expect(auditResult.plan.skipped.map(item => [item.ticketId, item.reasons])).toEqual([['t1', ['missingDirectory']], ['t2', ['noDirectory']]])
+  expect(auditResult.workspaces).toEqual([])
+  expect(auditResult.plan.removable).toEqual([])
+  expect(auditResult.plan.skipped.map(item => [item.ticketId, item.reasons])).toEqual([['t1', ['noDirectory']], ['t2', ['noDirectory']]])
+})
+
+it('lists a duty whose only residue is Sessions, and cleans those Sessions when asked', async () => {
+  const base = await temp(), root = join(base, 'work'), stateDir = join(base, 'state')
+  await mkdir(root); await mkdir(stateDir)
+  const directory = join(root, 'gone')
+  const deletedSessions: string[] = []
+  const cleaner = host({ tickets: [ticket('t1', directory, { ended: ended() })], root, stateDir,
+    sessions: [{ id: 'worker-t1', cwd: directory, bytes: 512 }, { id: 'worker-t1b', cwd: directory, bytes: 256 }],
+    deletedSessions })
+  const auditResult = await audit(cleaner)
+  expect(auditResult.workspaces).toEqual([expect.objectContaining({ ticketId: 't1', workspaceExists: false, sessions: 2,
+    sessionBytes: 768, removable: true, reasons: ['ended', 'missingDirectory', 'unreferenced', 'unregistered', 'sessionsPresent'] })])
+  const result = await clean(cleaner, { ticketIds: ['t1'], removeSessions: true })
+  expect(result.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 0, workspaceDeleted: false, filesDeleted: false,
+    sessionsDeleted: 2 }])
+  expect(deletedSessions.sort()).toEqual(['worker-t1', 'worker-t1b'])
+})
+
+it('refuses when no requested action can clean anything', async () => {
+  const base = await temp(), root = join(base, 'work'), stateDir = join(base, 'state')
+  await mkdir(root); await mkdir(stateDir); await mkdir(join(root, 'w1'))
+  const cleaner = host({ tickets: [ticket('t1', join(root, 'w1'), { ended: ended() })], root, stateDir,
+    sessions: [{ id: 'worker-t1', cwd: join(root, 'w1') }] })
+  const result = await clean(cleaner, { ticketIds: ['t1'] })
+  expect(result.cleaned).toEqual([])
+  expect(result.skipped).toEqual([{ ticketId: 't1', reasons: ['nothingToDo'] }])
 })
 
 it('refuses a removal path outside the executor root, at the state directory, or at the root itself', async () => {
@@ -117,7 +153,7 @@ it('cleans only the safe plan: unregisters the workspace, removes the directory 
   const cleaner = host({ tickets: [ticket('t1', join(root, 'w1'), { ended: ended() }), ticket('t2', join(root, 'w2'), { ended: ended() }),
     ticket('t3', join(root, 'w3'))], root, stateDir, workspaces: [{ id: 'ws1', path: await realpath(join(root, 'w1')) }], deleted })
   const result = await clean(cleaner, { ticketIds: ['t1', 't3', 'nope'], removeFiles: true })
-  expect(result.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 4, workspaceDeleted: true, filesDeleted: true }])
+  expect(result.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 4, workspaceDeleted: true, filesDeleted: true, sessionsDeleted: 0 }])
   expect(result.skipped).toEqual([{ ticketId: 't3', reasons: ['open'] }, { ticketId: 'nope', reasons: ['unknown'] }])
   expect(deleted).toEqual(['ws1'])
   await expect(realpath(join(root, 'w1'))).rejects.toThrow()
@@ -133,7 +169,7 @@ it('keeps the directory unless the person asks for the folder removal', async ()
   const deleted: string[] = []
   const result = await clean(host({ tickets: [ticket('t1', join(root, 'w1'), { ended: ended() })], root, stateDir,
     workspaces: [{ id: 'ws1', path: await realpath(join(root, 'w1')) }], deleted }), { ticketIds: ['t1'] })
-  expect(result.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 4, workspaceDeleted: true, filesDeleted: false }])
+  expect(result.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 4, workspaceDeleted: true, filesDeleted: false, sessionsDeleted: 0 }])
   expect(deleted).toEqual(['ws1'])
   expect(await realpath(join(root, 'w1'))).toBeTruthy()
 })
@@ -172,7 +208,7 @@ it('serves the audit and the cleanup through the management routes with the work
   expect(listed.body.totals).toEqual({ count: 1, bytes: 32 })
   const cleaned = await send('POST', 'maintenance/clean', { ticketIds: ['t1'], removeFiles: true })
   expect(cleaned.status).toBe(200)
-  expect(cleaned.body.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 32, workspaceDeleted: true, filesDeleted: true }])
+  expect(cleaned.body.cleaned).toEqual([{ ticketId: 't1', title: 't1', sizeBytes: 32, workspaceDeleted: true, filesDeleted: true, sessionsDeleted: 0 }])
   expect(deleted).toEqual(['ws1'])
   await expect(realpath(workspace)).rejects.toThrow()
   // A request outside the safe plan is refused without deleting anything.

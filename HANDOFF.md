@@ -543,4 +543,5 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-08 13:15 | 新增 [EA.md](EA.md) 与 16:9 演示稿 [EA.html](EA.html)/[EA.pdf](EA.pdf)：宪章仓库升级为能力供给系统（六层模型 + PM 四条运营职责 + P0–P4 路线 + 指标）；宪章仓库分支 `ea/capability-supply` 已推送并开 [PR #1](https://git.feg.cn/shawoo/rsi_superagent/pulls/1)（README v14 · CAPABILITY · reviews/ · context/ · KE/ · skills/ · 4 条 PM 职责）。A-I/ABC/SOP 已链接。 |
 | 2026-11-08 14:30 | 新增通用宪章模板 `templates/charter/`（24 文件）+ 合并工具 `scripts/apply-charter-template.mjs`（只补缺、不覆盖、幂等）+ [CHARTER-QUICKSTART.md](CHARTER-QUICKSTART.md)（30 分钟 Quick Small Start）+ `tests/charter-template.spec.ts`；EA §4.1 与 A-I §3 已链接。 |
 | 2026-11-08 15:20 | 新增 [INDEX.md](INDEX.md)（根目录 8 份 PDF 的阅读指引：用途、推荐次序、按问题找入口、重新生成）与演示版 [INDEX.html](INDEX.html)/[INDEX.pdf](INDEX.pdf)（11 页）；同步更新 PDF 页数与路径。 |
+| 2026-11-08 15:40 | **清理页重做**：①新增「同时清理 Session」勾选（默认关，删除该工单的 Session 目录；运行中/无 artifact/路径不符会拒绝）；②审计只列仍有残留（目录/登记/Session）的工单，清完后行消失，只清一部分可再次清理；③行显示 Session 数+大小，未勾选时提示可再清。实测：67 行全部可清理；清掉 1 个 Session-only 工单后 67→66 且该行消失；不勾选项返回 nothingToDo。docs/010、SOP、GHI、A-I 与演示稿同步更新。 |
 | 2026-11-08 10:20 | 演练发现写回文档：`kind:` / `duty:` / `repo:` 必须在卡进入监听列前挂好，#45（后挂）工单缺产出类型、#46（先挂）带 doc；已在 DEF §D1 与 GHI 常见问题写明。 |

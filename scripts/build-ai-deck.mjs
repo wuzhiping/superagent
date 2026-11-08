@@ -301,7 +301,7 @@ a.slide('i-deploy', '', `
         ${shot('images/ghi/g3-deployment.png', '部署页', 260)}
         ${shot('images/ghi/g4-maintenance.png', '清理页', 260)}
       </div>
-      <p class="small">部署页：状态目录与部署检查。清理页：已结束职责的工作区与 Session 登记；默认只解除登记、不删目录，Session 日志不删。</p>
+      <p class="small">部署页：状态目录与部署检查。清理页：已结束职责的残留（目录 / 登记 / Session）；默认只解除登记，可分别勾选删目录、清 Session；清完后行会消失。</p>
     </div>`)
 
 a.slide('rehearsal-1', 'dense', `

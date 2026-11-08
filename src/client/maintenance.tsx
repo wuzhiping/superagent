@@ -31,6 +31,7 @@ export function MaintenancePage() {
   const { data, error, reload } = usePoll(() => call('GET maintenance'), [], 30_000)
   const [overrides, setOverrides] = useState<Record<string, boolean>>({})
   const [removeFiles, setRemoveFiles] = useState(false)
+  const [removeSessions, setRemoveSessions] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const view = data
@@ -43,17 +44,22 @@ export function MaintenancePage() {
   const setOne = (row: MaintenanceRow, next: boolean) => setOverrides(current => ({ ...current, [row.ticketId]: next }))
   const setAll = (next: boolean) => setOverrides(current => ({ ...current,
     ...Object.fromEntries(removable.map(row => [row.ticketId, next])) }))
-  // The confirmation names what will actually disappear: bytes only when the folder removal is checked.
+  // The confirmation names what will actually disappear: bytes only when the folder removal is checked, and Sessions
+  // only when that separate option is checked.
   const bytes = selected.reduce((sum, row) => sum + row.sizeBytes, 0)
   const workspaces = selected.filter(row => row.workspaceId).length
+  const sessions = selected.reduce((sum, row) => sum + row.sessions, 0)
+  const sessionOnlyHint = !removeSessions && sessions > 0
+    ? <p className="dt-hint">{t('maintenanceSessionHint', { count: sessions })}</p> : undefined
   const confirm = async () => {
     if (!selected.length || busy) return
     setBusy(true)
     try {
-      const result = await call('POST maintenance/clean', { body: { ticketIds: selected.map(row => row.ticketId), removeFiles } })
+      const result = await call('POST maintenance/clean', { body: { ticketIds: selected.map(row => row.ticketId), removeFiles, removeSessions } })
       setConfirming(false)
       setOverrides({})
       setRemoveFiles(false)
+      setRemoveSessions(false)
       notify(t('maintenanceCleaned', { cleaned: result.cleaned.length, skipped: result.skipped.length }))
       await reload()
     } catch (failure) {
@@ -66,6 +72,10 @@ export function MaintenancePage() {
       <input type="checkbox" className="dt-maintenance-check" aria-label={t('maintenanceRemoveFiles')} checked={removeFiles}
         onChange={event => setRemoveFiles(event.target.checked)} />{t('maintenanceRemoveFiles')}
     </label>
+    <label className="dt-maintenance-option">
+      <input type="checkbox" className="dt-maintenance-check" aria-label={t('maintenanceRemoveSessions')} checked={removeSessions}
+        onChange={event => setRemoveSessions(event.target.checked)} />{t('maintenanceRemoveSessions')}
+    </label>
     <span className="dt-maintenance-count">{t('maintenanceSelected', { count: selected.length })}</span>
     <Button variant="primary" size="sm" icon={<Icon name="trash" size={14} />} disabled={!selected.length} onClick={() => setConfirming(true)}>
       {t('maintenanceClean')}</Button>
@@ -76,6 +86,7 @@ export function MaintenancePage() {
       <p className="dt-hint">{t('maintenanceTotals', { count: view.totals.count, size: formatBytes(view.totals.bytes) })}</p>
       <ul className="dt-maintenance-notes">{view.notes.map(note => <li key={note}>{t(`maintenance.note.${note}`)}</li>)}</ul>
       {action}
+      {sessionOnlyHint}
       {rows.length ? <table className="dt-table dt-maintenance-table">
         <thead><tr>
           <th><input type="checkbox" className="dt-maintenance-check" aria-label={t('maintenanceSelectAll')} checked={allChecked}
@@ -97,7 +108,7 @@ export function MaintenancePage() {
           <td><When at={row.endedAt} /></td>
           <td className="dt-mono dt-maintenance-dir" title={row.files.join(t('listSeparator'))}>{row.directory}</td>
           <td>{sizeText(t, row)}</td>
-          <td>{row.sessions}</td>
+          <td>{row.sessions ? (row.sessionBytes ? `${row.sessions} · ${formatBytes(row.sessionBytes)}` : String(row.sessions)) : t('empty')}</td>
           <td>{row.lastModified ? <When at={row.lastModified} /> : t('empty')}</td>
         </tr>)}</tbody>
       </table> : <p className="dt-hint">{t('maintenanceEmpty')}</p>}
@@ -110,7 +121,9 @@ export function MaintenancePage() {
       </>}>
       <p className="dt-hint">{removeFiles ? t('maintenanceConfirmFiles') : t('maintenanceConfirmKeepFiles')}</p>
       {removeFiles && <p className="dt-hint">{t('maintenanceConfirmBytes', { size: formatBytes(bytes) })}</p>}
-      <p className="dt-hint">{t('maintenanceConfirmSessions')}</p>
+      <p className="dt-hint">{removeSessions
+        ? t('maintenanceConfirmRemoveSessions', { count: sessions })
+        : t('maintenanceConfirmKeepSessions', { count: sessions })}</p>
     </Modal>
   </Section>
 }

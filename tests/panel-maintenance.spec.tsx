@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The cleanup page: ended duties sorted by size, preselected unless they carry a deliverable, and cleaned only after a
-// person confirms the dialog.
+// The cleanup page: ended duties sorted by size, preselected unless they carry a deliverable, cleaned only after a
+// person confirms, and Sessions removed only when the separate option is checked.
 import { act } from 'react'
 import { expect, it } from 'vitest'
 import { zh } from '../src/client/locales.ts'
@@ -10,6 +10,7 @@ import { server } from './fixtures/panel-server.ts'
 usePanel()
 const rows = () => all('.dt-maintenance-table tbody tr')
 const boxes = () => rows().map(row => row.querySelector<HTMLInputElement>('input[type="checkbox"]')!)
+const options = () => all('.dt-maintenance-option input') as HTMLInputElement[]
 const toggle = async (input: HTMLInputElement) => { await act(async () => { input.click() }); await settle() }
 
 it('lists ended duties by size, preselects the ones without a deliverable, and cleans only them after confirmation', async () => {
@@ -17,39 +18,56 @@ it('lists ended duties by size, preselects the ones without a deliverable, and c
   await click(zh['tab.maintenance'])
   expect(server.requests.some(request => request.path === 'maintenance')).toBe(true)
   const cells = rows().map(row => row.querySelector('td:nth-child(2)')?.textContent ?? '')
-  expect(cells).toHaveLength(3)
+  expect(cells).toHaveLength(2)
   expect(cells[0]).toContain('旧工单')
   expect(cells[1]).toContain('已合并的工单')
-  expect(cells[2]).toContain('目录已消失')
-  // The deliverable is marked, its row is not checked by default, and a row without a directory cannot be selected.
+  // The deliverable is marked and its row is not checked by default.
   expect(text()).toContain(zh.maintenanceDeliverable)
-  expect(boxes().map(box => box.checked)).toEqual([true, false, false])
-  expect(boxes()[2]!.disabled).toBe(true)
+  expect(boxes().map(box => box.checked)).toEqual([true, false])
   expect(text()).toContain(zh.maintenanceSelected.replace('{count}', '1'))
+  expect(text()).toContain(zh.maintenanceSessionHint.replace('{count}', '1'))
   await click(find(zh.maintenanceClean))
-  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(zh.maintenanceConfirmKeepFiles)
-  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(zh.maintenanceConfirmSessions)
+  const dialog = document.querySelector('[role="dialog"]')?.textContent ?? ''
+  expect(dialog).toContain(zh.maintenanceConfirmKeepFiles)
+  expect(dialog).toContain(zh.maintenanceConfirmKeepSessions.replace('{count}', '1'))
   await click(zh.confirm)
   expect(server.requests.find(request => request.path === 'maintenance/clean'))
-    .toMatchObject({ method: 'POST', body: { ticketIds: ['t0'], removeFiles: false } })
-  expect(server.maintenance.workspaces.map(row => row.ticketId)).toEqual(['t3', 't6'])
+    .toMatchObject({ method: 'POST', body: { ticketIds: ['t0'], removeFiles: false, removeSessions: false } })
+  // Unregistering alone leaves the directory and the Session: the row stays and can be cleaned again with the options.
   expect(rows()).toHaveLength(2)
 })
 
 it('deletes the folder only when the separate option is checked, and says how many bytes that removes', async () => {
   await mount()
   await click(zh['tab.maintenance'])
-  expect(boxes()[0]!.checked).toBe(true)
-  await toggle(all('.dt-maintenance-option input')[0] as HTMLInputElement)
+  await toggle(options()[0]!) // removeFiles
   expect(server.requests.find(request => request.path === 'maintenance/clean')).toBeUndefined()
   await click(find(zh.maintenanceClean))
-  const dialog = document.querySelector('[role="dialog"]')
-  expect(dialog?.textContent).toContain(zh.maintenanceConfirmFiles)
-  expect(dialog?.textContent).toContain(zh.maintenanceConfirmBytes.replace('{size}', '3.0 MB'))
+  const dialog = document.querySelector('[role="dialog"]')?.textContent ?? ''
+  expect(dialog).toContain(zh.maintenanceConfirmFiles)
+  expect(dialog).toContain(zh.maintenanceConfirmBytes.replace('{size}', '3.0 MB'))
+  expect(dialog).toContain(zh.maintenanceConfirmKeepSessions.replace('{count}', '1'))
   await click(zh.confirm)
   expect(server.requests.find(request => request.path === 'maintenance/clean'))
-    .toMatchObject({ method: 'POST', body: { ticketIds: ['t0'], removeFiles: true } })
-  expect(server.maintenance.workspaces.map(row => row.ticketId)).toEqual(['t3', 't6'])
+    .toMatchObject({ method: 'POST', body: { ticketIds: ['t0'], removeFiles: true, removeSessions: false } })
+  // The directory is gone but one Session remains, so the row is still listed.
+  expect(rows()).toHaveLength(2)
+  expect(server.maintenance.workspaces[0]).toMatchObject({ ticketId: 't0', workspaceExists: false, sessions: 1 })
+})
+
+it('removes the row together with its Sessions when both options are checked', async () => {
+  await mount()
+  await click(zh['tab.maintenance'])
+  await toggle(options()[0]!) // removeFiles
+  await toggle(options()[1]!) // removeSessions
+  await click(find(zh.maintenanceClean))
+  const dialog = document.querySelector('[role="dialog"]')?.textContent ?? ''
+  expect(dialog).toContain(zh.maintenanceConfirmRemoveSessions.replace('{count}', '1'))
+  await click(zh.confirm)
+  expect(server.requests.find(request => request.path === 'maintenance/clean'))
+    .toMatchObject({ method: 'POST', body: { ticketIds: ['t0'], removeFiles: true, removeSessions: true } })
+  expect(server.maintenance.workspaces.map(row => row.ticketId)).toEqual(['t3'])
+  expect(rows()).toHaveLength(1)
 })
 
 it('confirms nothing when the selection is emptied', async () => {
