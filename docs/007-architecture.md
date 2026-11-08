@@ -378,7 +378,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/github-channel.ts` | The GitHub Channel: comments and review thread replies, `sent` or `gone` |
 | `src/sources/github-read.ts` | CI snapshots, repository reads, the `github/` resources, and `githubThreadContext`: an Issue's or pull request's conversation by page |
 | `src/sources/feishu.ts` | The Feishu kind and plugin entry, exported as `./feishu-watch` |
-| `src/sources/kaneo.ts` | The Kanban kind and plugin entry, exported as `./kaneo-watch`: watched board columns polled on an interval, a task in one of them turned into a Trigger, and its Thread described |
+| `src/sources/kaneo.ts` | The Kanban kind and plugin entry, exported as `./kaneo-watch`: watched board columns polled on an interval, a task in one of them turned into a Trigger, its Thread described, and — while a ticket runs — its card re-read so comments, title or description changes become Inputs for that Session (`observeUpdates`) |
 | `src/sources/kaneo-config.ts` | The Kanban account fields deployment setup resolves (`baseUrl`, `apiKey`, `projectId`), the full Source configuration schema, and the board and task URLs |
 | `src/sources/kaneo-api.ts` | The Kanban REST client: `x-api-key`, JSON validated by zod, a timeout, and bounded retries for rate limits and transient failures |
 | `src/sources/kaneo-trigger.ts` | Kanban tasks as domain Triggers (one explicit request per task), the `kaneo:<taskId>` Thread, Channel addresses, and the required-label filter |
@@ -474,7 +474,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/projects.spec.ts` | The project list the panel picks from: both lists, the cache, and the reason when the account cannot read them |
 | `tests/panel-projects.spec.tsx` | The project pickers: the archive offers the list, and a stored project stays selectable when the list is unreadable |
 | `tests/passes.spec.ts` | Passes: one at a time, the ones asked for during a pass run as one after it, and the runtime health a failed pass reports |
-| `tests/kaneo.spec.ts` | The Kanban Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, and the REST client's retries |
+| `tests/kaneo.spec.ts` | The Kanban Source: configuration defaults, task-to-Trigger conversion, first-poll bootstrap, label filtering, claiming, Channel idempotence, Thread context, card observation (comment/title/description changes become update Triggers), and the REST client's retries |
 | `tests/gitea.spec.ts` | The Gitea Source (charter repository): config defaults, trigger mapping, first-poll baseline, increments, channel idempotence, thread context, retries and refusals |
 | `tests/ntfy.spec.ts` | The ntfy Source: config/auth headers, history parsing with tombstones, trigger mapping, poll cursor and bootstrap, publish idempotence |
 | `tests/outbox.spec.ts` | The Outbox on a running Runtime: messages wait while processing is paused or their Source is not installed |

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { key, type Trigger } from '../src/core/index.ts'
+import { key, type Ticket, type Trigger } from '../src/core/index.ts'
 import { KV, type Family, type Key } from '../src/kv.ts'
 import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
-import { kaneoKind, pollRound, SOURCE } from '../src/sources/kaneo.ts'
+import { kaneoKind, observeCards, pollRound, SOURCE } from '../src/sources/kaneo.ts'
 import { DEFAULT_PROJECT, KaneoConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
 import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
@@ -25,7 +25,7 @@ const task = (id: string, overrides: Record<string, unknown> = {}): Record<strin
 
 interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[] }
 /** A SourceContext whose Store lives in a Map and whose only observations are recorded. */
-function context(cfg: KaneoConfig): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
+function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[] } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
   const state = new Map<string, unknown>()
   const recorded: Recorded = { triggers: [], described: new Map(), reports: [] }
   const ctx: SourceContext = {
@@ -42,8 +42,8 @@ function context(cfg: KaneoConfig): { ctx: SourceContext; recorded: Recorded; st
       keys: <V,>(family: Family<V, never>) => [...state.keys()].filter(name => name.startsWith(family.prefix)) as Key<V>[],
     },
     threads: { get: () => undefined, subscribed: () => [], describe: (name, description) => { recorded.described.set(name, description) }, patch: () => {} },
-    tickets: { get: () => undefined, open: () => [], bindThread: () => {}, threadClosed: () => {} },
-    triggers: { get: () => undefined, latest: () => undefined },
+    tickets: { get: () => undefined, open: () => options.tickets ?? [], bindThread: () => {}, threadClosed: () => {} },
+    triggers: { get: id => options.triggers?.find(trigger => trigger.id === id), latest: () => undefined },
     notify: () => {},
     report: (entry, health) => { recorded.reports.push({ entry, health }) },
   }
@@ -299,5 +299,57 @@ describe('kaneo api client', () => {
     const failure = await client.request(z.unknown(), 'GET', '/task/x').catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(KaneoError)
     expect((failure as KaneoError).status).toBe(401)
+  })
+})
+
+describe('kaneo card observation', () => {
+  const running = (cfg: KaneoConfig): { ticket: Ticket; trigger: Trigger } => {
+    const trigger = kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
+    const ticket = { id: 'ticket-1', origin: { triggerId: trigger.id, triggerIds: [trigger.id] } } as unknown as Ticket
+    return { ticket, trigger }
+  }
+  const comment = (id: string, userId: string, content: string) => ({ id, taskId: 't1', userId, content, createdAt: '2026-11-03T00:01:00.000Z', user: { name: userId } })
+  const fetchFor = (comments: unknown[], taskValue = task('t1')): KaneoFetch => stubFetch(async url => {
+    if (url.endsWith('/task/t1')) return response(taskValue)
+    if (url.endsWith('/comment/t1')) return response(comments)
+    if (url.endsWith('/user/me')) return response({ id: 'host-1', name: 'Host' })
+    return response({})
+  })
+
+  it('delivers a new comment on a running ticket as one update trigger, then records the baseline', async () => {
+    const cfg = config()
+    const { ticket, trigger } = running(cfg)
+    const { ctx, recorded, state } = context(cfg, { tickets: [ticket], triggers: [trigger] })
+    state.set(KV.kaneo.observe('t1'), JSON.stringify({ title: 'Task t1', description: 'Do the work', comments: [] }))
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, fetchFor([comment('c1', 'user-2', 'Please also cover the edge case')]))
+    expect(await observeCards(ctx, cfg, client)).toBe(1)
+    expect(recorded.triggers).toHaveLength(1)
+    expect(recorded.triggers[0]!).toMatchObject({ source: 'kaneo', human: true, addressed: 'direct', meta: { taskId: 't1', update: true } })
+    expect(recorded.triggers[0]!.threads).toEqual([{ source: 'kaneo', id: 't1' }])
+    expect(recorded.triggers[0]!.text).toContain('Please also cover the edge case')
+    expect(recorded.triggers[0]!.id).toBeDefined()
+    expect(await observeCards(ctx, cfg, client)).toBe(0)
+  })
+
+  it('ignores comments the Host itself wrote and a title or description change still gets through', async () => {
+    const cfg = config()
+    const { ticket, trigger } = running(cfg)
+    const { ctx, recorded, state } = context(cfg, { tickets: [ticket], triggers: [trigger] })
+    state.set(KV.kaneo.observe('t1'), JSON.stringify({ title: 'Task t1', description: 'Do the work', comments: [] }))
+    const own = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, fetchFor([comment('c9', 'host-1', 'reply from the host')]))
+    expect(await observeCards(ctx, cfg, own)).toBe(0)
+    const edited = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, fetchFor([], task('t1', { description: 'Do the work, plus the edge case' })))
+    expect(await observeCards(ctx, cfg, edited)).toBe(1)
+    expect(recorded.triggers[0]!.text).toContain('Do the work, plus the edge case')
+  })
+
+  it('uses the first look as a baseline instead of replaying the old card text', async () => {
+    const cfg = config()
+    const { ticket, trigger } = running(cfg)
+    const { ctx, recorded, state } = context(cfg, { tickets: [ticket], triggers: [trigger] })
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, fetchFor([]))
+    expect(await observeCards(ctx, cfg, client)).toBe(0)
+    expect(state.get(KV.kaneo.observe('t1'))).toBeDefined()
+    expect(recorded.triggers).toHaveLength(0)
   })
 })

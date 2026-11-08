@@ -5,15 +5,17 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { key, type Trigger } from '../core/index.ts'
 import { KV } from '../kv.ts'
 import { storedKaneoAccount } from './bdd-storage.ts'
 import { health, sourceContext, type Health, type SourceContext } from './host.ts'
 import { KaneoClient } from './kaneo-api.ts'
-import { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, DEFAULT_WATCH_COLUMNS, KaneoConfigSchema, requiredLabelsOf,
-  watchColumnsOf, type KaneoConfig } from './kaneo-config.ts'
+import { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, DEFAULT_WATCH_COLUMNS, KaneoConfigSchema, kaneoTaskUrl,
+  requiredLabelsOf, watchColumnsOf, type KaneoConfig } from './kaneo-config.ts'
 import { kaneoLink, sendKaneo } from './kaneo-channel.ts'
 import { kaneoThreadContext } from './kaneo-read.ts'
-import { labelled, kaneoThreadKey, kaneoTrigger, KaneoTaskSchema } from './kaneo-trigger.ts'
+import { kaneoActorId, kaneoChannel, labelled, kaneoThreadKey, kaneoTrigger, KaneoCommentSchema,
+  KaneoTaskSchema, type KaneoComment, type KaneoTask } from './kaneo-trigger.ts'
 import type { Localized, SourceKind } from './kind.ts'
 import { pause } from './poll.ts'
 
@@ -52,6 +54,8 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
       hint: { zh: '岗位第一次就这张卡回写时把任务移到这里，默认 in-progress（進行中）；留空表示不移动。', en: 'The task moves here when the post first writes to it; defaults to in-progress. Empty never moves a task.' } },
     { key: 'doneColumn', type: 'text', label: { zh: '交付列（slug）', en: 'Delivery column (slug)' },
       hint: { zh: '岗位交付结果（回写工作日志）后把任务移到这里，按看板流程填 done 或 in-review；留空表示不移动。', en: 'The task moves here when the post delivers its result; fill in done or in-review to match the board flow. Empty never moves a task.' } },
+    { key: 'observeUpdates', type: 'switch', label: { zh: '观察执行中的卡片变化', en: 'Watch cards while they run' },
+      hint: { zh: '打开（默认）：已有运行中工单的卡片若新增评论、改了标题或描述，会作为输入投递给运行中的 Session，不丢失最新反馈；关闭：只在卡片进入监听列时触发。', en: 'On (default): a comment, title or description change on a card whose ticket is running is delivered as an input to the running Session; off: only a card entering a watched column triggers.' } },
     { key: 'bootstrap', type: 'select', label: { zh: '首次轮询', en: 'First poll' },
       hint: { zh: 'skip：把监听列里已有的任务记为已见、不产生请求（推荐，避免一次抓爆整列）；trigger：把已有任务也当作请求。', en: 'skip records tasks already in the watched columns without requesting them (recommended); trigger treats them as requests too.' },
       options: [{ value: 'skip', label: { zh: '跳过已有任务', en: 'Skip existing tasks' } }, { value: 'trigger', label: { zh: '已有任务也触发', en: 'Trigger existing tasks' } }] },
@@ -117,6 +121,122 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
 /** The health entry of consecutive poll failures. */
 const failing = (count: number, error: unknown): Health => health('error', 'pollFailures', { count: String(count), error: String(error) })
 
+/** One card's observed state: title, description, and a content hash per comment so a poll can diff it cheaply. */
+interface ObservedCard { title: string; description: string; comments: { id: string; hash: string }[] }
+
+const commentHash = (comment: Pick<KaneoComment, 'id' | 'updatedAt' | 'content'>): string =>
+  key('kaneo-comment', comment.id, comment.updatedAt ?? '', comment.content)
+
+const observedCard = (task: KaneoTask, comments: readonly KaneoComment[]): ObservedCard => ({
+  title: task.title,
+  description: task.description ?? '',
+  comments: comments.map(comment => ({ id: comment.id, hash: commentHash(comment) })),
+})
+
+const serializeCard = (card: ObservedCard): string => JSON.stringify(card)
+
+/** A stored card snapshot; a malformed or older value is ignored so the next poll simply re-baselines. */
+const parseObservedCard = (value: string | undefined): ObservedCard | undefined => {
+  if (!value) return undefined
+  try {
+    const parsed = JSON.parse(value) as Partial<ObservedCard>
+    if (typeof parsed?.title !== 'string' || typeof parsed?.description !== 'string' || !Array.isArray(parsed.comments)) return undefined
+    const comments = parsed.comments.flatMap(item => typeof item?.id === 'string' && typeof item?.hash === 'string'
+      ? [{ id: item.id, hash: item.hash }] : [])
+    return { title: parsed.title, description: parsed.description, comments }
+  } catch { return undefined }
+}
+
+/** Reads the comments of a task; a failed comment read means "no comments" so a card edit still gets through. */
+const taskComments = async (client: KaneoClient, taskId: string, signal?: AbortSignal): Promise<KaneoComment[]> => {
+  const raw = await client.comments(taskId, { signal })
+  return raw.flatMap(value => { const parsed = KaneoCommentSchema.safeParse(value); return parsed.success ? [parsed.data] : [] })
+}
+
+/** What changed on a card since the previous observation, ignoring comments the Host itself wrote. */
+function cardChanges (previous: ObservedCard, current: ObservedCard, comments: readonly KaneoComment[], hostId: string): string | undefined {
+  const known = new Map(previous.comments.map(comment => [comment.id, comment.hash]))
+  const fresh = comments.filter(comment => comment.userId !== hostId
+    && known.get(comment.id) !== commentHash(comment))
+  const titleChanged = previous.title !== current.title
+  const descriptionChanged = previous.description !== current.description
+  if (!titleChanged && !descriptionChanged && !fresh.length) return undefined
+  const parts: string[] = []
+  if (titleChanged) parts.push(`标题更新：${current.title}`)
+  if (descriptionChanged) parts.push(`描述更新：\n${current.description.trim() || '(空)'}`)
+  if (fresh.length) parts.push(fresh.map(comment => `${comment.user?.name ?? comment.userId ?? 'Kanban'}：${comment.content}`).join('\n\n'))
+  return parts.join('\n\n')
+}
+
+/** A Trigger for an update on a card whose ticket is already running: it reaches the ticket as an Input, not as a new request. */
+const UPDATE_CHARS = 4000
+function kaneoUpdateTrigger (task: KaneoTask, config: KaneoConfig, text: string, fingerprint: string, at: string): Trigger {
+  const actor = kaneoActorId(task) ?? config.actorFallback ?? 'kaneo'
+  const limited = text.length <= UPDATE_CHARS ? text : `${text.slice(0, UPDATE_CHARS)}…`
+  return {
+    id: key('kaneo-update', task.id, fingerprint),
+    source: SOURCE,
+    threads: [{ source: SOURCE, id: task.id }],
+    actor: { source: SOURCE, id: actor },
+    human: true,
+    addressed: 'direct',
+    at,
+    text: `#${task.number ?? ''} ${task.title}\n\n${limited}`.trim(),
+    channel: kaneoChannel(config, task),
+    url: kaneoTaskUrl(config, task),
+    meta: {
+      taskId: task.id,
+      update: true,
+      projectId: task.projectId ?? config.projectId,
+      ...task.number === undefined ? {} : { number: task.number },
+      status: task.status,
+      labels: task.labels.map(label => label.name),
+      ...task.assigneeName ? { assigneeName: task.assigneeName } : {},
+    },
+  }
+}
+
+/**
+ * Polls the cards of live tickets and turns a comment, title or description change into an Input for the running
+ * assignment. Kanban itself only requests a task when it enters a watched column, so this is what keeps feedback written
+ * on the card from being lost while a post is already working on it. The first look only records a baseline.
+ */
+export async function observeCards (ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<number> {
+  if (!config.observeUpdates) return 0
+  const open = ctx.tickets.open()
+  if (!open.length) return 0
+  const me = await client.me({ signal }).catch(() => undefined)
+  if (!me) return 0
+  let delivered = 0
+  for (const ticket of open) {
+    if (signal?.aborted || !ctx.config(SOURCE)) break
+    const origin = ctx.triggers.get(ticket.origin.triggerId)
+    const thread = origin?.threads.find(ref => ref.source === SOURCE)
+    if (!thread) continue
+    const taskId = thread.id
+    let task: KaneoTask | undefined
+    try {
+      const parsed = KaneoTaskSchema.safeParse(await client.task(taskId, { signal }))
+      if (parsed.success) task = parsed.data
+    } catch { task = undefined }
+    if (!task) continue
+    // A failed comment read means the card is not fully observed this round: skip it instead of treating old comments as new.
+    const comments = await taskComments(client, taskId, signal).catch(() => undefined)
+    if (!comments) continue
+    const current = observedCard(task, comments)
+    const serialized = serializeCard(current)
+    const previous = parseObservedCard(ctx.state.get(KV.kaneo.observe(taskId)))
+    if (!previous) { ctx.state.set(KV.kaneo.observe(taskId), serialized); continue }
+    const text = cardChanges(previous, current, comments, me.id)
+    if (!text) { ctx.state.set(KV.kaneo.observe(taskId), serialized); continue }
+    await ctx.receive(kaneoUpdateTrigger(task, config, text, serialized, new Date().toISOString()))
+    ctx.state.set(KV.kaneo.observe(taskId), serialized)
+    delivered += 1
+  }
+  return delivered
+}
+
+
 /**
  * One polling round: read each watched column, record a Trigger for a task not seen before, describe its Thread, and move
  * it to the claim column. The first round under `bootstrap: 'skip'` only records what is already there. A failed column is
@@ -129,6 +249,11 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
   const started = new Date().toISOString()
   const failures: string[] = []
   let received = 0
+  let observed = 0
+  if (config.observeUpdates) {
+    try { observed = await observeCards(ctx, config, client, signal) }
+    catch (error) { if (!signal?.aborted) failures.push(`observe: ${String(error)}`) }
+  }
   for (const slug of watched) {
     try {
       const raw = await client.columnTasks(config.projectId, slug, config.maxTasksPerColumn, { signal })
@@ -152,6 +277,11 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
           facts: { status: { value: task.status }, ...task.priority ? { priority: { value: task.priority } } : {} },
         })
         if (result === 'filtered') continue
+        if (config.observeUpdates) {
+          // Start the observation baseline at the request itself, so feedback written right after acceptance still counts.
+          const comments = await taskComments(client, task.id, signal).catch(() => undefined)
+          if (comments) ctx.state.set(KV.kaneo.observe(task.id), serializeCard(observedCard(task, comments)))
+        }
         received += 1
         // The card is not claimed here: a request that is read is not yet a duty. The post claims it when it first
         // writes to the card (the Channel moves it to the claim column), so a request nobody admitted stays untouched.
@@ -164,7 +294,7 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
   }
   if (!bootstrapped) ctx.state.set(KV.kaneo.bootstrap, true)
   if (failures.length) throw new Error(`${failures.length} Kanban reads failed: ${failures.slice(0, 3).join('; ')}`)
-  ctx.report('kaneo', { state: 'ready', detail: `${received} new tasks from ${columns(config)}; next poll ≥ ${config.pollSeconds}s`, at: started })
+  ctx.report('kaneo', { state: 'ready', detail: `${received} new tasks from ${columns(config)}${config.observeUpdates ? `, ${observed} card updates` : ''}; next poll ≥ ${config.pollSeconds}s`, at: started })
   return config.pollSeconds
 }
 

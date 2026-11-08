@@ -61,6 +61,7 @@ export const KV = {
    * the last successful read of each watched column.
    */
   kaneo: { seen: family<{ status: string; at: string }, [task: string]>('kaneo-seen:'), bootstrap: record<boolean>('kaneo-bootstrap'),
+    observe: family<string, [task: string]>('kaneo-observe:'),
     cursor: family<string, [column: string]>('kaneo-cursor:') },
   /** Gitea Source: read cursors for notifications, repository-wide streams and each followed thread. */
   gitea: { notifications: record<string>('gitea-notifications-since'), repo: record<string>('gitea-repo-since'),
