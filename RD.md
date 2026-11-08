@@ -538,7 +538,7 @@ Kanban Task(ready, assignee=岗位X)
 ### 12.8 账号与运维前置（新增，实测触发）
 
 1. **岗位的 Kanban 账号从哪来？** 现状是**人类管理员的 key**（吳思平/admin），不适合当岗位身份。
-   **统一在 Kanban 里创建**：命名规范、清单与逐实例接线见 [`docs/008-post-accounts.md`](docs/008-post-accounts.md)，
+   **统一在 Kanban 里创建**：命名规范、清单与逐实例接线见 [`docs/009-post-accounts.md`](docs/009-post-accounts.md)，
    清单 [`config/post-accounts.json`](config/post-accounts.json)，验证/接线脚本 [`scripts/post-accounts.mjs`](scripts/post-accounts.mjs)。
    ⚠ 实测：`/admin/users` 与成员管理对 API key **403**，且**没有签发 key 的接口** → **建号、加成员、发 key 只能在 UI 里由管理员完成**；工具侧只能"验证 + 接线"。
    建议：每个岗位一个 Kanban 用户（`sa-pm-<project>` / `sa-w<n>-<project>`），**一个账号 ↔ 一个岗位 ↔ 一个实例**；
@@ -565,4 +565,4 @@ Kanban Task(ready, assignee=岗位X)
 | --- | --- | --- |
 | 2026-11-04 | v0.1 | 记录负责人口述的 8 点叙事；补全术语、产出路由、宪章、并发约束；整理 20 项未尽事项 |
 | 2026-11-04 | v0.2 | **两级角色澄清**：与 PM 平齐的 Worker 是**岗位**（= 一个 SuperAgent 实例），SuperAgent 内部管理的 worker 是**岗位职责**（= 一张具体任务的一次性职责）；同步更新术语表、角色模型、任务流、认领语义与讨论清单（27 项） |
-| 2026-11-04 | v0.3 | **自洽 + 实测校正**：合并"岗位档案"概念、补 Assignment≡岗位职责映射、补 PM 职责触发方式；**§6.3** 按实测改写（slug 稳定，列增删才需重解析，跨端点只用 slug）；**§11.2** 改写（Kanban 无 CAS → 派工即认领 + 回读/租约兜底 + 单字段写入纪律）；**§8/§7** 改道（host 无 MinIO 客户端 → 宪章权威存储改 Kanban）；新增 **§11.5 实测基线**、**§12.8 账号与运维前置**、**§12.9 岗位归属（单负责人 vs 多角色合卡）**；工具：`scripts/kaneo-probe.mjs`（只读 + 自恢复写套件）、`kaneo-claim-race.mjs`（并发抢单）、`kaneo-story-probe.mjs`（故事构件）、`kaneo-roles-report.mjs`（角色统计）、`post-accounts.mjs`（岗位接线）；文档：`docs/008-post-accounts.md`、`config/post-accounts.json`；TDD 报告 `TDD/008-real-data-validation.md` |
+| 2026-11-04 | v0.3 | **自洽 + 实测校正**：合并"岗位档案"概念、补 Assignment≡岗位职责映射、补 PM 职责触发方式；**§6.3** 按实测改写（slug 稳定，列增删才需重解析，跨端点只用 slug）；**§11.2** 改写（Kanban 无 CAS → 派工即认领 + 回读/租约兜底 + 单字段写入纪律）；**§8/§7** 改道（host 无 MinIO 客户端 → 宪章权威存储改 Kanban）；新增 **§11.5 实测基线**、**§12.8 账号与运维前置**、**§12.9 岗位归属（单负责人 vs 多角色合卡）**；工具：`scripts/kaneo-probe.mjs`（只读 + 自恢复写套件）、`kaneo-claim-race.mjs`（并发抢单）、`kaneo-story-probe.mjs`（故事构件）、`kaneo-roles-report.mjs`（角色统计）、`post-accounts.mjs`（岗位接线）；文档：`docs/009-post-accounts.md`、`config/post-accounts.json`；TDD 报告 `TDD/008-real-data-validation.md` |

@@ -129,7 +129,7 @@ B: id=scptw8k2qwwp6t9e1uwttclr  createdAt=2026-11-04T08:10:07.709Z
 
 交付物：
 
-- [`../docs/008-post-accounts.md`](../docs/008-post-accounts.md) —— 命名规范、清单格式、UI 建号步骤、**逐实例接线表**、撤权与交接约定；
+- [`../docs/009-post-accounts.md`](../docs/009-post-accounts.md) —— 命名规范、清单格式、UI 建号步骤、**逐实例接线表**、撤权与交接约定；
 - [`../config/post-accounts.json`](../config/post-accounts.json) —— 4 个岗位的清单（`pm-pipeline` / `w1-pipeline` / `pm-fdep` / `w1-fdep`），**不含密钥**；
 - [`../scripts/post-accounts.mjs`](../scripts/post-accounts.mjs) —— 用每个岗位的 key 调 `GET /user/me` 验证身份，输出**岗位档案**并打印每个实例要粘贴的设置值；
 - `keys/` 目录（已 gitignore）：key 文件落位处。
