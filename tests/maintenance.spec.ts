@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { registerHttp, type HttpHost } from '../src/app/http.ts'
+import { projectionCacheFile, registerHttp, type HttpHost } from '../src/app/http.ts'
 import { audit, checkRemovable, clean, scanWorkspace, type CleanHost, type MaintenanceTicket,
   type SessionRemovalFailureReason } from '../src/app/maintenance.ts'
 import { SettingsSchema } from '../src/policy.ts'
@@ -286,3 +286,11 @@ it('serves the audit and the cleanup through the management routes with the work
   expect(refused.body.skipped).toEqual([{ ticketId: 'nope', reasons: ['unknown'] }])
 })
 
+it('points a Session artifact at the DSH projection cache entry it must clear', () => {
+  const sessionsRoot = join('D:', 'data', 'sessions')
+  const location = join(sessionsRoot, '--hash--', 'worker-t1', 'session.v4.jsonl.zstd')
+  expect(projectionCacheFile(location, 'worker-t1'))
+    .toBe(join('D:', 'data', 'storages', 'session_projcache', 'sessions', 'worker-t1.json'))
+  expect(projectionCacheFile(join('D:', 'data', 'store', '--hash--', 'worker-t1', 'session.v4.jsonl.zstd'), 'worker-t1'))
+    .toBeUndefined()
+})

@@ -5,7 +5,7 @@ import type {} from '@deepseek-ai/dsh-session-persistence'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import { rm } from 'node:fs/promises'
-import { basename, dirname } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { z } from 'zod'
@@ -167,6 +167,14 @@ const SourceBlock = z.templateLiteral(['source:', z.string().regex(/^[a-z][a-z0-
 const SettingsBlockSchema = z.union([z.enum(['policy', 'eval', 'executor']), SourceBlock])
 const SaveRequest = z.object({ value: z.unknown(), revision: z.number().int().nonnegative() })
 const TestSourceRequest = z.object({ config: z.record(z.string(), z.unknown()) })
+/** DSH keeps a per-Session projection cache beside its sessions; a removed Session must not linger in the sidebar. */
+export function projectionCacheFile (location: string, id: string): string | undefined {
+  // <dataRoot>/sessions/<cwd-hash>/<session-id>/session.*.jsonl(.zstd)
+  const sessionsRoot = dirname(dirname(dirname(location)))
+  if (basename(sessionsRoot) !== 'sessions') return undefined
+  return join(dirname(sessionsRoot), 'storages', 'session_projcache', 'sessions', `${id}.json`)
+}
+
 const CleanRequest = z.object({ ticketIds: z.array(z.string().min(1)).max(1000), removeFiles: z.boolean().optional(),
   removeSessions: z.boolean().optional(), forceSessions: z.boolean().optional() })
 
@@ -445,8 +453,12 @@ export function registerHttp(ctx: Context, runtime: HttpHost): () => void {
           failed.push({ id, reason: 'pathMismatch' })
           continue
         }
-        try { await rm(directory, { recursive: true, force: true }); deleted.push(id) }
-        catch { failed.push({ id, reason: 'removeFailed' }) }
+        try {
+          await rm(directory, { recursive: true, force: true })
+          const cache = projectionCacheFile(location, id)
+          if (cache) await rm(cache, { force: true }).catch(() => {})
+          deleted.push(id)
+        } catch { failed.push({ id, reason: 'removeFailed' }) }
       }
       return { deleted, failed }
     },

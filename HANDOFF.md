@@ -550,5 +550,6 @@ pnpm check        # typecheck + vitest + build
 | 2026-11-08 18:20 | INDEX.html / INDEX.pdf 同步 INDEX.md：由 1 页扩为 5 页（阅读地图 + 实测场景与 4 源/两角色 + 时间线 + 数据截图 + 手动复盘与自动化路径）；版式检查通过，PDF 5 页，图片 5 张全部加载。 |
 | 2026-11-08 18:45 | 清理跳过原因可见：Session 删除结果细分为 sessionRunning / sessionUnlocatable / sessionPathMismatch / sessionRemoveFailed，面板 toast 直接写出 Skip reason；实测 3 项跳过的原因是 **Session 仍被宿主打开**（最近三个工单各有 1 个 DSH 会话仍挂载）。docs/010 补说明；21 项测试通过，插件已重装。 |
 | 2026-11-08 20:00 | 清理状态纠正：三项不是 running，而是 **idle（DSH 加载但空闲）**。判断已区分 running/idle；新增「强制清理空闲 Session」（forceSessions），并修复路由 schema 吞掉该字段的 bug（加回归测试）。实测 3 行（场景 #47 + A-I 演练 1/2）强制清理成功，每行 2 个 Session，清理列表归零。docs/010 已补说明；maintenance 13 项测试通过。 |
+| 2026-11-08 20:20 | 修复删除 Session 后的“未分组”幽灵：清理只删了 sessions 目录，DSH 的 storages/session_projcache/sessions/<id>.json 投影缓存仍在，侧栏按缓存把该会话归入“未分组”。现在删除 Session 时一并精确删除对应缓存文件；已手动清掉 3 个遗留缓存，刷新后侧栏不再显示。docs/010 补说明；maintenance 14 项测试通过。 |
 | 2026-11-08 20:00 | 清理状态纠正：**三项不是 running，而是 idle（DSH 加载但空闲）**。原因判断已改为区分 running/idle；新增「强制清理空闲 Session」选项（forceSessions），并修复路由 schema 吞掉该字段的 bug（加回归测试）。实测 3 行（场景 #47 + A-I 演练 1/2）强制清理成功，每行 2 个 Session，清理列表归零。docs/010 已补说明；maintenance 13 项测试通过。 |
 | 2026-11-08 10:20 | 演练发现写回文档：`kind:` / `duty:` / `repo:` 必须在卡进入监听列前挂好，#45（后挂）工单缺产出类型、#46（先挂）带 doc；已在 DEF §D1 与 GHI 常见问题写明。 |
