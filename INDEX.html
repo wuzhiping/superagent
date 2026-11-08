@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INDEX · 根目录 PDF 阅读地图</title>
+<style>
+  :root{
+    --bg0:#070b16; --bg1:#0c1224; --panel:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.12); --text:#eef2ff; --dim:#a6b1cc; --faint:#7c87a3;
+    --kaneo:#7c8cff; --gitea:#41c98a; --ntfy:#f5a524; --accent:#8b7bff; --danger:#ff6b7a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1400px 900px at 82% -10%, rgba(124,140,255,.20), transparent 60%),
+      radial-gradient(1200px 800px at -10% 110%, rgba(65,201,138,.13), transparent 55%),
+      radial-gradient(1000px 700px at 50% 120%, rgba(245,165,36,.10), transparent 55%),
+      linear-gradient(160deg,var(--bg0),var(--bg1));
+    color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",system-ui,sans-serif;
+    overflow:hidden;
+  }
+  .viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  /* Fixed 1280x720 design canvas, scaled to the viewport, so every proportion and font size stays PPT-like. */
+  .stage{width:1280px;height:720px;flex:none;position:relative;transform-origin:center center}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:46px 64px 40px;
+    border-radius:20px;overflow:hidden;
+    background:linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.028) 45%, rgba(255,255,255,.05));
+    border:1px solid var(--line);
+    box-shadow:0 40px 90px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 100% 0%, rgba(139,123,255,.14), transparent 55%)}
+  .slide.active{display:flex;animation:in .45s cubic-bezier(.2,.7,.2,1)}
+  @keyframes in{from{opacity:0;transform:translateY(14px) scale(.995)}to{opacity:1;transform:none}}
+
+  .head{flex:none;position:relative;z-index:1}
+  .content{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px;justify-content:center;position:relative;z-index:1;margin-top:16px}
+  .slide.airy .content{margin-top:34px}
+
+  .kicker{display:flex;align-items:center;gap:10px;font-size:14px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;font-weight:700}
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  h1{font-size:74px;line-height:1.05;letter-spacing:-.025em;font-weight:800}
+  h2{font-size:42px;line-height:1.12;letter-spacing:-.015em;font-weight:800;margin-top:14px}
+  h3{font-size:22px;font-weight:700;line-height:1.25}
+  p.lead{font-size:20px;line-height:1.5;color:var(--dim);margin-top:12px}
+  .accent{background:linear-gradient(100deg,#a99bff,#7c8cff 45%,#41c98a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .small{font-size:16px;color:var(--faint);line-height:1.5}
+  .tag{display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:999px;font-size:15px;
+    border:1px solid var(--line);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap}
+  .tag.kaneo{color:#c9cfff;border-color:rgba(124,140,255,.45);background:rgba(124,140,255,.13)}
+  .tag.gitea{color:#b6f5d4;border-color:rgba(65,201,138,.42);background:rgba(65,201,138,.12)}
+  .tag.ntfy{color:#ffdfaa;border-color:rgba(245,165,36,.42);background:rgba(245,165,36,.12)}
+  .tag.pm{color:#ffd9a1;border-color:rgba(245,165,36,.5);background:rgba(245,165,36,.14)}
+  .tag.worker{color:#c9cfff;border-color:rgba(124,140,255,.5);background:rgba(124,140,255,.14)}
+
+  .grid{display:grid;gap:18px}
+  .grid.fill{flex:1;min-height:0;grid-auto-rows:minmax(0,1fr);align-content:stretch}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+  .card h3{margin-bottom:8px}
+  .card .num{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--faint);letter-spacing:.14em;margin-bottom:10px}
+  .card p{color:var(--dim);font-size:18px;line-height:1.5}
+  .card p + p{margin-top:6px}
+  .card .bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+  .card.k .bar{background:var(--kaneo)} .card.g .bar{background:var(--gitea)} .card.n .bar{background:var(--ntfy)}
+  .card.pm .bar{background:var(--ntfy)} .card.w .bar{background:var(--kaneo)}
+
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+  .step{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:14px 10px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+  .step b{display:block;font-size:17px;font-weight:700;line-height:1.25}
+  .step span{display:block;font-size:13px;color:var(--faint);margin-top:5px;letter-spacing:.02em}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:20px;padding:0 2px}
+
+  .timeline{display:flex;flex-direction:column;justify-content:space-evenly;flex:1;min-height:0}
+  .tl{display:grid;grid-template-columns:96px 26px 1fr;gap:16px;align-items:start}
+  .tl .time{font-family:"SF Mono",Consolas,monospace;font-size:18px;color:var(--kaneo);font-weight:700;padding-top:2px;text-align:right}
+  .tl .rail{position:relative;display:flex;justify-content:center;align-self:stretch}
+  .tl .rail::before{content:"";position:absolute;top:0;bottom:-20px;width:2px;background:linear-gradient(var(--line),transparent)}
+  .tl .rail i{width:11px;height:11px;border-radius:50%;background:var(--kaneo);margin-top:5px;box-shadow:0 0 0 4px rgba(124,140,255,.16);z-index:1}
+  .tl:last-child .rail::before{display:none}
+  .tl .body h3{font-size:20px}
+  .tl .body p{font-size:17px;color:var(--dim);line-height:1.5;margin-top:3px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .chip{font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--dim);font-family:"SF Mono",Consolas,monospace}
+
+  table{width:100%;border-collapse:collapse;font-size:17px}
+  th{text-align:left;color:var(--faint);font-weight:700;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.07);color:var(--dim);vertical-align:top;line-height:1.4}
+  td:first-child{color:var(--text);font-weight:700;white-space:nowrap}
+  table.tight td, table.tight th{padding:6px 9px;font-size:16px}
+
+  .list{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+  .li{display:flex;gap:10px;align-items:flex-start;font-size:18px;color:var(--dim);line-height:1.45}
+  .li b{color:var(--text);font-weight:700}
+  .li .mk{flex:none;width:24px;text-align:center;font-weight:800}
+  .mk.ok{color:var(--gitea)} .mk.no{color:var(--danger)} .mk.dot{color:var(--accent)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+  .cols .card{padding:26px 28px}
+  /* Checklist: the same green check as the other lists, aligned to the first line of every item. */
+  .check{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .check div{display:flex;gap:10px;align-items:flex-start;font-size:16.5px;color:var(--dim);line-height:1.45}
+  .check i{flex:none;width:16px;text-align:center;font-style:normal;font-size:15px;font-weight:800;color:var(--gitea);line-height:1.45}
+  pre{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    font-family:"SF Mono",Consolas,monospace;font-size:15px;line-height:1.65;color:var(--dim);overflow:hidden}
+  pre b{color:var(--text)}
+  /* Inline commands and keys: monospace, and a long git URL breaks anywhere instead of pushing out of its card. */
+  code{font-family:"SF Mono",Consolas,monospace;font-size:14px;line-height:1.55;color:var(--text);
+    background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:1px 7px;
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+
+  /* cover */
+  .cover{justify-content:center;gap:8px}
+  .cover .glow{position:absolute;right:-6%;top:-22%;width:55%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(139,123,255,.34),transparent 62%);filter:blur(6px)}
+  .cover .ghost{position:absolute;right:60px;bottom:30px;font-size:150px;font-weight:900;letter-spacing:-.05em;
+    color:rgba(255,255,255,.035);line-height:1;user-select:none;white-space:nowrap;z-index:0}
+  .cover h1{max-width:15em;margin-top:10px}
+  .cover .sub{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .cover .meta{margin-top:40px;display:flex;gap:56px;flex-wrap:wrap;padding-top:20px;border-top:1px solid var(--line);width:100%}
+  .cover .meta div{font-size:14px;color:var(--faint)}
+  .cover .meta b{display:block;color:var(--text);font-size:18px;margin-top:6px;font-weight:700}
+  .cover .head,.cover .content{position:relative;z-index:2}
+
+  /* chrome */
+  .nav{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.06);z-index:20}
+  .nav .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#41c98a);transition:width .3s ease;box-shadow:0 0 14px rgba(139,123,255,.7)}
+  .hint{position:fixed;right:16px;bottom:16px;font-size:13px;color:var(--faint);background:rgba(0,0,0,.35);
+    border:1px solid var(--line);border-radius:999px;padding:8px 14px;z-index:21;transition:opacity .5s;backdrop-filter:blur(8px)}
+  .hint.hide{opacity:0}
+  .ctrls{position:fixed;left:16px;bottom:14px;display:flex;gap:8px;z-index:21;opacity:.55}
+  .ctrls button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);
+    color:var(--dim);font-size:18px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s}
+  .ctrls button:hover{color:#fff;border-color:rgba(255,255,255,.4);transform:translateY(-1px)}
+  .dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:21}
+  .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:.25s;display:block}
+  .dots i.on{background:var(--accent);box-shadow:0 0 10px var(--accent);transform:scale(1.3)}
+  .pageno{position:absolute;right:64px;bottom:22px;font-family:"SF Mono",Consolas,monospace;font-size:13px;color:var(--faint);z-index:2}
+  .brand{position:absolute;left:64px;bottom:22px;font-size:12px;letter-spacing:.2em;color:var(--faint);text-transform:uppercase;z-index:2}
+
+  @media print{
+    html,body{height:auto;background:#0b1020;overflow:visible;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .viewport{position:static;display:block}
+    /* One 16:9 slide per page: the page itself is exactly the 1280x720 design canvas, so nothing is rescaled or clipped. */
+    .stage{width:1280px;height:auto;transform:none!important}
+    .slide{position:relative!important;display:flex!important;width:1280px;height:720px;margin:0;border-radius:0;
+      border:none;box-shadow:none;break-after:page;page-break-after:always;animation:none}
+    .slide:last-child{break-after:auto;page-break-after:auto}
+    .nav,.hint,.ctrls,.dots{display:none}
+    @page{size:1280px 720px;margin:0}
+  }
+  /* Dense slides: the same look with less vertical growth, so nothing runs into the footer. */
+  .slide.dense .content{gap:12px}
+  .slide.dense table.tight td, .slide.dense table.tight th{padding:5px 8px;font-size:15px}
+  .slide.dense .card p{font-size:15.5px;line-height:1.45}
+  .slide.dense .card p + p{margin-top:4px}
+  .slide.dense .check div{font-size:15px;line-height:1.4}
+  .slide.dense .small{font-size:14.5px;line-height:1.5}
+  /* Timeline rows keep their height instead of shrinking and overlapping; their type is a little smaller. */
+  .timeline{justify-content:flex-start;gap:18px}
+  .timeline .tl{flex:none}
+  .tl .time{font-size:16px;padding-top:1px}
+  .tl .body h3{font-size:19px;line-height:1.3}
+  .tl .body p{font-size:16px;line-height:1.45;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="viewport"><div class="stage" id="stage">
+  <!-- 1 cover -->
+  <section class="slide cover active">
+
+    <div class="glow"></div><div class="ghost">INDEX</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>INDEX · 阅读地图 · 8 份 · 151 页</div>
+      <h1>先看哪本，<span class="accent">后看哪本</span></h1>
+      <p class="lead" style="max-width:46em">根目录的 8 份 16:9 演示稿各有分工，互相引用。这份索引说明：每份解决什么问题、按什么顺序读、遇到问题时先翻哪本。<br>不要随机翻。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap"><span class="tag">总览 A-I</span><span class="tag">操作 ABC/DEF/GHI</span><span class="tag">体系 EA</span><span class="tag">理念 AIOS</span><span class="tag">手册 SOP</span><span class="tag">故事 STORY</span></div>
+      <div class="meta"><div>文件<b>8 份 PDF · 151 页</b></div><div>先行<b>A-I 第 1–3 页</b></div><div>文字版<b>INDEX.md</b></div></div>
+    </div>
+  </section>
+
+  <!-- 2 what -->
+  <section class="slide airy">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>这批 PDF 是什么</div>
+      <h2>同一套 16:9 外壳，<span class="accent">四种用途</span></h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><h3>来源</h3><p>每份 PDF 都由根目录同名 <b>.md</b> 生成（HTML 用 SOP 同款外壳，PDF 为 960×540）；文字版更全，PDF 适合投影与快速通读。</p></div>
+        <div class="card g"><span class="bar"></span><h3>用途分层</h3><p><b>总览</b> A-I · <b>操作链</b> ABC/DEF/GHI · <b>体系</b> EA · <b>理念</b> AIOS · <b>手册</b> SOP · <b>故事</b> STORY。</p></div>
+      </div>
+      <p class="small">共同点：都指向同一套可运行系统（DSH bundle <code>dsh-superagent</code>）与同一份宪章仓库；不是互不相关的课件。</p>
+    </div>
+  </section>
+
+  <!-- 3 paths -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>三条路 · 按目标选</div>
+      <h2>先定目标，再定顺序</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>你的目标</th><th>阅读顺序</th><th>用时</th></tr>
+        <tr><td>第一次接触，想先跑起来</td><td><b>A-I → ABC → DEF → GHI</b></td><td>约 2 小时</td></tr>
+        <tr><td>要搭/修宪章与能力体系</td><td><b>EA → ABC（职责/宪章）→ A-I（全景）</b></td><td>约 1.5 小时</td></tr>
+        <tr><td>要理解"为什么"或给别人讲</td><td><b>AIOS → STORY → A-I → EA</b></td><td>约 2 小时</td></tr>
+        <tr><td>日常操作，当手册查</td><td><b>SOP</b> 为主；细节回查 ABC/DEF/GHI</td><td>随用随查</td></tr>
+      </table>
+      <p class="small">共同起点：<b>A-I</b> 是唯一把"准备 → 触发 → 工单 → 执行 → 交付"串成一条线的总览，先看它不会错。</p>
+    </div>
+  </section>
+
+  <!-- 4 order -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>推荐次序 · 8 份</div>
+      <h2>从全景到局部，再到手册与故事</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>#</th><th>文件</th><th>一句话用途</th><th>页</th><th>读完能做什么</th></tr>
+        <tr><td>①</td><td>A-I.pdf</td><td>九节完整流水线 + 真实演练</td><td>22</td><td>知道整条链路与每步看哪里</td></tr>
+        <tr><td>②</td><td>ABC.pdf</td><td>把运行环境准备好</td><td>16</td><td>独立完成环境准备并确认就绪</td></tr>
+        <tr><td>③</td><td>DEF.pdf</td><td>需求怎么变成工单</td><td>16</td><td>看懂接/不接、为什么没变成工单</td></tr>
+        <tr><td>④</td><td>GHI.pdf</td><td>工单怎么执行、反馈与交付</td><td>21</td><td>跟执行、处理卡点、验收交付</td></tr>
+        <tr><td>⑤</td><td>EA.pdf</td><td>宪章仓库升级为能力供给系统</td><td>20</td><td>设计复盘/context/KE/技能的运营</td></tr>
+        <tr><td>⑥</td><td>AIOS.pdf</td><td>为什么是"组织操作系统"</td><td>18</td><td>解释设计逻辑与边界</td></tr>
+        <tr><td>⑦</td><td>SOP.pdf</td><td>日常操作手册</td><td>22</td><td>按角色执行日常 SOP</td></tr>
+        <tr><td>⑧</td><td>STORY.pdf</td><td>用户故事：小吴的一天</td><td>16</td><td>用故事把概念串成直觉</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5 docs-1 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>① ② · 总览与环境</div>
+      <h2>A-I 与 ABC</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><div class="num">① A-I · 22 页</div><h3>完整流水线与演练</h3><p>九节 A–I：准备 → 登记 → 触发 → 判断 → 闸门 → 执行 → 反馈 → 异常 → 交付；附真实演练 #45/#46（1 分 48 秒闭环）。</p><p class="small">最适合：第一次通读；确认"现在卡在哪一步"。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">② ABC · 16 页</div><h3>只把环境准备好</h3><p>四张来源卡、最少必填、每步"看什么算 OK"、8 项自检；新增"建卡 4 条"（标签先挂）。</p><p class="small">最适合：新机器/新项目初始化。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 docs-2 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>③ ④ · 需求与执行</div>
+      <h2>DEF 与 GHI</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><div class="num">③ DEF · 16 页</div><h3>需求怎么变成工单</h3><p>两条入口（看板卡/聊天）；显式请求直接路由、推断候选才评估；四道闸门与工单字段。</p><p class="small">最适合：PM 判断该不该接；排查卡没变成工单。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">④ GHI · 21 页</div><h3>工单怎么被执行与交付</h3><p>派工/目录/提示词五层、五种报告、异常状态表、载体（PR / MinIO / 评论）与部署清理。</p><p class="small">最适合：Worker 开工前；PM 跟进度与处理异常。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 docs-3 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>⑤ ⑥ · 体系与理念</div>
+      <h2>EA 与 AIOS</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><div class="num">⑤ EA · 20 页</div><h3>能力供给体系</h3><p>宪章仓库六层模型、PM 四条运营职责、P0–P4 路线与指标；诚实区分"已落地 / 待决策 / 愿景"。</p><p class="small">最适合：PM/负责人设计组织能力；决定复盘与知识怎么常态化。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">⑥ AIOS · 18 页</div><h3>为什么这样设计</h3><p>六条设计原则、叙事与实现的对应、组织/工作对象模型、治理与复制；末尾标注现状边界。</p><p class="small">最适合：对外讲这套系统；理解设计取舍。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 docs-4 -->
+  <section class="slide">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>⑦ ⑧ · 手册与故事</div>
+      <h2>SOP 与 STORY</h2>
+    </div>
+    <div class="content">
+      <div class="grid g2 fill">
+        <div class="card"><span class="bar"></span><div class="num">⑦ SOP · 22 页</div><h3>日常操作手册</h3><p>PM 与 Worker 各自怎么干：岗位与职责、派工、异常、复盘、宪章维护；规则细节最全。</p><p class="small">最适合：接手项目第一周；随用随查。</p></div>
+        <div class="card g"><span class="bar"></span><div class="num">⑧ STORY · 16 页</div><h3>超级智能体的一天</h3><p>用一个人物、一天的三条消息流，讲清从接单到交付的体验；偏叙事、少配置。</p><p class="small">最适合：给非技术同事介绍；培训开场。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 questions -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>按问题找入口</div>
+      <h2>先翻哪本，取决于你的问题</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>你现在的疑问</th><th>先看</th></tr>
+        <tr><td>这套系统到底怎么运转？</td><td>A-I → STORY</td></tr>
+        <tr><td>环境怎么准备？检查为什么红？</td><td>ABC</td></tr>
+        <tr><td>卡为什么没被接？决定了什么？</td><td>DEF</td></tr>
+        <tr><td>工单卡住/失败/要人回答怎么办？</td><td>GHI（异常章）</td></tr>
+        <tr><td>复盘/知识库/技能怎么搞？宪章仓库怎么升级？</td><td>EA</td></tr>
+        <tr><td>这些设计为什么成立？边界在哪？</td><td>AIOS（现状页）</td></tr>
+        <tr><td>每天具体怎么操作？</td><td>SOP</td></tr>
+        <tr><td>怎么给新同事讲明白？</td><td>STORY → AIOS</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 10 maintain -->
+  <section class="slide dense">
+
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>维护 · 重新生成</div>
+      <h2>索引与 PDF 一起进版本管理</h2>
+    </div>
+    <div class="content">
+      <table class="tight">
+        <tr><th>动作</th><th>命令 / 规则</th></tr>
+        <tr><td>生成某份 HTML</td><td><code>node scripts/build-&lt;name&gt;-deck.mjs</code>（A-I/ABC/DEF/GHI/EA/AIOS）</td></tr>
+        <tr><td>转 PDF</td><td><code>node scripts/html-to-pdf.mjs &lt;name&gt;.html &lt;name&gt;.pdf</code></td></tr>
+        <tr><td>SOP / STORY</td><td>HTML 是手工维护的源文件，改完直接转 PDF</td></tr>
+        <tr><td>新增/删除 PDF</td><td>同步改 INDEX.md 的清单、页数与路径；INDEX.html/pdf 重新生成</td></tr>
+      </table>
+      <p class="small">本索引文字版：<code>INDEX.md</code>；演示版：<code>INDEX.html</code> / <code>INDEX.pdf</code>（11 页）。</p>
+    </div>
+  </section>
+
+  <!-- 11 closing -->
+  <section class="slide cover">
+
+    <div class="glow" style="left:-10%;right:auto"></div><div class="ghost">→</div>
+    <div class="head">
+      <div class="kicker"><span class="dot"></span>INDEX · 一句话</div>
+      <h1>先看 <span class="accent">A-I 前三页</span>，<br>再按目标选路</h1>
+      <p class="lead" style="max-width:46em">想跑起来：A-I → ABC → DEF → GHI；想搭体系：EA → ABC → A-I；<br>想讲清楚：AIOS → STORY → A-I → EA。不要从 SOP 细节开始，容易只见树木。</p>
+    </div>
+    <div class="content">
+      <div class="sub" style="margin-top:0;display:flex;gap:10px;flex-wrap:wrap">
+        <span class="tag">INDEX.md · 文字版</span><span class="tag">A-I.pdf · 先看</span><span class="tag">EA.pdf · 体系</span><span class="tag">SOP.pdf · 手册</span>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+
+<div class="nav"><div class="bar" id="bar"></div></div>
+<div class="dots" id="dots"></div>
+<div class="ctrls"><button id="prev" title="上一页">‹</button><button id="next" title="下一页">›</button></div>
+<div class="hint" id="hint">← → 翻页 · F 全屏</div>
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var index = 0, dots = document.getElementById('dots'), bar = document.getElementById('bar');
+  var hint = document.getElementById('hint');
+
+  // Fit the fixed 1280x720 canvas into the viewport without breaking any proportion.
+  function fit(){
+    var scale = Math.min((window.innerWidth - 28) / 1280, (window.innerHeight - 28) / 720);
+    stage.style.transform = 'scale(' + scale + ')';
+  }
+  window.addEventListener('resize', fit);
+
+  // Page number and brand for every slide.
+  slides.forEach(function(slide, i){
+    var p = document.createElement('span'); p.className = 'pageno'; p.textContent = (i+1) + ' / ' + slides.length;
+    var b = document.createElement('span'); b.className = 'brand'; b.textContent = 'SuperAgent · INDEX';
+    slide.appendChild(b); slide.appendChild(p);
+  });
+
+  slides.forEach(function(_, i){
+    var el = document.createElement('i');
+    el.title = '第 ' + (i+1) + ' 页';
+    el.addEventListener('click', function(){ go(i); });
+    dots.appendChild(el);
+  });
+  var marks = Array.prototype.slice.call(dots.children);
+
+  function go(i){
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, n){ s.classList.toggle('active', n === index); });
+    marks.forEach(function(m, n){ m.classList.toggle('on', n === index); });
+    bar.style.width = ((index + 1) / slides.length * 100) + '%';
+    location.hash = 'slide-' + (index + 1);
+  }
+  function next(){ if(index < slides.length - 1) go(index + 1); }
+  function prev(){ if(index > 0) go(index - 1); }
+
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if(k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter'){ e.preventDefault(); next(); }
+    else if(k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace'){ e.preventDefault(); prev(); }
+    else if(k === 'Home'){ e.preventDefault(); go(0); }
+    else if(k === 'End'){ e.preventDefault(); go(slides.length - 1); }
+    else if(k === 'f' || k === 'F'){ toggleFullscreen(); }
+    hint.classList.add('hide');
+  });
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  function toggleFullscreen(){
+    if(document.fullscreenElement) document.exitFullscreen();
+    else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  }
+
+  var x0 = null, y0 = null;
+  document.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? next() : prev();
+    x0 = y0 = null;
+  }, {passive:true});
+
+  fit();
+  var start = (location.hash.match(/slide-(\d+)/) || [])[1];
+  go(start ? Number(start) - 1 : 0);
+  setTimeout(function(){ hint.classList.add('hide'); }, 6000);
+})();
+</script>
+</body>
+</html>
