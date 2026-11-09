@@ -159,6 +159,16 @@ describe('gitea charter repository access', () => {
   it('refuses a Source without a charter repository', async () => {
     await expect(giteaKind.test!(charterConfig({ charterRepository: '' }))).rejects.toThrow(/charter repository/)
   })
+  it('names the missing charter repository and the server on a 404 instead of a bare status', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({ message: 'not found' }, 404)))
+    await expect(giteaKind.test!(charterConfig({ baseUrl: 'https://git.example' })))
+      .rejects.toThrow(/Charter repository acme\/charter was not found on https:\/\/git\.example/)
+  })
+  it('explains a refused account when logging in fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({ message: 'unauthorized' }, 401)))
+    await expect(giteaKind.test!(charterConfig({ user: 'agent', password: 'wrong' })))
+      .rejects.toThrow(/rejected the account/)
+  })
   it('names the reader (anonymous or the account) in the health detail', async () => {
     const anonymous = config()
     const first = context(anonymous)

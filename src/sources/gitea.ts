@@ -107,6 +107,8 @@ export function notificationEvent(notification: GiteaNotification, issue?: Gitea
 /** The key of one event, so the same event is filed as a card once. */
 const eventKey = (ref: GiteaRef, kind: string, id: string): string => `${giteaThreadId(ref)}:${kind}:${id}`
 
+const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error)
+
 export const giteaKind: SourceKind<GiteaConfig> = {
   kind: SOURCE,
   title: { zh: 'Gitea（宪章仓库）', en: 'Gitea (charter repository)' },
@@ -120,10 +122,24 @@ export const giteaKind: SourceKind<GiteaConfig> = {
     const charterRepo = repositoryOf(config.charterRepository)
     if (!charterRepo) throw new Error('The charter repository must be owner/name')
     const client = new GiteaClient(config)
+    const repo = `${charterRepo.owner}/${charterRepo.name}`
     // An account, when supplied, must actually log in; without one the repository must be readable anonymously.
-    if (giteaHasAuth(config)) await client.user()
+    if (giteaHasAuth(config)) {
+      try { await client.user() } catch (error) {
+        throw new Error(`Gitea rejected the account on ${config.baseUrl}: ${messageOf(error)}. Check the e-mail/password or API token (a token wins when both are set).`)
+      }
+    }
     // The charter file itself may not be published yet, so only the repository is checked.
-    await client.repository(charterRepo.owner, charterRepo.name)
+    try { await client.repository(charterRepo.owner, charterRepo.name) } catch (error) {
+      const status = (error as { status?: number }).status
+      if (status === 404) {
+        throw new Error(`Charter repository ${repo} was not found on ${config.baseUrl}: it does not exist, or the account cannot see it (Gitea hides private repositories from unauthorized reads). Create the repository first, or fill in the e-mail/password (or API token) of an account that can read it.`)
+      }
+      if (status === 401 || status === 403) {
+        throw new Error(`Gitea refused reading ${repo} on ${config.baseUrl}: the account may not have access. Use an account (e-mail/password or API token) that can read this repository.`)
+      }
+      throw new Error(`Could not read the charter repository ${repo} on ${config.baseUrl}: ${messageOf(error)}`)
+    }
   },
   fields: [
     { key: 'baseUrl', type: 'text', label: { zh: 'Gitea 服务器', en: 'Gitea server' }, hint: { zh: '例如 https://git.feg.cn。公开仓库只需服务器地址和仓库名，账号可以留空。', en: 'For example https://git.feg.cn. A public repository needs only the server and the repository name; the account may stay empty.' } },
