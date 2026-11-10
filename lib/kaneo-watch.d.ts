@@ -1,9 +1,19 @@
 import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-CMGpbNbA.js";
 import { n as SourceKind, r as SourceContext } from "./kind-DEcPS-0m.js";
-import { t as KaneoClient } from "./kaneo-api-BvU5fGZP.js";
+import { t as KaneoClient } from "./kaneo-api-Dn0KpjUW.js";
 import { Context } from "@deepseek-ai/cordis";
 //#region src/sources/kaneo.d.ts
 declare const SOURCE = "kaneo";
+/**
+ * The workspace whose members the Policy roster reads: the configured workspace, else the watched project's workspace, else
+ * the first workspace the account can see. Members' ids are the assignee/creator ids the board reports as actors.
+ */
+declare function policyWorkspace(client: KaneoClient, config: KaneoConfig, signal?: AbortSignal): Promise<string | undefined>;
+/**
+ * Refreshes the Kanban member roster (`id -> name`) the Policy's "who may originate work" column chooses from, and stores
+ * it for the panel. A missing account or workspace answers an empty roster instead of failing the panel.
+ */
+declare function refreshKaneoMembers(ctx: SourceContext, signal?: AbortSignal): Promise<Record<string, string>>;
 /** The Source kind declaration: configuration form, policy part, Channel, Thread context, environment and health. */
 declare const kaneoKind: SourceKind<KaneoConfig>;
 /**
@@ -39,4 +49,4 @@ declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, pollRound, syncBlockedColumns, syncCancellations, syncHoldLabels };
+export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, policyWorkspace, pollRound, refreshKaneoMembers, syncBlockedColumns, syncCancellations, syncHoldLabels };

@@ -23,6 +23,40 @@ export const SOURCE = 'kaneo'
 
 const columns = (config: KaneoConfig): string => watchColumnsOf(config).join(', ') || 'no column'
 
+/**
+ * The workspace whose members the Policy roster reads: the configured workspace, else the watched project's workspace, else
+ * the first workspace the account can see. Members' ids are the assignee/creator ids the board reports as actors.
+ */
+export async function policyWorkspace (client: KaneoClient, config: KaneoConfig, signal?: AbortSignal): Promise<string | undefined> {
+  const configured = config.workspaceId.trim()
+  if (configured) return configured
+  const projectId = config.projectId.trim()
+  if (projectId) {
+    const project = await client.project(projectId, { signal }).catch(() => undefined)
+    if (project?.workspaceId) return project.workspaceId
+  }
+  return (await client.workspaces({ signal }).catch(() => []))[0]?.id
+}
+
+/**
+ * Refreshes the Kanban member roster (`id -> name`) the Policy's "who may originate work" column chooses from, and stores
+ * it for the panel. A missing account or workspace answers an empty roster instead of failing the panel.
+ */
+export async function refreshKaneoMembers (ctx: SourceContext, signal?: AbortSignal): Promise<Record<string, string>> {
+  const config = ctx.config<KaneoConfig>(SOURCE)
+  if (!config) return {}
+  const deployed = ctx.deployment.kaneo
+  const account = deployed?.apiKey ? deployed : storedKaneoAccount(deployed?.baseUrl ?? config.baseUrl ?? DEFAULT_BASE_URL)
+  if (!account?.apiKey) return {}
+  const client = new KaneoClient(account)
+  const workspaceId = await policyWorkspace(client, config, signal)
+  if (!workspaceId) return {}
+  const members = await client.workspaceMembers(workspaceId, { signal })
+  const names = Object.fromEntries(members.map(member => [member.id, member.name.trim() || member.email.trim() || member.id]))
+  ctx.state.set(KV.sources.labels(SOURCE), names)
+  return names
+}
+
 /** The Source kind declaration: configuration form, policy part, Channel, Thread context, environment and health. */
 export const kaneoKind: SourceKind<KaneoConfig> = {
   kind: SOURCE,
@@ -81,6 +115,8 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
   health: ['kaneo'],
   channel: { send: sendKaneo, link: kaneoLink },
   threadContext: kaneoThreadContext,
+  /** The Policy roster offers board members instead of asking for raw ids. */
+  refreshLabels: (host, signal) => refreshKaneoMembers(sourceContext(host, kaneoKind), signal),
   find: query => {
     const id = /^kaneo[:/]([A-Za-z0-9_-]{8,})$/.exec(query.trim())?.[1]
     return { threads: id ? [kaneoThreadKey(id)] : [], terms: [] }
@@ -90,8 +126,10 @@ export const kaneoKind: SourceKind<KaneoConfig> = {
       allowed: z.array(z.object({ id: z.string().trim().min(1).max(200), name: z.string().trim().max(100).optional() }).strict()).default([]),
     }).strict(),
     fields: [{ key: 'allowed', type: 'rows', label: { zh: '能发起任务的 Kanban 用户', en: 'Kanban users that may originate work' },
-      hint: { zh: '任务进入监听列时，由任务的负责人或创建者作为发起人；不在名单里的任务会被过滤，可在来源页看到。', en: 'A task is requested by its assignee or creator when it enters a watched column; a task whose actor is not listed is filtered and shown on the Sources page.' },
-      columns: [{ key: 'id', type: 'text', label: { zh: '用户 id', en: 'User id' } }, { key: 'name', type: 'text', label: { zh: '名称（可选）', en: 'Name (optional)' }, optional: true }] }],
+      hint: { zh: '任务进入监听列时，由任务的负责人或创建者作为发起人；不在名单里的任务会被过滤，可在来源页看到。点「刷新成员」读取看板成员后即可直接选择，不需要手填 id。', en: 'A task is requested by its assignee or creator when it enters a watched column; a task whose actor is not listed is filtered and shown on the Sources page. Refresh the members to choose from the board roster instead of typing ids.' },
+      columns: [{ key: 'id', type: 'text', label: { zh: '用户 id', en: 'User id' },
+        choose: { zh: '选择看板成员', en: 'Choose a board member' }, refresh: { zh: '刷新成员', en: 'Refresh members' } },
+        { key: 'name', type: 'text', label: { zh: '名称（可选）', en: 'Name (optional)' }, optional: true }] }],
     explicit: { zh: '名单里的用户在 Kanban 看板上把任务放进监听列。', en: 'A user on the list puts a task into a watched Kanban column.' },
     rows(stored) {
       const config = KaneoConfigSchema.partial().parse(stored)

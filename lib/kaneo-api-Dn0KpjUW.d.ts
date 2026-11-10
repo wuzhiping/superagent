@@ -37,6 +37,7 @@ declare const KaneoProjectSchema: z.ZodObject<{
   description: z.ZodDefault<z.ZodString>;
   icon: z.ZodDefault<z.ZodString>;
   isPublic: z.ZodDefault<z.ZodBoolean>;
+  workspaceId: z.ZodDefault<z.ZodString>;
   columns: z.ZodDefault<z.ZodArray<z.ZodObject<{
     slug: z.ZodOptional<z.ZodString>;
     name: z.ZodOptional<z.ZodString>;

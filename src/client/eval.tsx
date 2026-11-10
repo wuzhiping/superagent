@@ -74,12 +74,18 @@ function SourcePart({ source, part, saved, dirty, onChange, reload }: {
   const { t, call, notify } = usePanel()
   const policy = source.policy!
   const sync = policy.sync
+  // The roster fields choose from this Source's own records; refreshing reads them again and reloads the saved labels.
+  const refreshLabels = async () => {
+    const { added } = await call('POST sources/:id/labels', { id: source.id })
+    await reload()
+    return added
+  }
   const run = useAction(() => call('POST policy-sync/:id', { id: source.id }), { reload })
   // Syncing saves the Policy block, so require unsaved edits to be saved or discarded first.
   const syncNow = () => { if (dirty) notify(t('syncNeedsSave')); else void run.run() }
   return <div className="dt-part">
     {policy.fields.map(field => <SourceField key={field.key} field={field} value={part[field.key]} saved={saved[field.key]} fact={undefined}
-      labels={source.labels}
+      labels={source.labels} refreshLabels={refreshLabels}
       onChange={next => onChange({ ...part, [field.key]: next })} />)}
     {sync && <div className="dt-row-buttons">
       <Button variant="outline" size="sm" icon={<Icon name="refresh" />} disabled={run.busy || !sync.ready} onClick={syncNow}>{localized(t,

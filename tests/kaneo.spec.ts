@@ -6,7 +6,7 @@ import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
-import { kaneoKind, observeCards, pollRound, SOURCE, syncBlockedColumns, syncCancellations, syncHoldLabels } from '../src/sources/kaneo.ts'
+import { kaneoKind, observeCards, pollRound, refreshKaneoMembers, SOURCE, syncBlockedColumns, syncCancellations, syncHoldLabels } from '../src/sources/kaneo.ts'
 import { DEFAULT_PROJECT, KaneoConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
 import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
@@ -26,11 +26,11 @@ const task = (id: string, overrides: Record<string, unknown> = {}): Record<strin
 interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[]
   cancels: { ticketId: string; reason?: string }[] }
 /** A SourceContext whose Store lives in a Map and whose only observations are recorded. */
-function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[] } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
+function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[]; deployment?: Deployment } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
   const state = new Map<string, unknown>()
   const recorded: Recorded = { triggers: [], described: new Map(), reports: [], cancels: [] }
   const ctx: SourceContext = {
-    deployment: {} as Deployment,
+    deployment: options.deployment ?? {} as Deployment,
     commands: {} as Commands,
     ready: Promise.resolve(),
     configured: () => true,
@@ -474,5 +474,29 @@ describe('kaneo cancellation', () => {
       : response({})))
     await syncCancellations(ctx, cfg, running)
     expect(recorded.cancels).toEqual([])
+  })
+})
+
+describe('kaneo policy roster', () => {
+  const account = { baseUrl: 'https://pl.feg.cn', apiKey: 'k', projectId: 'project-1', workspaceId: '' }
+  it('reads board members into the policy label table, following the project workspace', async () => {
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes('/project/project-1')) return response({ id: 'project-1', workspaceId: 'ws-1' })
+      if (url.includes('/workspace/ws-1/members')) return response([{ id: 'user-1', name: '高洁' }, { id: 'user-2', name: '', email: 'x@y.example' }])
+      return response({})
+    }))
+    const { ctx, state } = context(config(), { deployment: { kaneo: account } as unknown as Deployment })
+    const names = await refreshKaneoMembers(ctx)
+    expect(names).toEqual({ 'user-1': '高洁', 'user-2': 'x@y.example' })
+    expect(state.get(KV.sources.labels('kaneo'))).toEqual(names)
+    expect(calls.some(call => call.includes('/workspace/ws-1/members'))).toBe(true)
+  })
+  it('answers an empty roster when no Kanban account is configured', async () => {
+    const { ctx, state } = context(config({ apiKey: '' }), { deployment: {} as Deployment })
+    await expect(refreshKaneoMembers(ctx)).resolves.toEqual({})
+    expect(state.get(KV.sources.labels('kaneo'))).toBeUndefined()
   })
 })

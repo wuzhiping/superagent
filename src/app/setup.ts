@@ -70,9 +70,13 @@ async function verifyKaneo(account: KaneoAccount): Promise<void> {
 }
 
 /** Check that a saved Gitea account can read the repository, and that a supplied password/token logs in. */
-async function verifyGitea(account: GiteaAccount): Promise<void> {
-  const repo = repositoryOf(account.repository)
-  if (!repo) throw new SetupError('giteaRepositoryUnreadable', { repository: account.repository || '(empty)', output: 'owner/name is required' })
+/**
+ * The Gitea Source carries the charter repository only (event repositories come from each card's `repo:` label), so the
+ * saved account is checked against `charterRepository` — the same field the panel's Test connection checks.
+ */
+export async function verifyGitea(account: GiteaAccount): Promise<void> {
+  const repo = repositoryOf(account.charterRepository)
+  if (!repo) throw new SetupError('giteaRepositoryUnreadable', { repository: account.charterRepository || '(empty)', output: 'the charter repository must be owner/name' })
   try {
     const client = new GiteaClient(account)
     // Anonymous is fine for a readable public repository; an account password or token must actually log in.
@@ -81,7 +85,7 @@ async function verifyGitea(account: GiteaAccount): Promise<void> {
   } catch (error) {
     const output = error instanceof Error ? error.message : String(error)
     if (error instanceof GiteaError && (error.status === 401 || error.status === 403)) throw new SetupError('giteaKeyRefused', { output })
-    if (error instanceof GiteaError && error.status === 404) throw new SetupError('giteaRepositoryUnreadable', { repository: account.repository, output })
+    if (error instanceof GiteaError && error.status === 404) throw new SetupError('giteaRepositoryUnreadable', { repository: account.charterRepository, output })
     throw new SetupError('giteaUnreachable', { output })
   }
 }

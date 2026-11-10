@@ -38,6 +38,8 @@ const KaneoUserSchema = z.looseObject({
 const KaneoProjectSchema = z.looseObject({
   id: z.string().min(1), name: z.string().default(''), slug: z.string().default(''), description: z.string().default(''),
   icon: z.string().default(''), isPublic: z.boolean().default(false),
+  /** The workspace the project lives in; the policy roster reads its members. */
+  workspaceId: z.string().default(''),
   columns: z.array(z.looseObject({ slug: z.string().optional(), name: z.string().optional() })).default([]),
 })
 /** One project as the list answers it: what a picker needs to show a name and store an id. */

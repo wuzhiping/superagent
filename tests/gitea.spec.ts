@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { KV, type Family, type Key } from '../src/kv.ts'
 import type { Commands } from '../src/infra/commands.ts'
-import type { Deployment } from '../src/deployment.ts'
+import { SETUP_FIELDS, type Deployment } from '../src/deployment.ts'
+import { verifyGitea } from '../src/app/setup.ts'
 import { key, type Trigger } from '../src/core/index.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { GiteaClient, GiteaError, type GiteaFetch } from '../src/sources/gitea-api.ts'
-import { GiteaConfigSchema, giteaBot, giteaReader, repositoryOf, type GiteaConfig } from '../src/sources/gitea-config.ts'
+import { GiteaAccountSchema, GiteaConfigSchema, giteaBot, giteaReader, repositoryOf, type GiteaConfig } from '../src/sources/gitea-config.ts'
 import { commentTrigger, giteaKind, giteaThreadKey, issueTrigger, notificationTrigger, pollRound, refFromUrl, SOURCE } from '../src/sources/gitea.ts'
 
 const config = (overrides: Partial<GiteaConfig> = {}): GiteaConfig => GiteaConfigSchema.parse({ repository: 'acme/widgets', ...overrides })
@@ -353,3 +354,18 @@ describe('gitea thread context', () => {
   })
 })
 
+describe('gitea setup checks the charter repository', () => {
+  const account = (overrides: Record<string, unknown> = {}) => GiteaAccountSchema.parse({ charterRepository: 'acme/charter', ...overrides })
+  it('accepts an account that only names the charter repository', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({ id: 1, full_name: 'acme/charter', default_branch: 'main' })))
+    await expect(verifyGitea(account())).resolves.toBeUndefined()
+  })
+  it('reports the missing charter repository instead of the removed event repository', async () => {
+    await expect(verifyGitea(account({ charterRepository: '', repository: 'acme/events' })))
+      .rejects.toThrow('the charter repository must be owner/name')
+  })
+  it('restarts on the charter repository fields and shows them as facts', () => {
+    expect(SETUP_FIELDS.gitea).toEqual(['baseUrl', 'user', 'password', 'token', 'charterRepository', 'charterPath'])
+    expect(giteaKind.facts!({ gitea: account() } as never)).toMatchObject({ repository: 'acme/charter' })
+  })
+})

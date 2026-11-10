@@ -68,7 +68,7 @@ export const FeishuBotSchema = z.object({ cli: z.string().trim().default('') })
  */
 export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape),
   feishu: Object.keys(FeishuBotSchema.shape), kaneo: ['baseUrl', 'apiKey', 'projectId', 'workspaceId'],
-  gitea: ['baseUrl', 'user', 'password', 'token', 'repository'], ntfy: ['baseUrl', 'topic', 'authMode', 'authUser', 'authPassword', 'authToken', 'sender'] }
+  gitea: ['baseUrl', 'user', 'password', 'token', 'charterRepository', 'charterPath'], ntfy: ['baseUrl', 'topic', 'authMode', 'authUser', 'authPassword', 'authToken', 'sender'] }
 
 export interface Deployment extends Machine {
   /** The GitHub repository, or empty when this deployment works from Kanban, Gitea or ntfy only. */
@@ -123,9 +123,9 @@ export async function resolveDeployment(machine: Machine, github: unknown, probe
   const remote = accounts.repository
   // A deployment that works from Kaneo/Gitea/ntfy has no GitHub account; the empty fields make GitHub Sources refuse their work.
   if (!remote && !accounts.cli) {
-    if (!kaneo?.apiKey && !gitea?.repository && !ntfy?.topic) throw new SetupError('sourceUnset')
+    if (!kaneo?.apiKey && !gitea?.charterRepository && !ntfy?.topic) throw new SetupError('sourceUnset')
     return { ...machine, repository: '', github: { cli: '', login: '', noreply: '' },
-      ...kaneo ? { kaneo } : {}, ...gitea?.repository ? { gitea } : {}, ...ntfy?.topic ? { ntfy } : {} }
+      ...kaneo ? { kaneo } : {}, ...gitea?.charterRepository ? { gitea } : {}, ...ntfy?.topic ? { ntfy } : {} }
   }
   if (!remote) throw new SetupError('repositoryUnset')
   if (!accounts.cli) throw new SetupError('agentCliUnset')
@@ -142,7 +142,7 @@ export async function resolveDeployment(machine: Machine, github: unknown, probe
   const repository = access.name
   if (access.push !== true) throw new SetupError('repositoryReadOnly', { account: agent.login, repository })
   return { ...machine, repository, github: { cli, login: agent.login, noreply: `${agent.id}+${agent.login}@users.noreply.github.com` },
-    ...kaneo ? { kaneo } : {}, ...gitea?.repository ? { gitea } : {}, ...ntfy?.topic ? { ntfy } : {} }
+    ...kaneo ? { kaneo } : {}, ...gitea?.charterRepository ? { gitea } : {}, ...ntfy?.topic ? { ntfy } : {} }
 }
 
 const AuthStatus = z.object({ appId: z.string().regex(/^cli_[A-Za-z0-9]+$/), brand: z.enum(['feishu', 'lark']).default('feishu'), identities: z.object({ bot: z.object({ status: z.string() }) }) })

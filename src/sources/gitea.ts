@@ -225,7 +225,7 @@ export const giteaKind: SourceKind<GiteaConfig> = {
     },
   },
   facts: (deployment): Record<string, Localized | string> => deployment?.gitea
-    ? { repository: deployment.gitea.repository, server: deployment.gitea.baseUrl }
+    ? { repository: deployment.gitea.charterRepository, server: deployment.gitea.baseUrl }
     : {},
 }
 
