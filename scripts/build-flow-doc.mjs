@@ -106,7 +106,7 @@ const parsed = markdown(source)
 /** Renders the Mermaid blocks to standalone SVG in headless Chrome, with a dark theme that matches the document. */
 async function renderDiagrams (codes) {
   const page = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    body{background:#0c1224;margin:0;padding:24px;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+    body{background:#ffffff;margin:0;padding:24px;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
     .mermaid{background:transparent}
   </style></head><body>
   <script>${readFileSync('.tmp-flow/mermaid.min.js', 'utf8')}</script>
@@ -122,20 +122,20 @@ async function renderDiagrams (codes) {
       class: { useMaxWidth: false },
       state: { useMaxWidth: false },
       themeVariables: {
-        darkMode: true, background: '#0c1224', fontFamily: '"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
-        primaryColor: '#16203c', primaryTextColor: '#eef2ff', primaryBorderColor: '#4a5a96',
-        secondaryColor: '#1b2748', secondaryTextColor: '#dbe2f7', tertiaryColor: '#101a33', tertiaryTextColor: '#dbe2f7',
-        lineColor: '#8b9ae0', textColor: '#eef2ff', mainBkg: '#16203c', nodeBorder: '#4a5a96',
-        clusterBkg: '#101a33', clusterBorder: '#3b4770', titleColor: '#eef2ff',
-        edgeLabelBackground: '#101a33', labelBackground: '#101a33', labelTextColor: '#eef2ff',
-        noteBkgColor: '#1a2340', noteTextColor: '#eef2ff', noteBorderColor: '#4a5a96',
-        actorBkg: '#16203c', actorBorder: '#4a5a96', actorTextColor: '#eef2ff', actorLineColor: '#4a5a96',
-        signalColor: '#a6b1cc', signalTextColor: '#eef2ff', labelBoxBkgColor: '#16203c',
-        labelBoxBorderColor: '#4a5a96', labelTextColor: '#eef2ff', loopTextColor: '#eef2ff',
-        activationBkgColor: '#1b2748', activationBorderColor: '#4a5a96', sequenceNumberColor: '#0c1224',
-        classText: '#eef2ff', classBorder: '#4a5a96', classTitleBkg: '#1b2748',
-        stateBkg: '#16203c', stateText: '#eef2ff', stateBorder: '#4a5a96',
-        compositeBackground: '#101a33', compositeTitleBackground: '#16203c', compositeBorder: '#3b4770'
+        darkMode: false, background: '#ffffff', fontFamily: '"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+        primaryColor: '#eef2ff', primaryTextColor: '#1c2742', primaryBorderColor: '#98a7d8',
+        secondaryColor: '#e8eeff', secondaryTextColor: '#1c2742', tertiaryColor: '#f6f8ff', tertiaryTextColor: '#2a3550',
+        lineColor: '#5a6aa8', textColor: '#1c2742', mainBkg: '#eef2ff', nodeBorder: '#98a7d8',
+        clusterBkg: '#f6f8ff', clusterBorder: '#c3cce4', titleColor: '#1c2742',
+        edgeLabelBackground: '#ffffff', labelBackground: '#ffffff', labelTextColor: '#1c2742',
+        noteBkgColor: '#fff7e0', noteTextColor: '#5a4a20', noteBorderColor: '#d9c48a',
+        actorBkg: '#eef2ff', actorBorder: '#98a7d8', actorTextColor: '#1c2742', actorLineColor: '#98a7d8',
+        signalColor: '#5a6aa8', signalTextColor: '#1c2742', labelBoxBkgColor: '#eef2ff',
+        labelBoxBorderColor: '#98a7d8', labelTextColor: '#1c2742', loopTextColor: '#1c2742',
+        activationBkgColor: '#e3e9ff', activationBorderColor: '#98a7d8', sequenceNumberColor: '#ffffff',
+        classText: '#1c2742', classBorder: '#98a7d8', classTitleBkg: '#e3e9ff',
+        stateBkg: '#eef2ff', stateText: '#1c2742', stateBorder: '#98a7d8',
+        compositeBackground: '#f6f8ff', compositeTitleBackground: '#eef2ff', compositeBorder: '#c3cce4'
       }
     });
     (async () => {
@@ -213,17 +213,16 @@ const html = `<!DOCTYPE html>
 <title>FLOW · 从来源到执行的数据与决策流</title>
 <style>
   :root{
-    --bg0:#070b16; --bg1:#0c1224; --panel:rgba(255,255,255,.045);
-    --line:rgba(255,255,255,.12); --text:#eef2ff; --dim:#a6b1cc; --faint:#7c87a3;
-    --kaneo:#7c8cff; --gitea:#41c98a; --ntfy:#f5a524; --accent:#8b7bff; --danger:#ff6b7a;
+    --bg0:#ffffff; --bg1:#f6f8ff; --panel:rgba(28,39,66,.035);
+    --line:rgba(28,39,66,.13); --text:#1c2742; --dim:#4a5675; --faint:#6b7793;
+    --kaneo:#4f5fd0; --gitea:#1f9d63; --ntfy:#c47f0a; --accent:#5b5bd6; --danger:#c62f45;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     background:
-      radial-gradient(1400px 900px at 82% -10%, rgba(124,140,255,.20), transparent 60%),
-      radial-gradient(1200px 800px at -10% 110%, rgba(65,201,138,.13), transparent 55%),
-      radial-gradient(1000px 700px at 50% 120%, rgba(245,165,36,.10), transparent 55%),
-      linear-gradient(160deg,var(--bg0),var(--bg1));
+      radial-gradient(1200px 800px at 82% -10%, rgba(124,140,255,.10), transparent 60%),
+      radial-gradient(1000px 700px at -10% 110%, rgba(65,201,138,.08), transparent 55%),
+      #ffffff;
     background-attachment:fixed;
     color:var(--text);
     font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",system-ui,sans-serif;
@@ -231,59 +230,59 @@ const html = `<!DOCTYPE html>
   }
   .page{max-width:1120px;margin:0 auto;padding:52px 40px 80px}
   .cover{border:1px solid var(--line);border-radius:22px;padding:40px 44px;margin-bottom:34px;
-    background:linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.028) 45%, rgba(255,255,255,.05));
-    box-shadow:0 30px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);position:relative;overflow:hidden}
+    background:linear-gradient(160deg,#ffffff,#f7f9ff);
+    box-shadow:0 18px 46px rgba(28,39,66,.10), inset 0 1px 0 #ffffff;position:relative;overflow:hidden}
   .kicker{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;font-weight:700}
-  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
-  h1{font-size:46px;line-height:1.1;letter-spacing:-.02em;font-weight:800;margin:14px 0 10px}
-  h2{font-size:27px;line-height:1.2;font-weight:800;margin:44px 0 14px;padding-top:22px;border-top:1px solid var(--line);color:#f3f5ff}
-  h3{font-size:18.5px;font-weight:700;margin:26px 0 10px;color:#dfe6ff}
-  h4{font-size:16px;font-weight:700;margin:20px 0 8px;color:#cfd8f5}
-  .accent{background:linear-gradient(100deg,#a99bff,#7c8cff 45%,#41c98a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px rgba(91,91,214,.45)}
+  h1{font-size:46px;line-height:1.1;letter-spacing:-.02em;font-weight:800;margin:14px 0 10px;color:#0e1730}
+  h2{font-size:27px;line-height:1.2;font-weight:800;margin:44px 0 14px;padding-top:22px;border-top:1px solid var(--line);color:#111a33}
+  h3{font-size:18.5px;font-weight:700;margin:26px 0 10px;color:#1c2742}
+  h4{font-size:16px;font-weight:700;margin:20px 0 8px;color:#2a3550}
+  .accent{background:linear-gradient(100deg,#6a5ae0,#4f5fd0 45%,#1f9d63);-webkit-background-clip:text;background-clip:text;color:transparent}
   .lead{font-size:16px;line-height:1.7;color:var(--dim);max-width:62em}
   .tags{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 14px}
   .tag{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;font-size:13px;font-weight:600;
     border:1px solid var(--line);background:var(--panel);color:var(--dim)}
-  .tag.kaneo{color:#c9cfff;border-color:rgba(124,140,255,.45);background:rgba(124,140,255,.13)}
-  .tag.gitea{color:#b6f5d4;border-color:rgba(65,201,138,.42);background:rgba(65,201,138,.12)}
-  .tag.ntfy{color:#ffdfaa;border-color:rgba(245,165,36,.42);background:rgba(245,165,36,.12)}
-  .tag.s3{color:#b9e8ff;border-color:rgba(88,190,255,.42);background:rgba(88,190,255,.12)}
+  .tag.kaneo{color:#3b4bb5;border-color:rgba(79,95,208,.40);background:rgba(79,95,208,.09)}
+  .tag.gitea{color:#157a4c;border-color:rgba(31,157,99,.38);background:rgba(31,157,99,.09)}
+  .tag.ntfy{color:#9a6208;border-color:rgba(196,127,10,.38);background:rgba(196,127,10,.09)}
+  .tag.s3{color:#156a8f;border-color:rgba(21,106,143,.35);background:rgba(21,106,143,.08)}
   .meta{display:flex;gap:34px;flex-wrap:wrap;margin-top:18px;font-size:13px;color:var(--faint)}
-  .meta b{display:block;color:var(--dim);font-size:14px;margin-top:2px}
-  .toc{margin:0 0 12px;padding:20px 24px;border:1px solid var(--line);border-radius:16px;background:var(--panel);
+  .meta b{display:block;color:var(--text);font-size:14px;margin-top:2px}
+  .toc{margin:0 0 12px;padding:20px 24px;border:1px solid var(--line);border-radius:16px;background:#fafbff;
     columns:2;column-gap:34px;font-size:13.5px}
   .toc a{display:block;color:var(--dim);text-decoration:none;padding:3px 0}
-  .toc a:hover{color:#c9cfff}
-  p{margin:10px 0;color:#d5dcef}
-  a{color:#a9b8ff;text-decoration:none;border-bottom:1px dotted rgba(169,184,255,.4)}
+  .toc a:hover{color:#3b4bb5}
+  p{margin:10px 0;color:#34405c}
+  a{color:#2f4fd0;text-decoration:none;border-bottom:1px dotted rgba(47,79,208,.35)}
   ul,ol{margin:10px 0 10px 1.4em}
-  li{margin:5px 0;color:#d5dcef}
-  code{font-family:"Cascadia Mono","Consolas",monospace;font-size:.88em;background:rgba(124,140,255,.14);
-    border:1px solid rgba(124,140,255,.22);border-radius:6px;padding:1px 6px;color:#dfe4ff;white-space:nowrap}
-  pre{background:#0a1020;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0}
-  pre code{background:none;border:0;padding:0;white-space:pre;color:#dfe4ff}
+  li{margin:5px 0;color:#34405c}
+  code{font-family:"Cascadia Mono","Consolas",monospace;font-size:.88em;background:#eef2ff;
+    border:1px solid rgba(79,95,208,.20);border-radius:6px;padding:1px 6px;color:#26325a;white-space:nowrap}
+  pre{background:#f6f8ff;border:1px solid #e2e7f5;border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0}
+  pre code{background:none;border:0;padding:0;white-space:pre;color:#26325a}
   blockquote{margin:14px 0;padding:14px 18px;border-left:3px solid var(--accent);border-radius:0 12px 12px 0;
-    background:rgba(139,123,255,.09);color:#cfd6f0}
+    background:#f5f7ff;color:#37425e}
   blockquote p{margin:0}
   hr{border:0;border-top:1px solid var(--line);margin:26px 0}
   .table-wrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:12px}
   table{width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.55}
-  thead th{background:rgba(124,140,255,.12);color:#e7ebff;text-align:left;font-weight:700;padding:9px 12px;
+  thead th{background:#eef2fb;color:#1c2742;text-align:left;font-weight:700;padding:9px 12px;
     border-bottom:1px solid var(--line);white-space:nowrap}
-  tbody td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.07);color:#cdd5ea;vertical-align:top}
+  tbody td{padding:8px 12px;border-bottom:1px solid rgba(28,39,66,.09);color:#37425e;vertical-align:top}
   tbody tr:last-child td{border-bottom:0}
-  tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-  .diagram{margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:14px;
-    background:rgba(10,16,32,.55);overflow:hidden}
+  tbody tr:nth-child(even) td{background:#fafbff}
+  .diagram{margin:18px 0;padding:16px;border:1px solid #e2e7f5;border-radius:14px;
+    background:#ffffff;overflow:hidden}
   .diagram .svg-wrap{display:flex;justify-content:center}
   .diagram svg{max-width:100%;height:auto}
   .render-error{color:var(--danger);font-size:13px}
   .footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--faint)}
   @page{size:A4 portrait;margin:13mm 11mm}
   @media print{
-    body{background:#0b1020 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:11pt;line-height:1.62}
+    body{background:#ffffff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:11pt;line-height:1.62}
     .page{max-width:none;padding:0}
-    .cover{padding:26px 28px;margin-bottom:20px}
+    .cover{padding:26px 28px;margin-bottom:20px;box-shadow:none}
     h1{font-size:30pt}h2{font-size:17pt;margin:20px 0 8px;padding-top:12px}h3{font-size:12.5pt;margin:12px 0 6px}
     .toc{columns:2;font-size:9.5pt;padding:12px 14px;margin-bottom:8px}
     .diagram{break-inside:avoid;page-break-inside:avoid;padding:8px;margin:10px 0;display:flex;justify-content:center}
@@ -291,7 +290,7 @@ const html = `<!DOCTYPE html>
     .table-wrap{break-inside:auto}
     table{font-size:8.6pt}thead th{padding:5px 7px}tbody td{padding:4px 7px}
     pre{break-inside:avoid}blockquote{break-inside:avoid}
-    .tag,.tag.kaneo,.tag.gitea,.tag.ntfy,.tag.s3{color:#dfe4ff !important}
+    .tag,.tag.kaneo,.tag.gitea,.tag.ntfy,.tag.s3{color:#25314f !important}
   }
 </style>
 </head>
