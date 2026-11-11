@@ -541,4 +541,244 @@ classDiagram
 
 ---
 
+## 13. UI 设置 → 存储 → 代码 → 运行时：映射与关联
+
+> 本节以 **2026-11-11 08:45 (+08) 的线上实际设置** 为样本，字段名取自 `GET /orchestrator/api/settings` 与面板表单，
+> 代码位置是实际读取该值的地方。目的：解释“面板上改一个值，究竟改变了哪段逻辑”。
+
+### 13.1 一图看全
+
+```mermaid
+flowchart LR
+  subgraph UI["面板设置（Settings）"]
+    P["项目与岗位<br/>Project & Posts"]
+    S["来源<br/>Sources ×4"]
+    E["评估<br/>Eval（policy / eval）"]
+    X["执行<br/>Execution（executor / pause）"]
+    R["提示词<br/>Prompts"]
+    D["部署<br/>Deployment（插件配置 / 账号）"]
+  end
+
+  subgraph STORE["存储"]
+    AJ[("<stateDir>/projects.json<br/>archive：项目·岗位·宪章")]
+    DB[("SQLite settings<br/>policy / eval / executor / sources / paused")]
+    PV[("Prompts Versions<br/>revision 历史")]
+    CFG[("DSH 插件配置 + BDD 存储记录")]
+  end
+
+  subgraph CODE["代码消费"]
+    DU["duties.ts / narrative.ts<br/>dutyGate · dutyBrief · postOfActor"]
+    PO["sources/*.ts<br/>poll loops · config"]
+    PL["policy.ts<br/>gate · assessmentOutcome · policyVersion"]
+    AS["app/assessment.ts<br/>候选卡与主 Session"]
+    EX["executor/dsh.ts · app/sessions.ts<br/>角色模型 · 槽位 · prepare · shim"]
+    PR["app/prompts.ts<br/>compose / skills"]
+    SU["app/setup.ts · deployment.ts<br/>账号校验 · 机器限制"]
+  end
+
+  subgraph RUNTIME["运行时结果"]
+    TK["工单：Mandate / Assignment"]
+    WK["worker Session 行为"]
+    API["面板 / API 视图"]
+  end
+
+  P --> AJ --> DU --> TK
+  S --> DB --> PO --> TK
+  E --> DB --> PL --> AS --> TK
+  X --> DB --> EX --> WK
+  X --> DB --> WK
+  R --> PV --> PR --> WK
+  D --> CFG --> SU --> API
+  D --> CFG --> EX
+```
+
+### 13.2 面板分组总览
+
+| 面板分组 | 存储位置 | 保存入口 / 校验 | 主要消费代码 | 影响什么 |
+| --- | --- | --- | --- | --- |
+| 项目与岗位 | `<stateDir>/projects.json`（archive） | `POST narrative` / `POST narrative/charter`；`ArchiveSchema` 校验，保存时把 `kaneoUser` 映射为 `kaneoUserId` | `narrative.ts`、`duties.ts`、`kaneo-users.ts`、`enrichTicket` | 岗位身份（actor）、职责门禁、duty brief、WIP 展示 |
+| 来源 ×4 | `settings.sources[<id>]`（enabled + config） | `PUT settings/source:<id>`；各 `*ConfigSchema` 校验；改 `restarts` 字段会重启插件 | `kaneo.ts` / `gitea.ts` / `ntfy.ts` / `s3.ts` | 轮询、触发、观察、hold、取消、健康检查 |
+| 评估 | `settings.policy`、`settings.eval` | `PUT settings/policy`、`PUT settings/eval` | `policy.ts`、`assessment.ts`、`prompts.ts` | 准入 gate、规则匹配、接单模式、评估超时、Policy 版本 |
+| 执行 | `settings.executor`、`settings.paused`（独立块） | `PUT settings/executor`、`POST executor/pause`；`executor` 的环境字段仅 `panel` 可改 | `executor/dsh.ts`、`sessions.ts`、`setup`（命令 shim） | 角色模型、并发、工单目录、prepare、禁命令、暂停 |
+| 提示词 | Prompts Versions（revision 历史，`KV.prompts.*`） | `POST prompts`，带 base revision 乐观锁 | `prompts.ts`、`sessions.ts` | 主 Session / worker 的系统提示词与 skill |
+| 部署 | DSH 插件配置（machine）+ BDD 存储记录 | 插件 Config 表单；保存后 `SETUP_FIELDS` 触发校验/重启 | `deployment.ts`、`setup.ts`、`bdd-storage.ts` | 机器限制、账号解析、setup 健康 |
+
+### 13.3 项目与岗位（archive）
+
+线上值（`GET narrative`）：
+
+| 项目 | postId | 角色 | kaneoUserId | WIP | watchColumns | duties |
+| --- | --- | --- | --- | --- | --- | --- |
+| Superagent（`at8xrho45bisco2umjzgl1xp`） | `ux-fdep` | worker | `yO6O7g…VvE` | 3 | `to-do` | 空 |
+| 同上 | `api-fdep` | worker | `7MaRbn…cbZ` | 3 | `to-do` | 空 |
+| 同上 | `pm-rsi` | pm | `bsFdwg…J3zG` | 2 | `to-do` | 空 |
+
+| UI 字段 | 存储字段 | 实际代码 | 运行时作用 |
+| --- | --- | --- | --- |
+| 项目 id / 名称 / slug | `Project.id/name/slug` | `projects.ts`、`charter.ts` | 看板项目与宪章归属；与 Kanban `projectId` 对应 |
+| 宪章正文 / 发布 | `Project.charter.text/draft/history/version` | `readCharter`、`charter.ts`；`dutyBrief` 带 `Charter vN` | 提示词里的宪章、duty 的 `charterFocus`；发布版被职责 pin |
+| 岗位 id / 名称 / 角色 | `ArchivePost.postId/name/role` | `posts.tsx`、`enrichTicket` | `pm` 岗位走 PM 执行门禁；worker 岗位接 duty |
+| Kanban 账号 / 用户 id | `kaneoUser` → `kaneoUserId` | `kaneo-users.ts` 保存时按看板成员映射 | **actor 匹配**：`narrative.ts:167 postOfActor(actorId)` 决定这条卡属于哪个岗位 |
+| Gitea 账号 / ntfy 发送者 | `giteaUser` / `ntfySender` | 仅 archive 保存与展示 | 岗位身份说明；不参与 gate（gate 看来源策略） |
+| WIP | `wipLimit` | 只在 `posts.tsx` / `overview.tsx` 展示 | **不限制并发**；真正并发上限是 `executor.maxWorkers` |
+| instance | `instance` | 岗位视图展示（多实例预留） | 目前为空 = 未部署 |
+| watchColumns | `watchColumns` | 岗位视图展示 | 不覆盖 Kanban Source 的 `watchColumns`（来源级才生效） |
+| 职责下拉 | `duties[]` | `dutyTakenBy` / `dutyGate` | 空则回退到职责文档里的“承接岗位”行 |
+| 职责标签 | 卡片 `duty:<id>` | `dutyGate`（`duties.ts:377`） | 未知职责/非本岗职责 → 拒绝接单；已知职责 → duty brief 进 assignment |
+
+> 关联：`dutyGate` 在 **评估阶段**（`runtime.ts` 的 `duty` 钩子 → `assessment.ts`）影响候选；`dutyBrief` 在 **派工阶段**进入 assignment 文本。
+
+### 13.4 来源（四个卡片 + 每来源策略）
+
+每来源策略（`settings.policy.sources.<id>`）是 gate 的输入：`allowed`（能发起任务的人）、`admission`（观察全部消息时的准入表）。
+线上：`kaneo.allowed=[吴志平(bsFd…)]`、`ntfy.allowed=[wu.zhiping]`、`gitea.allowed=[shawoo]`，三者的 `admission` 都为空。
+
+#### Kanban 看板（`settings.sources.kaneo.config`，rev 82）
+
+| 表单字段 | 线上值 | 代码读取处 | 作用 |
+| --- | --- | --- | --- |
+| 服务地址 / API key | `https://pl.feg.cn` / 空（用 BDD 记录） | `kaneoAccountOf`、`storedKaneoAccount` | 客户端连接；空 key 时来源 paused |
+| 项目 / 工作区 | `at8xrho45bisco2umjzgl1xp` / `lDarCeU…` | `columnTasks`、`policyWorkspace` | 读哪块板；策略成员名单按工作区 |
+| 监听列 `watchColumns` | `to-do` | `watchColumnsOf` → `pollRound` | **决定哪些卡会变成 Trigger** |
+| 必需标签 `requiredLabels` | 空 | `requiredLabelsOf` | 只接带这些标签的卡 |
+| 首次轮询 `bootstrap` | `skip` | `KV.kaneo.bootstrap` | 首次只记基线不接历史卡 |
+| 认领 / 交付 / 待裁决列 | `in-progress` / `done` / 空 | `claimColumnOf`、`doneColumnOf`、`syncBlockedColumns` | 工单开始时/交付后/等裁决时移列 |
+| 等待标签 `holdLabel` | `blocked` | `syncHoldLabels`、`observeCards`、`Tickets.addInput` | blocked 时打标；**移除标签 = 恢复同一 Session** |
+| 取消列 `cancelColumns` | `canceled,cancelled` | `syncCancellations` | 卡进入即 `ctx.cancel` → 工单 stopped |
+| 观察更新 `observeUpdates` | `true` | `observeCards` | 运行中改评论/描述/列 → 作为 Input |
+| 其它来源先入库 `ingestEvents` | `true` | `kaneo-inbox.ts ingestEvents` | ntfy/Gitea 事件先建卡，而不是直接触发 |
+| 轮询间隔 / 失败阈值 / 每列上限 | `65s` / `3` / `50` | `pollRound`、watch loop | 轮询节奏、健康报错、单次读取量 |
+| 无负责人时 actor | `kaneo` | `kaneoTrigger` | 卡片没有负责人/创建者时的身份回退 |
+| 每来源策略 | 见上 | `policy.gate` | 谁把卡放进监听列才算合法请求 |
+
+#### Gitea（宪章仓库，rev 86）
+
+| 表单字段 | 线上值 | 代码读取处 | 作用 |
+| --- | --- | --- | --- |
+| 服务器 / 邮箱 / 密码 / token | `https://git.feg.cn` / `wu.zhiping@feg.cn` / 空 / 空 | `GiteaClient` | 匿名可读仓库即可；有账号则先校验登录 |
+| 宪章仓库 | `shawoo/rsi_superagent` | `verifyGitea`（保存校验）、`charterHealth`、`readCharter` | 宪章与 `duties/` 的唯一来源 |
+| 宪章文件 | `README.md` | `charterPath` | 宪章入口文件；`duties/` 在它旁边 |
+| —（隐藏旧字段） | `repository=shawoo/PDP`、`listen=repo`、`observeIssues…` | 仅在旧配置里保留 | **当前构建不轮询 Issue/PR**：`apply()` 只注册 kind + `charterHealth`，`watch()` 未启动；这些值不产生任务 |
+
+#### ntfy（rev 112）
+
+| 表单字段 | 线上值 | 代码读取处 | 作用 |
+| --- | --- | --- | --- |
+| 服务器 / 主题 | `https://msn.feg.cn` / `pub_at8…` | `NtfyClient` | 读主题历史 |
+| 认证方式 / 账号 / 密码 / token | `none` / 空 | `ntfyAccountOf` | 私有主题鉴权 |
+| 发送者 / agent | `#dsh-superagent` / `dsh-superagent` | `channel.send`、`ntfySenderOf` | 回写消息标题与发送者约定 |
+| 标签过滤 `ingestTags` | `dsh` | `pollRound` | 只处理带该标签的消息（宿主自己的回复会被过滤） |
+| 首次轮询 / 轮询间隔 / 每次条数 | `skip` / `65s` / `100` | `pollRound` | 历史基线、节奏、单次读取量 |
+| 与 Kanban 联动 | `ingestEvents=true` | `kaneo-inbox.ts` | 消息先建成 Kanban 卡（`to-do`），由看板调度；Kanban 的 `ingestEvents` 关掉时 ntfy 才会直接产生 Trigger |
+
+#### MinIO（rev 1）
+
+| 表单字段 | 线上值 | 代码读取处 | 作用 |
+| --- | --- | --- | --- |
+| 服务地址 / 桶 / access / secret / region / prefix | 全空 | `s3AccountOf` + `storedConnections` | 空则用 BDD 存储记录 `/BDD/API/AI/dsh/storage/s3`；仅探活与 worker 工具 |
+| 巡检间隔 / 失败阈值 | `305s` / `3` | watch loop | 健康检查节奏 |
+| 生产任务 | — | — | **不产生 Trigger**，只做资产读写 |
+
+### 13.5 评估（policy + eval）
+
+| UI 字段 | 存储 | 线上值 | 代码 | 运行时作用 |
+| --- | --- | --- | --- | --- |
+| 接单模式 | `settings.eval.mode` | `observe` | `assessmentOutcome`、`gate`、`prompts.policySection` | 只拦 **inferred**；explicit 仍接单（§5.2） |
+| 评估超时 | `settings.eval.timeoutSeconds` | `120` | `settingsPolicy` → `evalTimeoutMs`；`Evals.delivered/due` | candidate 送达后 120s 未决策 → 过期重排，3 次后 `unavailable` |
+| 研判模型 | `settings.eval.model` | `null`（用默认） | `Sessions.ensure` role=orchestrator | 主 Session 的模型 |
+| 接单规则 | `settings.policy.rules` | copy + visual，均启用 | `assessmentOutcome`、主 Session 提示词 | 每条规则必须恰好一个判断；命中且有 `intent_evidence` 才可接 |
+| 各来源策略 | `settings.policy.sources.<id>` | allowed 3 人；admission 空 | `policy.gate` | 谁能发起、未 @ 时按准入表定 explicit/inferred/filter |
+| 策略版本 | 由 rules + mode + sources policy 计算 | `policyVersion` | `policyVersion()`、`Tickets.create` 记录、`policyChanged` | 变更会通知受影响工单；工单记下接单时版本 |
+
+> 这解释了此前的现象：线上 `mode=observe`，但 Kanban 卡进入监听列是 **explicit**，因此决策 `explicitRouted` 仍会接单。
+
+### 13.6 执行（executor + pause + 环境变量）
+
+| UI 字段 | 存储 | 线上值 | 代码 | 运行时作用 |
+| --- | --- | --- | --- | --- |
+| worker 模型 | `executor.model` | `aife / MiniMax-M3.1-Flash` | `Sessions.ensure` role=worker | worker Session 用哪个模型 |
+| 最大并发 | `executor.maxWorkers` | `1` | `DshExecutor` `WorkerSlots` | 同时运行的 worker 数上限（人消息可临时 +1） |
+| 执行目录 | `executor.directory` | 空 | `ticketExecution` | 空 → `<stateDir>/work`；面板显示 `environment.root` |
+| prepare 命令 | `executor.prepare` | 空 | `prepareDirectory` | 新工单目录准备命令，可用 `DSH_SUPERAGENT_*` 变量 |
+| 禁止命令 | `executor.blockedCommands` | 空 | `setup.blockCommands`（重写 worker-bin shim）+ `DSH_SUPERAGENT_BLOCKED_COMMANDS` | shell 层物理拦截；改后立即重建 shim |
+| 暂停 | `settings.paused`（独立块） | `false` | `Passes`、`DshExecutor`、`Outbox`、`Evals.due` | 停 launch/delivery/reply 与评估过期；**来源仍记录触发** |
+| 环境变量 | 由 `environment.variables` 派生 | 见 `GET settings.environment` | `execution-environment.ts`、`EnvironmentVariables` 选择器 | 插入 prepare 命令；工单变量（DIR/NAME/TICKET…）与来源变量 |
+
+### 13.7 提示词
+
+| UI 字段 | 存储 | 代码 | 作用 |
+| --- | --- | --- | --- |
+| 三个团队段落（沟通 / 工单范围 / 交付要求） | Prompts Versions 的 `communication/scope/delivery` | `prompts.ts` `TEAM_SECTIONS` → `compose` | 主 Session 与 worker 共用的行为约束 |
+| skill 配置 | `skills` map（名字 → 文本/路径） | `skills()` 注册 DSH skill | worker 技能可用性 |
+| 内置段落覆盖 | `overrides`（key → `{text, base}`） | `PART_KEYS`（runtime/*、skill/*） | 替换 ①②③ 等段落；保存后通知主 Session |
+
+### 13.8 部署（DSH 插件配置 + 账号）
+
+| UI 字段 | 存储 | 线上值 | 代码 | 作用 |
+| --- | --- | --- | --- | --- |
+| stateDir | DSH 插件配置（machine） | `D:/…/dsh/state/superagent` | `machineOf`、`runtime` | 状态库、projects.json、worker 目录的根 |
+| promptMaxChars | 同上 | `100000` | `resources.ts` | 提示词/上下文截断上限 |
+| admissionContextMaxPages / Timeout | 同上 | `10` / `15000ms` | `assessment.ts` | 评估时读取线程/仓库上下文的页数与超时 |
+| GitHub / 飞书账号 | CLI 解析 | 空 | `resolveDeployment`、`resolveFeishuBot` | GitHub/飞书来源是否可用 |
+| Kanban / Gitea / ntfy 账号 | BDD 存储记录 `/BDD/API/AI/dsh/storage/*` | 已配置 | `storedConnections`、`setup.checkAccounts` | REST 来源的连接与保存校验；S3 同理 |
+
+### 13.9 设置联动的关键链
+
+```mermaid
+flowchart LR
+  subgraph SET[设置值]
+    MODE["eval.mode"]
+    RULES["policy.rules"]
+    ALLOW["policy.sources[id].allowed"]
+    WATCH["kaneo.watchColumns / requiredLabels"]
+    HOLD["kaneo.holdLabel / cancelColumns"]
+    MW["executor.maxWorkers"]
+    MODEL["executor.model / eval.model"]
+    ENV["executor.directory / prepare / blockedCommands"]
+    ARCH["posts[].kaneoUserId / duties"]
+    PROMPT["prompts sections / overrides"]
+  end
+  subgraph EFFECT[运行时效果]
+    GATE["gate：explicit / inferred / filtered"]
+    OUT["assessmentOutcome：accept / would_accept"]
+    TRIG["触发产生：哪些卡成为 Trigger"]
+    LIFECYCLE["hold / 恢复 / 取消"]
+    SLOT["WorkerSlots 并发"]
+    SESSION["Session 角色模型"]
+    WORK["worker 目录 / prepare / shim"]
+    DUTY["dutyGate / dutyBrief / postOfActor"]
+    SYS["系统提示词"]
+  end
+  MODE --> OUT
+  RULES --> OUT
+  ALLOW --> GATE
+  WATCH --> TRIG
+  HOLD --> LIFECYCLE
+  MW --> SLOT
+  MODEL --> SESSION
+  ENV --> WORK
+  ARCH --> DUTY
+  PROMPT --> SYS
+  GATE --> OUT
+  TRIG --> GATE
+  OUT --> LIFECYCLE
+```
+
+### 13.10 “UI 有，但不按你想的那样生效”清单
+
+| 现象 | 真实逻辑 |
+| --- | --- |
+| 「仅观察」仍接单 | 只拦 inferred；Kanban 卡是 explicit，任何模式都路由 |
+| 岗位 WIP 填 3，仍可能只有 1 个在执行 | WIP 仅展示；并发上限是 `executor.maxWorkers`（线上 = 1） |
+| 岗位里填了 watchColumns，看板却没变化 | 岗位字段仅展示；真正生效的是 Kanban 来源的 `watchColumns` |
+| Gitea 卡片里有旧事件仓库/监听配置 | 当前只做宪章仓库；`apply()` 不启动事件 watch |
+| MinIO 卡片全空却健康 | 空字段回退 BDD 存储记录 `/BDD/API/AI/dsh/storage/s3` |
+| 改 Gitea 宪章路径后插件重启 | `charterPath` 在 `SETUP_FIELDS.gitea` 里，属重启字段 |
+| 保存按钮有时灰/有时没有 | 有未保存改动才出现；`testable` 来源必须先测试通过才能保存 |
+| 暂停后卡还在产生触发 | 暂停只停 launch/delivery/reply 与评估过期，来源照常记录 |
+| 改策略后运行中工单行为变了 | `policyVersion` 变化 → `policyChanged` 通知受影响的工单 |
+| 面板提示“已保存”但 revision 没变 | 值经 trim/规范化后与旧值相同，视为无变化、不落库 |
+
+---
+
 *本文只描述当前实现；图中“人/PM”指在 Kanban 或面板上操作的人。修改流程语义（例如让 observe 也拦明确请求）时，请同时更新本文件与 [docs/007-architecture.md](docs/007-architecture.md)。*
