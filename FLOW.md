@@ -2,6 +2,7 @@
 
 > 本文回答三个问题：**数据从哪来**（来源 → Trigger）、**谁在什么条件下接单**（准入 → 评估 → 决策）、
 > **接单后怎么执行与回写**（工单 → 派工 → worker → 报告 → 回复）。
+> 阅读版：[FLOW.html](FLOW.html) · [FLOW.pdf](FLOW.pdf)（AIOS 同款深色主题，图已预渲染）。
 > 配套阅读：[docs/005-panel.md](docs/005-panel.md)（来源配置）、[docs/007-architecture.md](docs/007-architecture.md)（模块职责）、
 > [BLK.md](BLK.md)（阻塞/裁决/取消）、[docs/003-execution.md](docs/003-execution.md)（工单阶段表）。
 
