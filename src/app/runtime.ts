@@ -29,6 +29,7 @@ import { evalsHealth } from './views/overview.ts'
 import { TextCache } from './cache.ts'
 import { Effects } from './effects.ts'
 import { Prompts } from './prompts.ts'
+import { Watchdog } from './watchdog.ts'
 import { registerHttp, type HttpHost } from './http.ts'
 import type { LinkTarget } from './views/records.ts'
 import { candidateCard, repliedTo, sourceLink, type LinkHost } from './links.ts'
@@ -57,6 +58,19 @@ declare module '@deepseek-ai/cordis' { interface Context { orchestrator: SourceH
 const now = (): string => new Date().toISOString()
 
 /**
+ * The Triggers whose evaluation was recorded `unavailable` while the model service was failing: the requests an outage
+ * took from the main Session. They are judged again once the model answers, instead of staying lost.
+ */
+function droppedRequests (store: Store, sessions: Sessions): string[] {
+  if (!sessions.failed()) return []
+  const dropped: string[] = []
+  for (const decision of store.read.decisionsOfKinds(['unavailable'], 200)) {
+    for (const triggerId of decision.triggerIds) if (!dropped.includes(triggerId)) dropped.push(triggerId)
+  }
+  return dropped
+}
+
+/**
  * Composition root of dsh-superagent that connects `Store`, `Setup`, `Engine`, `SourceRegistry`, `Effects`, `Outbox`, `Passes`, `Sessions`, `Settings`, `Prompts`, `DshExecutor`, and `MasterAssessor`.
  * Exposes the `SourceHost` service on the Cordis context for source plugins and coordinates startup, setup checks, HTTP route registration, and graceful shutdown.
  * Locks the state directory before opening SQLite so concurrent processes cannot corrupt or double-migrate state.
@@ -78,6 +92,8 @@ export class Runtime extends Service implements SourceHost {
   readonly ready: Promise<void>
   private readonly board = new HealthBoard()
   private readonly runtimeHealth = this.board.claim('runtime', { state: 'starting', detail: '' })
+  /** The supervisor that restores the work a model failure took from the main Session. */
+  readonly watchdog: Watchdog
   readonly masterId: string
   private readonly sourceLinks = new TextCache(200_000)
   private readonly stopped = new AbortController()
@@ -163,6 +179,18 @@ export class Runtime extends Service implements SourceHost {
         lifetime: this.lifetime,
         closing: () => this.closing(), environment,
         tools: (agent, ticket) => ticket ? executorTools(this.toolHost, ticket) : mainTools(this.toolHost, agent) })
+      // The watchdog restores the work a model failure took from the main Session: a relay whose turn failed is sent
+      // again, and the requests an outage dropped are judged again once the model answers.
+      const watchdog = this.watchdog = new Watchdog({        context: ctx, masterId, health: board.claim('watchdog', { state: 'ready', detail: 'The main Session is working' }),
+        reevaluate: triggerId => engine.reevaluate(triggerId),
+        redeliver: (requestId, text) => sessions.redeliver(requestId, text),
+        lostRelays: () => sessions.lostRelays(),
+        droppedRequests: () => droppedRequests(store, sessions),
+        failing: () => sessions.failed(),
+        recovered: () => sessions.recovered(),
+        busy: () => ctx.agents.get(masterId as SessionId)?.status === 'running',
+        forget: requestId => sessions.forget(requestId),
+      })
       const policyChanged: EngineForSettings['policyChanged'] = (from, to, effects) => { this.engine.policyChanged(from, to, effects) }
       this.settings = new Settings({ store, sources, engine: { policyChanged }, health: board, context: ctx, lifetime: this.lifetime, sessions,
         sourceHost: this, setup, requestPass: () => { this.passes.request() } })
@@ -260,6 +288,7 @@ export class Runtime extends Service implements SourceHost {
     this.executor.resume()
     this.passes.start()
     this.effects.start()
+    this.watchdog?.start()
     this.runtimeHealth.set({ state: 'ready', detail: 'Orchestrator is ready', at: now() })
   }
   private httpHost(): HttpHost {
@@ -275,6 +304,7 @@ export class Runtime extends Service implements SourceHost {
   stop(): Promise<void> { return this.stopping ??= this.shutdown() }
   private async shutdown(): Promise<void> {
     this.closingFlag = true; const passes = this.passes.stop(); this.stopped.abort()
+    this.watchdog?.stop()
     try {
       this.assessor.stop()
       const ids = [this.masterId, ...this.store.tickets.list().map(ticket => workerSessionId(ticket.id))]

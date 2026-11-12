@@ -390,6 +390,42 @@ flowchart TD
 > **注意**：blocked/failed 工单收到人的消息后，`waitsForPerson` 变 false，但当前实现**不会**因此自动起新 Assignment；
 > 受支持的恢复入口是**看板移除 hold 标签**（`holdLifted` → `Tickets.resume`）或**面板重试**。这条边界值得后续改造成“人类消息即恢复”。
 
+### 9.1 模型服务故障：主 Session 停摆与恢复（看门狗）
+
+模型服务故障（429 预算耗尽、网关不可用）会让**主 Session 的那一轮 turn 以 `error` 结束**。此时有两处工作被拿走，且没有任何机制会把它们放回来：
+
+| 丢失的东西 | 原来的后果 | 现在的恢复方式 |
+| --- | --- | --- |
+| **relay**（工人报告、follow-up、评估候选卡） | 已投递但模型没读到；effect 行已删除 → **永久丢失** | 看门狗按新的 requestId **再投一次**（`Sessions.redeliver`），模型读到为止 |
+| **评估**（候选卡无人判定） | Eval 过期 3 次后记为 `unavailable` → **请求被丢弃** | 模型恢复后，看门狗用 `Engine.reevaluate` **重新排队**，再判一次 |
+
+判定依据（`src/app/turn-outcomes.ts`）：
+
+- `agent/inbox/claimed` 告诉我们**哪一轮取走了哪条消息**；
+- `turn/end` 的 `reason.kind`（`error`/`aborted`）说明那一轮**失败**；
+- 该轮**没有 `assistant/message`**（`spoke === false`）说明模型**根本没读到**那条消息 → 判定为 lost。
+
+```mermaid
+flowchart TD
+  A["模型 429 耗尽预算"] --> B["主 Session 的 turn 以 error 结束"]
+  B --> C["TurnOutcomes 记录：该轮失败且没有模型输出"]
+  C --> D{"看门狗定时检查<br/>（15s）"}
+  D --> E{"主 Session 忙？"}
+  E -- 是 --> E1["等下一轮"]
+  E -- 否 --> F{"有 lost relay？"}
+  F -- 是 --> G["用新 requestId 再投一次<br/>（AgentDelivery 去重因此放行）"]
+  G --> H["模型读到 → 继续"]
+  F -- 否 --> I{"模型服务仍在失败？"}
+  I -- 是 --> I1["只报告，不重排<br/>（health: watchdog）"]
+  I -- 否 --> J{"有 outage 丢掉的请求？"}
+  J -- 是 --> K["reevaluate 重新排队<br/>（每个只排一次）"]
+  J -- 否 --> L["报告：无工作丢失"]
+```
+
+> 面板上的 `watchdog` 健康条目会说明当前状态：`The model service is not answering; the main Session waits for it`、
+> `The main Session's turn failed: N relay(s) sent again` 或 `N request(s) the outage dropped are judged again`。
+> 它的价值在于**把静默变成可见**：以前 429 之后面板什么也不显示。
+
 ---
 
 ## 10. 数据模型

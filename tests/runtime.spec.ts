@@ -36,6 +36,7 @@ import { decisionList, search, threadDetail, threadList } from '../src/app/views
 import { executorLoad, ticketDetail, ticketList } from '../src/app/views/tickets.ts'
 
 let runtime: Runtime
+let hostContext: Context
 const viewsOf = (value: Runtime) => ({ store: value.store, sources: value.sources, links: value.links() })
 const overviewOf = (value: Runtime) => overview(viewsOf(value), value.health, policyVersion(value.store.settings()), executorLoad(value.store, value.executor.activeCount()), value.setupProblem ?? value.feishuProblem)
 let directory: string
@@ -152,7 +153,7 @@ beforeEach(async () => {
     [HELPERS]: `file:${workerGitConfig(directory)}\0${credentialHelper(AGENT())}\0`,
     [SCOPED]: `global\0credential.helper\n\0global\0credential.https://github.com.helper\n${credentialHelper(AGENT())}\0`,
   }
-  const ctx = new Context()
+  const ctx = hostContext = new Context()
   agents = new Map()
   tools = new Map()
   sections = new Map()
@@ -1324,6 +1325,25 @@ it('refuses a settings save with an unknown model or a Source kind that is not i
     baseRevision: runtime.prompts.current().revision })).toMatchObject({ status: 400, body: { code: 'unknownPromptPart' } })
   expect(await request('GET', 'prompts?revision=99')).toMatchObject({ status: 404, body: { code: 'unknownPromptRevision' } })
   expect(await request('GET', 'threads/%E0%A4%A')).toEqual({ status: 400, body: { error: 'A path segment has a malformed escape' } })
+})
+
+it('sends a relay again whose turn failed before the model read it', async () => {
+  const { sessionId } = await acceptedTicket()
+  deliveries.mockClear()
+  // A worker's report becomes a relay the main Session is given.
+  await runTool(sessionId, 'orchestrator_report', { state: 'blocked', summary: 'half done' })
+  await runtime.idle()
+  const sent = deliveries.mock.calls.map(([call]) => call).filter(call => call.sessionId === runtime.masterId)
+  expect(sent.length).toBeGreaterThan(0)
+  // The agent takes the relay into a turn, and that turn fails before the model produced anything: the relay was never read.
+  const master = agents.get(runtime.masterId)!
+  hostContext.emit('agent/inbox/claimed', { agent: master, message: { id: sent[0]!.id }, turn: 1 } as never)
+  hostContext.emit('session/event', (master as unknown as { session: unknown }).session as never, { type: 'turn/end', data: { turn: 1, reason: { kind: 'error', error: { code: 'RATE_LIMIT', message: 'Too many requests' } } } } as never)  ;(master as unknown as { status: string }).status = 'idle'
+  await runtime.watchdog.check()
+  const again = deliveries.mock.calls.map(([call]) => call).filter(call => call.sessionId === runtime.masterId)
+  // The relay is sent again, under a request id of its own, so it is delivered rather than skipped as delivered.
+  expect(again.length).toBeGreaterThan(sent.length)
+  expect(again.at(-1)!.id).not.toBe(sent[0]!.id)
 })
 
 it('records a report, the PR it binds and its relay together, or none of them', async () => {

@@ -13,6 +13,7 @@ import { AgentDelivery, messageId } from './delivery.ts'
 import type { Effects } from './effects.ts'
 import type { Variable } from './execution-environment.ts'
 import { RetryHealth } from './retry-health.ts'
+import { TurnOutcomes } from './turn-outcomes.ts'
 import { initializeRoleModel } from './role-models.ts'
 import { bundledSkills } from './skill-files.ts'
 import { SKILL_PREFIX, type PromptVersion, type Prompts } from './prompts.ts'
@@ -97,16 +98,24 @@ export class Sessions {
   /** Decorated agents mapped to their registered disposers and skill scope until the agent is disposed or `Sessions.dispose()` runs. */
   private readonly bindings = new Map<Agent, SessionBinding>()
   private readonly retryHealth = new RetryHealth()
+  /** The main Session's turn results, which tell whether a relayed message was processed or lost with a failed turn. */
+  private readonly turns = new TurnOutcomes()
+  /** The relays waiting in the main Session's inbox, by their request id. */
+  private readonly relays = new Map<string, { text: string; deliveryId: string }>()
+  /** How many times a relay was sent again after a failed turn. */
+  private readonly attempts = new Map<string, number>()
   private readonly ctx: Context
   /** Registers ordered `relay` and `notice` effect handlers that deliver to the main Session. */
   constructor(private readonly host: SessionsHost) {
     this.ctx = host.context
     this.agentDelivery = new AgentDelivery(host.context)
-    // Deliver relays and notices to the main Session in the order they were queued.
-    host.effects.handle('relay', ({ text }, requestId) => this.prompt(host.masterId, requestId, text, 'steer'), { ordered: true })
+    // Deliver relays and notices to the main Session in the order they were queued. The relay is delivered, not judged:
+    // the turn that carries it may still fail, and the watchdog sends a lost relay again (see `lostRelays`).
+    host.effects.handle('relay', async ({ text }, requestId) => {
+      await this.prompt(host.masterId, requestId, text, 'steer')
+    }, { ordered: true })
     host.effects.handle('notice', ({ value, summary }, name) => this.inject(name, value, summary), { ordered: true })
-  }
-  /** Subscribes to host agent and session events so newly created sessions are decorated and model-budget retries are reflected in health. Call once at startup. */
+  }  /** Subscribes to host agent and session events so newly created sessions are decorated and model-budget retries are reflected in health. Call once at startup. */
   install(): void {
     const ctx = this.ctx
     ctx.on('agent/disposed', ({ agent }) => {
@@ -119,6 +128,16 @@ export class Sessions {
       if (!agent || !binding || binding.subagent) return
       this.retryHealth.observe(agent.id, event)
       this.updateModelHealth()
+    })
+    // The main Session's turn results tell whether a relay it was given was read: a turn that failed without producing
+    // output lost the message it carried, so the relay is sent again.
+    ctx.on('session/event', (session, event) => {
+      if (session.id !== this.host.masterId) return
+      this.turns.observe(event)
+    })
+    ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
+      if (agent.id !== this.host.masterId) return
+      this.turns.claimed(message.id, turn)
     })
     ctx.on('agent/created', async ({ agent }) => { await this.decorate(agent); return undefined })
     // Opening a Session in DSH's Web UI before its first turn may select the default preset for it: select ours again. After
@@ -166,12 +185,33 @@ export class Sessions {
     const result = await this.ctx.sessionController.resolveAgent(sessionId as SessionId)
     if ('error' in result) throw result.error
     await this.agentDelivery.send(result.agent, key(requestId), text, mode, this.host.lifetime, authorize, accepted)
+    // A message the main Session was given is tracked until the turn that carried it ends: a turn that failed without
+    // producing output lost it, and the watchdog sends it again.
+    if (sessionId === this.host.masterId && mode === 'steer') {
+      this.relays.set(requestId, { text, deliveryId: messageId(key(requestId)) })
+    }
   }
   /** The id of the message `prompt` delivers under `requestId`, which DSH's inbox events name it by. */
   promptedId(requestId: string): MessageId { return messageId(key(requestId)) }
   /** Enqueues a steering relay to the main Session; relays are durable and retried by `Effects` until delivered, at most once per `requestId`. */
   relay(requestId: string, text: string): void { this.host.effects.enqueue('relay', requestId, { text }) }
-  /** Enqueues a durable background notice for injection into the main Session; a new notice with the same `name` replaces a still-waiting notice of that `name`. */
+  /** The relays the main Session never read, because the turn that carried them failed before it produced output. */
+  lostRelays(): { requestId: string; text: string }[] {
+    return [...this.relays].filter(([, relay]) => this.turns.lost(relay.deliveryId))
+      .map(([requestId, relay]) => ({ requestId, text: relay.text }))
+  }
+  /** Sends a relay to the main Session again, under a request id of its own, so it is delivered rather than skipped as delivered. */
+  async redeliver(requestId: string, text: string): Promise<void> {
+    const attempt = (this.attempts.get(requestId) ?? 0) + 1
+    this.attempts.set(requestId, attempt)
+    await this.prompt(this.host.masterId, `${requestId}#${attempt}`, text, 'steer')
+  }
+  /** Forgets a relay the watchdog will not send again. */
+  forget(requestId: string): void { this.relays.delete(requestId) }
+  /** Whether the main Session's last turn failed, which means the model service did not answer. */
+  failed(): boolean { return this.turns.failing() }
+  /** Whether a turn of the main Session ended well after the last failure, which means the model service answers again. */
+  recovered(): boolean { return this.turns.recovered() }  /** Enqueues a durable background notice for injection into the main Session; a new notice with the same `name` replaces a still-waiting notice of that `name`. */
   notify(name: string, value: Record<string, unknown>, summary: string): void { this.host.effects.enqueue('notice', name, { value, summary }) }
   /** Waits for currently runnable `notice` effects to settle and returns `'injected'` if notice `name` has reached the main Session or `'pending'` if it is still queued. */
   async delivery(name: string): Promise<'injected' | 'pending'> {
