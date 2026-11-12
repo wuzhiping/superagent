@@ -1,7 +1,7 @@
 /** Overview page: pending Tickets requiring human action, active system problems, 24-hour flow counts, and Executor load. */
 import type { ReactNode } from 'react'
 import { usePoll, type NarrativeView, type Problem } from './api.ts'
-import { Button, Icon } from './controls.tsx'
+import { Button, Dot, Icon } from './controls.tsx'
 import { usePerspective } from './perspective.tsx'
 import { useAction, usePanel, usePanelData } from './provider.tsx'
 import { setupPage, settingsRoute, type Route } from './route.ts'
@@ -61,11 +61,13 @@ function ProblemLine({ problem, onChanged }: { problem: Problem; onChanged: () =
 
 export function OverviewPage() {
   const { t, call, navigate } = usePanel()
-  const { setup } = usePanelData()
+  const { setup, state } = usePanelData()
   const { perspective, postId } = usePerspective()
   const { data, error, reload } = usePoll(() => call('GET overview'), [])
   const { data: narrative } = usePoll(() => call('GET narrative'), [])
   if (!data) return <LoadState error={error} loading />
+  const session = state?.session
+  const sessionDot = session?.status === 'error' ? 'error' : session?.status === 'running' ? 'running' : 'warning'
   const stat = (label: string, value: ReactNode, route?: Route) => <span className="dt-stat">
     <span className="dt-stat-label">{label}</span>
     {route ? <button type="button" className="dt-textlink dt-stat-value" onClick={() => navigate(route)}>{value}</button> : <span
@@ -75,6 +77,14 @@ export function OverviewPage() {
     onClick={() => navigate(route)}>{t('details')}</button>
   return <>
     {error && <LoadState error={error} loading={false} />}
+    {session && <Section title={t('mainSession')}>
+      {/* The main Session's own state: green while it works, yellow while it waits, red when the model service failed it. */}
+      <div className="dt-row-meta dt-status-line">
+        <Dot state={sessionDot} />
+        <span className="dt-status-text" data-state={session.status}>{t(`mainSessionState.${session.status}`)}</span>
+        {session.detail && <span className="dt-small">{session.detail}</span>}
+      </div>
+    </Section>}
     <Section title={t('pendingTickets')} count={data.person.length}>
       {data.person.length ? <ul className="dt-list dt-cards">{data.person.map(ticket => <TicketLine key={ticket.id} ticket={ticket} question
         onChanged={reload} />)}</ul>

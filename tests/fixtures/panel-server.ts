@@ -139,6 +139,8 @@ export interface PanelServer {
   /** The duties document the panel reads; a test may set it, and publishing records what was written. */
   duties?: { mode?: 'folder' | 'file' | 'none'; text?: string; duties?: import('../../src/app/duties.ts').DutySpec[]; detail?: string }
   dutiesPublished?: { text: string; publishedBy?: string }
+  /** The main Session's state the panel shows; a test may set it. */
+  session: { status: 'running' | 'idle' | 'error'; detail: string }
 }
 export let server: PanelServer
 
@@ -194,6 +196,7 @@ const stateView = (): StateView => ({
   masterId: 'master', paused: server.settings.paused,
   // The panel does not read health; the service script does.
   health: {},
+  session: server.session,
 })
 const settingsView = (): ApiResponse<'GET settings'> => ({
   policyVersion: 'abcdef1234567890',
@@ -295,6 +298,7 @@ function initial(): PanelServer {
   const defaults = { revision: 0, previousRevision: null, savedAt: '', source: 'defaults' }
   return {
     health: {}, down: false, pending: 0, opened: [], requests: [], misuse: [], queued: new Set(), dropped: [], failing: [],
+    session: { status: 'running', detail: 'The main Session is working' },
     setup: { machine: MACHINE, problem: null, feishuProblem: null,
       accounts: { repository: 'acme/widgets', agent: 'agent-bot', feishu: { appId: 'cli_bot', brand: 'feishu', botId: 'ou_bot',
         name: 'Widgets Bot' } } },

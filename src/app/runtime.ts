@@ -240,6 +240,20 @@ export class Runtime extends Service implements SourceHost {
     }
   }
   get health(): Readonly<Record<string, Health>> { return this.board.all }
+  /**
+   * The main Session's state for the panel: `running` while it works, `idle` while it waits for work, and `error` when the
+   * model service did not answer it. The detail says which, so the panel shows what went wrong.
+   */
+  masterStatus(): { status: 'running' | 'idle' | 'error'; detail: string } {
+    if (this.ctx.agents.get(this.masterId as SessionId)?.status === 'running') {
+      return { status: 'running', detail: 'The main Session is working' }
+    }
+    const failure = this.sessions.lastFailure()
+    if (this.sessions.failed() && !this.sessions.recovered()) {
+      return { status: 'error', detail: failure ? `The model service failed (${failure.code}): ${failure.message}` : 'The model service failed' }
+    }
+    return { status: 'idle', detail: 'The main Session waits for work' }
+  }
   /** Aborted when dsh-superagent stops or loses its state directory lock, cancelling running reads and subprocesses. */
   get lifetime(): AbortSignal { return this.stopped.signal }
   context(kind: { kind: string; health: readonly string[] }): SourceContext { return sourceContextOf(this.sourceDeps, kind) }
@@ -298,6 +312,7 @@ export class Runtime extends Service implements SourceHost {
       get deployment() { return setup.deployment },
       get setupProblem() { return setup.problem }, get feishuProblem() { return setup.feishuProblem },
       configured: () => setup.configured(), links: () => runtime.links(), ticketEnvironment: ticket => runtime.ticketEnvironment(ticket),
+      masterStatus: () => runtime.masterStatus(),
       checkSetup: () => { setup.check() }, requestPass: () => { passes.request() }, models: () => this.ctx.sessionController.modelCatalog() }
   }
   /** Idempotent stop; concurrent or repeated calls share the same shutdown promise. */

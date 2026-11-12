@@ -137,7 +137,7 @@ export function Switch({ checked, onChange, label,
   </button>
 }
 
-export type DotState = 'done' | 'warning' | 'ongoing' | 'error' | 'idle'
+export type DotState = 'done' | 'warning' | 'ongoing' | 'error' | 'idle' | 'running'
 export function StateDot({ state, className }: { state: DotState; className?: string }) {
   if (state === 'ongoing') {
     return <svg className={cx('dt-spinner', className)} data-state="ongoing" width={14} height={14} viewBox="0 0 24 24" aria-hidden="true">

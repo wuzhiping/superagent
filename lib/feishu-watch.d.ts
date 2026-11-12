@@ -110,8 +110,8 @@ declare const FeishuConfigSchema: z.ZodObject<{
   }, z.core.$strict>>>;
   directMessages: z.ZodDefault<z.ZodBoolean>;
   otherChats: z.ZodDefault<z.ZodEnum<{
-    none: "none";
     mentions: "mentions";
+    none: "none";
   }>>;
 }, z.core.$strict>;
 type FeishuConfig = z.infer<typeof FeishuConfigSchema>;

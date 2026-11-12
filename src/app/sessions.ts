@@ -211,7 +211,9 @@ export class Sessions {
   /** Whether the main Session's last turn failed, which means the model service did not answer. */
   failed(): boolean { return this.turns.failing() }
   /** Whether a turn of the main Session ended well after the last failure, which means the model service answers again. */
-  recovered(): boolean { return this.turns.recovered() }  /** Enqueues a durable background notice for injection into the main Session; a new notice with the same `name` replaces a still-waiting notice of that `name`. */
+  recovered(): boolean { return this.turns.recovered() }
+  /** The failure the main Session's last turn reported, when it failed. */
+  lastFailure(): { code: string; message: string } | undefined { return this.turns.lastFailure() }  /** Enqueues a durable background notice for injection into the main Session; a new notice with the same `name` replaces a still-waiting notice of that `name`. */
   notify(name: string, value: Record<string, unknown>, summary: string): void { this.host.effects.enqueue('notice', name, { value, summary }) }
   /** Waits for currently runnable `notice` effects to settle and returns `'injected'` if notice `name` has reached the main Session or `'pending'` if it is still queued. */
   async delivery(name: string): Promise<'injected' | 'pending'> {

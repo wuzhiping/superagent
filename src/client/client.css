@@ -234,6 +234,7 @@ div.dt-preview-head { color: var(--dsw-alias-label-secondary); }
 .dt-state-dot[data-state='done'] { color: var(--dsw-alias-state-success-primary); }
 .dt-state-dot[data-state='warning'] { color: var(--dsw-alias-state-warn-primary); }
 .dt-state-dot[data-state='error'] { color: var(--dsw-alias-state-error-primary); }
+.dt-state-dot[data-state='running'] { color: var(--dsw-alias-state-success-primary); }
 .dt-spinner { flex: none; color: var(--dsw-alias-label-tertiary); }
 .dt-spinner g { transform-origin: center; animation: dt-spin 1.5s linear infinite; }
 .dt-spinner circle { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
@@ -273,7 +274,9 @@ div.dt-preview-head { color: var(--dsw-alias-label-secondary); }
 .dt-status-text { margin-left: auto; flex: none; font-size: 12px; font-weight: 400; color: var(--dsw-alias-label-secondary); }
 .dt-status-line .dt-status-text { margin-left: 0; }
 .dt-status-text[data-state='warning'] { color: var(--dsw-alias-state-warn-primary); }
+.dt-status-text[data-state='idle'] { color: var(--dsw-alias-state-warn-primary); }
 .dt-status-text[data-state='error'] { color: var(--dsw-alias-state-error-primary); }
+.dt-status-text[data-state='running'] { color: var(--dsw-alias-state-success-primary); }
 .dt-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .dt-lv { white-space: nowrap; }
 .dt-lv-label { color: var(--dsw-alias-label-caption); }

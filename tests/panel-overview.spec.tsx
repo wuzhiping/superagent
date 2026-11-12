@@ -10,7 +10,7 @@ it('leads the overview with the pending Tickets, then problems, the last day and
   await mount()
   expect(tab(zh['tab.overview']).getAttribute('aria-selected')).toBe('true')
   expect(all('[role="tab"]').map(tab => tab.textContent)).toEqual(['概览', '编队', '来源', '触发', '评估', '执行', '清理', '设置'])
-  expect(all('.dt-section-title').map(title => title.textContent)).toEqual(['待处理工单2', '系统问题2', '过去 24 小时详情 ›', '执行器详情 ›', '队伍详情 ›'])
+  expect(all('.dt-section-title').map(title => title.textContent)).toEqual([zh['mainSession'], '待处理工单2', '系统问题2', '过去 24 小时详情 ›', '执行器详情 ›', '队伍详情 ›'])
   expect(all('.dt-cards .dt-ticket-stage').map(item => item.textContent)).toEqual(['待回答', '待处理失败'])
   expect(all('.dt-cards .dt-att-what').map(item => item.textContent)).toEqual(['飞书 来源异常', '评估未完成：这个文案好奇怪'])
   // Actions sit below the title and Threads, apart from the stage, each with its icon.
@@ -27,6 +27,28 @@ it('leads the overview with the pending Tickets, then problems, the last day and
   const executor = [...document.querySelectorAll('.dt-section')].find(section => section.textContent?.includes(zh['term.executor']))!
   await click(executor.querySelector<HTMLElement>('.dt-more-link')!)
   expect(tab(zh['tab.execution']).getAttribute('aria-selected')).toBe('true')
+})
+
+it('shows the main Session\'s own state in green, yellow or red', async () => {
+  await mount()
+  const dot = () => document.querySelector('.dt-section .dt-dot')
+  const state = () => document.querySelector('.dt-section .dt-status-text')
+  // Running: green.
+  expect(dot()?.getAttribute('data-state')).toBe('running')
+  expect(state()?.getAttribute('data-state')).toBe('running')
+  expect(state()?.textContent).toBe(zh['mainSessionState.running'])
+  // Idle: yellow.
+  server.session = { status: 'idle', detail: 'The main Session waits for work' }
+  await remount()
+  expect(dot()?.getAttribute('data-state')).toBe('warning')
+  expect(state()?.getAttribute('data-state')).toBe('idle')
+  // Failed: red.
+  server.session = { status: 'error', detail: 'The model service failed (RATE_LIMIT): Too many requests' }
+  await remount()
+  expect(dot()?.getAttribute('data-state')).toBe('error')
+  expect(state()?.getAttribute('data-state')).toBe('error')
+  expect(state()?.textContent).toBe(zh['mainSessionState.error'])
+  expect(text()).toContain('RATE_LIMIT')
 })
 
 it('re-evaluates or dismisses an unjudged Eval from the problem list', async () => {
@@ -128,7 +150,7 @@ it('words a refused retry in the interface language by its code', async () => {
 
 it('shows the overview in English', async () => {
   await mount(en)
-  expect(all('.dt-section-title').map(title => title.textContent)).toEqual([`${en.pendingTickets}2`, `${en.problems}2`,
+  expect(all('.dt-section-title').map(title => title.textContent)).toEqual([en.mainSession, `${en.pendingTickets}2`, `${en.problems}2`,
     `${en.lastDay}${en.details}`, `${en['term.executor']}${en.details}`, `${en.postsTeam}${en.details}`])
   expect(all('.dt-cards .dt-ticket-stage').map(item => item.textContent)).toEqual([en['stage.answer'], en['stage.failed']])
   expect(all('.dt-stat-label').map(label => label.textContent)).toEqual([en.flowReceivedLabel, en.flowFilteredLabel, en.flowJudgedLabel,

@@ -52,7 +52,7 @@ function Glossary({ open, onClose }: { open: boolean; onClose: () => void }) {
         </tbody>)}
       </table>
       <p className="dt-legend-title">{t('legendTitle')}</p>
-      <ul className="dt-legend">{(['done', 'ongoing', 'warning', 'error', 'idle'] as const).map(state => <li key={state}>
+      <ul className="dt-legend">{(['done', 'ongoing', 'running', 'warning', 'error', 'idle'] as const).map(state => <li key={state}>
         <Dot state={state} /><span>{t(`legend.${state}`)}</span>
       </li>)}</ul>
       <dl className="dt-values">{Object.entries(GLOSSARY_VALUES).map(([group, values]) => <div key={group} style={{ display: 'contents' }}>

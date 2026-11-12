@@ -104,6 +104,12 @@ export class TurnOutcomes {
   /** Whether the last turn ended in failure, which means the model service did not answer. */
   failing(): boolean { return this.last !== undefined && failedTurn(this.last.outcome) }
 
+  /** The failure the last turn reported, when it failed. */
+  lastFailure(): TurnFailure | undefined {
+    const turn = this.last?.turn
+    return turn === undefined ? undefined : this.turns.get(turn)?.failure
+  }
+
   /** Whether a turn ended well after the last failure, which means the model service answers again. */
   recovered(): boolean { return this.answered }
 
