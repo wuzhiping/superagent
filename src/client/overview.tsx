@@ -79,11 +79,11 @@ export function OverviewPage() {
     {error && <LoadState error={error} loading={false} />}
     {session && <Section title={t('mainSession')}>
       {/* The main Session's own state: green while it works, yellow while it waits, red when the model service failed it. */}
-      <div className="dt-row-meta dt-status-line">
+      <div className="dt-session-state">
         <Dot state={sessionDot} />
         <span className="dt-status-text" data-state={session.status}>{t(`mainSessionState.${session.status}`)}</span>
-        {session.detail && <span className="dt-small">{session.detail}</span>}
       </div>
+      {session.status === 'error' && session.detail && <p className="dt-session-detail">{session.detail}</p>}
     </Section>}
     <Section title={t('pendingTickets')} count={data.person.length}>
       {data.person.length ? <ul className="dt-list dt-cards">{data.person.map(ticket => <TicketLine key={ticket.id} ticket={ticket} question

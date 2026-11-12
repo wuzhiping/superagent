@@ -33,22 +33,25 @@ it('shows the main Session\'s own state in green, yellow or red', async () => {
   await mount()
   const dot = () => document.querySelector('.dt-section .dt-dot')
   const state = () => document.querySelector('.dt-section .dt-status-text')
+  const detail = () => document.querySelector('.dt-session-detail')
   // Running: green.
   expect(dot()?.getAttribute('data-state')).toBe('running')
   expect(state()?.getAttribute('data-state')).toBe('running')
   expect(state()?.textContent).toBe(zh['mainSessionState.running'])
+  expect(detail()).toBeNull()
   // Idle: yellow.
   server.session = { status: 'idle', detail: 'The main Session waits for work' }
   await remount()
   expect(dot()?.getAttribute('data-state')).toBe('warning')
   expect(state()?.getAttribute('data-state')).toBe('idle')
-  // Failed: red.
+  expect(detail()).toBeNull()
+  // Failed: red, and the failure says what went wrong.
   server.session = { status: 'error', detail: 'The model service failed (RATE_LIMIT): Too many requests' }
   await remount()
   expect(dot()?.getAttribute('data-state')).toBe('error')
   expect(state()?.getAttribute('data-state')).toBe('error')
   expect(state()?.textContent).toBe(zh['mainSessionState.error'])
-  expect(text()).toContain('RATE_LIMIT')
+  expect(detail()?.textContent).toContain('RATE_LIMIT')
 })
 
 it('re-evaluates or dismisses an unjudged Eval from the problem list', async () => {
