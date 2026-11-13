@@ -56,11 +56,18 @@ export const kaneoChannel = (config: Pick<KaneoConfig, 'baseUrl' | 'projectId' |
 
 const clamp = (value: string): string => value.length <= TEXT_CHARS ? value : `${value.slice(0, TEXT_CHARS)}…`
 
-/** The text a Trigger carries: the task number and title, then the beginning of its description. */
+/** Said in place of a description the board omitted from its list: a card above 64 KiB keeps its text, the list just leaves it out. */
+const DEFERRED_DESCRIPTION = '这张卡的描述太长，看板在列表里省略了它；全文在卡片本身，工单上下文会读到。'
+
+/**
+ * The text a Trigger carries: the task number and title, then the beginning of its description. A description the board's
+ * list omitted (`descriptionDeferred`) says so, so a reader does not take a long card for one without a description.
+ */
 export function kaneoText(task: KaneoTask): string {
   const heading = task.number ? `#${task.number} ${task.title}` : task.title
   const description = clamp((task.description ?? '').trim())
-  return description ? `${heading}\n\n${description}` : heading
+  if (!description) return task.descriptionDeferred === true ? `${heading}\n\n${DEFERRED_DESCRIPTION}` : heading
+  return `${heading}\n\n${description}`
 }
 
 /**

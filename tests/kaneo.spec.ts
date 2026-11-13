@@ -8,7 +8,7 @@ import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
 import { kaneoKind, observeCards, pollRound, refreshKaneoMembers, refreshThreadPages, SOURCE } from '../src/sources/kaneo.ts'
 import { DEFAULT_PROJECT, KaneoConfigSchema, KaneoStoredConfigSchema, kaneoTaskUrl, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
-import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
+import { kaneoText, kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
 import { kaneoThreadContext } from '../src/sources/kaneo-read.ts'
 
@@ -110,6 +110,18 @@ describe('kaneo trigger', () => {
     const trigger = kaneoTrigger(anonymous, config({ actorFallback: 'board' }), '2026-11-03T00:00:00.000Z')
     expect(trigger.actor.id).toBe('board')
     expect(trigger.text.length).toBeLessThan(4100)
+  })
+
+  it('says a card\'s description was left out of the board list, instead of looking like a card without one', () => {
+    // A card above 64 KiB keeps its description; the board's list omits it and sets `descriptionDeferred`, and the full
+    // text is read from the card itself through the ticket's context.
+    const deferred = KaneoTaskSchema.parse(task('t4', { number: 7, description: null, descriptionDeferred: true }))
+    const trigger = kaneoTrigger(deferred, config(), '2026-11-03T00:00:00.000Z')
+    expect(trigger.text).toContain('#7 Task t4')
+    expect(trigger.text).toContain('看板在列表里省略了它')
+    // A card that genuinely has no description stays just its heading.
+    const empty = KaneoTaskSchema.parse(task('t5', { description: null }))
+    expect(kaneoText(empty)).toBe('#5 Task t5')
   })
 })
 
