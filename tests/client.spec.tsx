@@ -2,7 +2,7 @@
 import { act, useState, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, expect, it, vi } from 'vitest'
-import { ApiError, caller, usePoll } from '../src/client/api.ts'
+import { ApiError, caller, usePoll, type StateView } from '../src/client/api.ts'
 import { apply } from '../src/client/index.tsx'
 import { zh } from '../src/client/locales.ts'
 import { SettingsSchema } from '../src/policy.ts'
@@ -116,6 +116,43 @@ it('polls one request at a time, keeps the data while new dependencies load, and
   hidden.mockRestore()
   await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
   expect(calls).toHaveLength(5)
+  act(() => { root.unmount() })
+  vi.useRealTimers()
+})
+
+it('shows the main Session\'s state as a light at the sidebar icon\'s bottom-right corner', async () => {
+  vi.useFakeTimers()
+  const states: Record<string, NonNullable<StateView['session']>> = {
+    running: { status: 'running', detail: 'The main Session is working' },
+    idle: { status: 'idle', detail: 'The main Session waits for work' },
+    error: { status: 'error', detail: 'The model service failed (RATE_LIMIT): Too many requests' },
+  }
+  let shown: NonNullable<StateView['session']> = states.running!
+  let reachable = true
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    const path = new URL(url, 'http://127.0.0.1').pathname.replace('/orchestrator/api/', '')
+    if (!reachable) throw new Error('offline')
+    if (path === 'state') return Response.json({ masterId: 'master', session: shown, health: {}, paused: false })
+    return Response.json({ error: 'unavailable' }, { status: 503 })
+  }))
+  const { nav } = fixture([])
+  const container = document.createElement('div')
+  const root = createRoot(container)
+  await act(async () => { root.render(<nav.component size={18} t={t} />) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  const light = () => container.querySelector('[role="img"][data-state]')
+  const colour = () => light()?.getAttribute('data-state')
+  // Each state has its own light, and the light names the state rather than only colouring it.
+  for (const expected of ['running', 'idle', 'error'] as const) {
+    shown = states[expected]!
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+    expect(colour()).toBe(expected)
+    expect(light()?.getAttribute('aria-label')).toContain(zh[`mainSessionState.${expected}`])
+  }
+  // A host that cannot be reached has no state to show, so the light goes neutral instead of keeping a stale colour.
+  reachable = false
+  await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+  expect(colour()).toBe('unknown')
   act(() => { root.unmount() })
   vi.useRealTimers()
 })

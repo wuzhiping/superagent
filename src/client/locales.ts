@@ -1006,6 +1006,7 @@ const TEXT = {
   'mainSessionState.running': ['执行中', 'Running'],
   'mainSessionState.idle': ['空闲，等待工作', 'Idle, waiting for work'],
   'mainSessionState.error': ['模型服务失败', 'The model service failed'],
+  'mainSessionState.unknown': ['状态未知', 'State unknown'],
   'legend.done': ['完成、就绪或已接单', 'Done, ready or accepted'],
   'legend.running': ['执行中', 'Running'],
   'legend.ongoing': ['执行中或评估中', 'Running or evaluating'],

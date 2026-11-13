@@ -403,6 +403,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/admission-context.ts` | The bounded window an assessment starts from: the first pages of a Trigger's Thread, read through its kind, and the messages around the Trigger |
 | `src/sources/feishu-image.ts` | Reads a Feishu message's image as an attachment for the assessing Session |
 | `src/client/index.tsx` | The client plugin entry: the sidebar entry, the main panel and the page in DeepSeek Harness's Plugin Manager |
+| `src/client/sidebar.tsx` | The sidebar entry's icon: the hammer with the main Session's state as a light at its bottom-right corner (green working, amber waiting, red failed model service), styled inline because the panel's stylesheet is mounted only inside the panel |
 | `src/client/app.tsx` | The panel: header, search, glossary, tabs and the page of the current route |
 | `src/client/readiness.tsx` | The Settings readiness card: the ABC eight-item checklist (sources, project, posts, charter, duties, accept mode, executor, deployment), every row a link to the tab that fixes it |
 | `src/client/capabilities.tsx` | The Team seat's permission gate: `GET capabilities`, the confirmation that names the account and the missing right, and the rights banner |
