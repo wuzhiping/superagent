@@ -1,5 +1,5 @@
 import "./kind-B876vTuF.js";
-import "./kaneo-api-Dn0KpjUW.js";
+import "./kaneo-api-BaNgAWFU.js";
 //#region src/sources/kaneo-inbox.d.ts
 /** One event of another Source, as it is filed. */
 interface InboxEvent {

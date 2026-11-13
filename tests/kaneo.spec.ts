@@ -305,6 +305,55 @@ describe('kaneo api client', () => {
     expect(attempts).toBe(2)
     expect(waits).toHaveLength(1)
   })
+  it('waits out a spent allowance by the reset the server names, instead of burning its attempts', async () => {
+    const waits: number[] = []
+    let attempts = 0
+    const resetAt = Date.now() + 30_000
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async () => {
+      attempts += 1
+      // A spent allowance refuses everything until its window resets, and says when that is.
+      return attempts < 3
+        ? new Response('{"error":"Rate limit exceeded"}', { status: 429, headers: { 'x-ratelimit-limit': '100', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(resetAt) } })
+        : response({ ok: true })
+    }), async ms => { waits.push(ms) })
+    await expect(client.request(z.object({ ok: z.boolean() }), 'GET', '/task/x')).resolves.toEqual({ ok: true })
+    expect(attempts).toBe(3)
+    // The refusal and the reported allowance both wait for the window, not a fraction of a second: an allowance comes
+    // back on a timer, so a short retry only burns attempts.
+    expect(waits.length).toBeGreaterThanOrEqual(2)
+    expect(waits.every(ms => ms > 1_000)).toBe(true)
+  })
+
+  it('waits before a request that would spend the last of the allowance, leaving it to the other consumers', async () => {
+    const waits: number[] = []
+    const resetAt = Date.now() + 20_000
+    let calls = 0
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async () => {
+      calls += 1
+      // The first answer reports the allowance nearly spent; the next request must wait rather than be refused.
+      return calls === 1
+        ? new Response('{"ok":true}', { headers: { 'x-ratelimit-remaining': '2', 'x-ratelimit-reset': String(resetAt) } })
+        : response({ ok: true })
+    }), async ms => { waits.push(ms) })
+    await client.request(z.object({ ok: z.boolean() }), 'GET', '/task/a')
+    expect(waits).toEqual([])
+    await client.request(z.object({ ok: z.boolean() }), 'GET', '/task/b')
+    // The wait is the time left in the window, and it happens before the second call is sent.
+    expect(waits).toHaveLength(1)
+    expect(waits[0]!).toBeGreaterThan(1_000)
+    expect(calls).toBe(2)
+  })
+
+  it('reads the account once and reuses it, so a poll round does not spend an allowance on identity', async () => {
+    let calls = 0
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async () => {
+      calls += 1
+      return response({ id: 'user-1', name: 'Host', email: 'host@example.com', role: 'member' })
+    }), async () => {})
+    expect((await client.me()).id).toBe('user-1')
+    expect((await client.me()).id).toBe('user-1')
+    expect(calls).toBe(1)
+  })
   it('reads the workspace members whose e-mails a post can name', async () => {
     const calls: string[] = []
     const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {

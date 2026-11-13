@@ -64,10 +64,19 @@ declare class KaneoClient {
   private readonly fetchImpl;
   private readonly wait;
   private readonly base;
+  /** What Kanban last said about the key's allowance, so the next request can wait instead of being refused. */
+  private allowance;
+  /** The account behind the key, read once: it identifies the post and does not change while the process runs. */
+  private account?;
   constructor(config: {
     baseUrl: string;
     apiKey: string;
   }, fetchImpl?: KaneoFetch, wait?: (ms: number) => Promise<void>);
+  /**
+   * Waits while the key's allowance is nearly spent, so the request that would empty it is not sent at all. `RESERVE`
+   * requests are left for the other consumers of the same key; a reset that has already passed needs no wait.
+   */
+  private throttle;
   /** Sends one request and parses its JSON body; 429 and 5xx are retried with backoff, and a 404/403 surfaces as `KaneoError` with its status. */
   request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, options?: RequestOptions): Promise<T>;
   /** Tasks of one board column, newest position first as Kanban returns them. */
@@ -129,7 +138,7 @@ declare class KaneoClient {
   attachLabel(labelId: string, taskId: string, options?: RequestOptions): Promise<void>;
   /** The workspaces the API key can read; labels belong to one of them. */
   workspaces(options?: RequestOptions): Promise<z.infer<typeof WorkspaceSchema>[]>;
-  /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. */
+  /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. Read once and reused: it does not change while the process runs. */
   me(options?: RequestOptions): Promise<z.infer<typeof KaneoUserSchema>>;
   /** The members of a workspace: their ids are the board's assignees, their e-mails the friendly account a post names. */
   workspaceMembers(workspaceId: string, options?: RequestOptions): Promise<z.infer<typeof KaneoUserSchema>[]>;

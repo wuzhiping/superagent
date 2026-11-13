@@ -1,12 +1,24 @@
 /**
  * Minimal Kanban REST client: fetch with the `x-api-key` header, JSON responses validated by zod, a timeout, and bounded
  * retries for rate limits and transient server errors. Node's global fetch is used, so no dependency is added.
+ *
+ * Kanban limits an API key to 100 requests a minute, and every consumer sharing that key — this Source, the Kanban web
+ * panel, a person's browser, a script — spends the same allowance. A spent allowance answers 429 to *any* request, so the
+ * client keeps the allowance the server reports (`x-ratelimit-remaining`, `x-ratelimit-reset`) and waits before the
+ * request that would spend the last of it, instead of walking into the refusal.
  */
 import { z } from 'zod'
 import { apiBase } from './kaneo-config.ts'
 
 const TIMEOUT_MS = 30_000
+/** Attempts for a transient server or network failure. */
 const RETRIES = 3
+/** Attempts for a 429: a spent allowance resets on a timer, so waiting is what makes progress. */
+const RATE_RETRIES = 6
+/** Requests kept in reserve: the last few of an allowance are left to the other consumers of the same key. */
+const RESERVE = 3
+/** Longest single wait, so a hostile `Retry-After` cannot park the Source forever. */
+const MAX_WAIT_MS = 90_000
 export type KaneoFetch = (input: string, init?: RequestInit) => Promise<Response>
 
 /** A Kanban HTTP failure; `status` is the response status when the server answered. 404/403 mean the target is gone for a reply. */
@@ -67,19 +79,59 @@ const retryAfter = (headers: Headers): number | undefined => {
   const seconds = Number(value)
   return Number.isFinite(seconds) ? seconds * 1000 : undefined
 }
+/** The allowance Kanban reports with every answer: what is left, and when it is restored. */
+interface Allowance { remaining?: number; resetAt?: number }
+/**
+ * Reads the allowance from a response's headers. `x-ratelimit-reset` is an epoch in milliseconds, but a server may report
+ * seconds, so a value too small to be milliseconds is read as seconds.
+ */
+function allowanceOf(headers: Headers, now: number): Allowance {
+  const remaining = Number(headers.get('x-ratelimit-remaining'))
+  const reset = Number(headers.get('x-ratelimit-reset'))
+  return {
+    ...Number.isFinite(remaining) ? { remaining } : {},
+    ...Number.isFinite(reset) && reset > 0 ? { resetAt: reset < 1e12 ? reset * 1000 : reset } : {},
+  }
+}
+/** How long to wait for a 429, from the headers that say so, falling back to a growing wait. */
+function waitFor(headers: Headers, allowance: Allowance, attempt: number, now: number): number {
+  const named = retryAfter(headers)
+    ?? (allowance.resetAt === undefined ? undefined : Math.max(0, allowance.resetAt - now))
+  const wait = named ?? 1000 * 2 ** (attempt - 1)
+  return Math.min(MAX_WAIT_MS, Math.max(50, wait))
+}
 
 /** One Kanban server; `request` is the only method that touches the network, so tests substitute `fetch` and the retry clock. */
 export class KaneoClient {
   private readonly base: string
+  /** What Kanban last said about the key's allowance, so the next request can wait instead of being refused. */
+  private allowance: Allowance = {}
+  /** The account behind the key, read once: it identifies the post and does not change while the process runs. */
+  private account?: z.infer<typeof KaneoUserSchema>
   constructor(private readonly config: { baseUrl: string; apiKey: string }, private readonly fetchImpl: KaneoFetch = (input, init) => fetch(input, init),
     private readonly wait: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms))) {
     this.base = apiBase(config.baseUrl)
   }
 
+  /**
+   * Waits while the key's allowance is nearly spent, so the request that would empty it is not sent at all. `RESERVE`
+   * requests are left for the other consumers of the same key; a reset that has already passed needs no wait.
+   */
+  private async throttle(): Promise<void> {
+    const { remaining, resetAt } = this.allowance
+    if (remaining === undefined || remaining > RESERVE || resetAt === undefined) return
+    const waitForReset = resetAt - Date.now()
+    if (waitForReset <= 0) return
+    await this.wait(Math.min(MAX_WAIT_MS, waitForReset))
+    this.allowance = {}
+  }
+
   /** Sends one request and parses its JSON body; 429 and 5xx are retried with backoff, and a 404/403 surfaces as `KaneoError` with its status. */
   async request<T>(schema: z.ZodType<T>, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
     let lastError: unknown
-    for (let attempt = 1; attempt <= RETRIES; attempt += 1) {
+    let rateAttempt = 0
+    for (let attempt = 1; attempt <= Math.max(RETRIES, RATE_RETRIES); attempt += 1) {
+      await this.throttle()
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
       const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal
@@ -90,20 +142,28 @@ export class KaneoClient {
           ...body === undefined ? {} : { body: JSON.stringify(body) },
         })
         const text = await response.text()
+        // Every answer, a success or a refusal, reports the allowance; keeping it is what makes the next request cheap.
+        this.allowance = allowanceOf(response.headers, Date.now())
         if (response.ok) {
           const parsed: unknown = text ? JSON.parse(text) : undefined
           return schema.parse(parsed)
         }
         const error = new KaneoError(errorText(text, response.status), response.status)
-        const retryable = response.status === 429 || response.status >= 500
-        if (!retryable || attempt === RETRIES) throw error
+        if (response.status === 429) {
+          rateAttempt += 1
+          if (rateAttempt >= RATE_RETRIES) throw error
+          lastError = error
+          await this.wait(waitFor(response.headers, this.allowance, rateAttempt, Date.now()))
+          continue
+        }
+        if (response.status < 500 || attempt >= RETRIES) throw error
         lastError = error
         await this.wait(retryAfter(response.headers) ?? 500 * attempt)
       } catch (caught) {
         // A caller's abort ends the request; only network failures with retries left are retried.
         if (options.signal?.aborted) throw caught
         if (caught instanceof KaneoError) {
-          if (attempt === RETRIES) throw caught
+          if (attempt >= Math.max(RETRIES, RATE_RETRIES)) throw caught
           lastError = caught
           continue
         }
@@ -210,9 +270,10 @@ export class KaneoClient {
     return this.request(z.array(WorkspaceSchema), 'GET', '/workspace', undefined, options)
   }
 
-  /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. */
+  /** The account behind the API key; its role (`admin` or `member`) says whether it may manage the board's flow. Read once and reused: it does not change while the process runs. */
   async me(options: RequestOptions = {}): Promise<z.infer<typeof KaneoUserSchema>> {
-    return this.request(KaneoUserSchema, 'GET', '/user/me', undefined, options)
+    this.account ??= await this.request(KaneoUserSchema, 'GET', '/user/me', undefined, options)
+    return this.account
   }
 
   /** The members of a workspace: their ids are the board's assignees, their e-mails the friendly account a post names. */

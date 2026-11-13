@@ -361,6 +361,9 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
 /** Polls until aborted; setup pending and a disabled Source pause quietly, and consecutive failures surface as source health. */
 async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
   let failures = 0
+  // One client for the whole watch: it holds what Kanban reported about the key's allowance and the account behind it, so
+  // a round does not re-read its own identity and does not spend the allowance down without noticing.
+  let client: { key: string; value: KaneoClient } | undefined
   await ctx.ready
   if (!ctx.configured()) { ctx.report('kaneo', health('paused', 'setupPending')); return }
   while (!signal.aborted) {
@@ -369,7 +372,11 @@ async function watch(ctx: SourceContext, signal: AbortSignal): Promise<void> {
       // The key comes from the Source card, or from this Host's storage record (BDD storage): a Host needs no typed secret.
       const account = config?.apiKey ? config : config ? storedKaneoAccount(config.baseUrl) ?? config : undefined
       if (!account?.apiKey) ctx.report('kaneo', health('paused', 'sourceOff'))
-      else { failures = 0; await pollRound(ctx, { ...config, ...account } as KaneoConfig, new KaneoClient(account), signal) }
+      else {
+        failures = 0
+        if (client?.key !== account.apiKey) client = { key: account.apiKey, value: new KaneoClient(account) }
+        await pollRound(ctx, { ...config, ...account } as KaneoConfig, client.value, signal)
+      }
     } catch (error) {
       failures += 1
       if (!signal.aborted && failures >= (config?.failuresBeforeError ?? 1)) ctx.report('kaneo', failing(failures, error))

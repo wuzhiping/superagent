@@ -1,6 +1,6 @@
 import { _t as DEFAULT_CLAIM_COLUMN, gt as DEFAULT_BASE_URL, vt as DEFAULT_PROJECT, yt as KaneoConfig } from "./intake-ilgXfm6V.js";
 import { n as SourceKind, r as SourceContext } from "./kind-B876vTuF.js";
-import { t as KaneoClient } from "./kaneo-api-Dn0KpjUW.js";
+import { t as KaneoClient } from "./kaneo-api-BaNgAWFU.js";
 import { Context } from "@deepseek-ai/cordis";
 //#region src/sources/kaneo.d.ts
 declare const SOURCE = "kaneo";
