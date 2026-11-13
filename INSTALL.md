@@ -74,7 +74,7 @@ npx -y git+https://git.feg.cn/shawoo/superagent install --profile web --state-di
 ## 3. 安装后配置（必须做）
 
 1. **重启 / 刷新**：重启正在运行的 `dsh web`（或重启对应 profile 进程）；浏览器端刷新页面。
-2. 打开「**超级智能体**」面板 → **设置 → 来源**，逐个配置并「测试连接」：
+2. 打开「**自主进化**」面板 → **设置 → 来源**，逐个配置并「测试连接」：
    - **Kanban**：服务器 + API key（可留空：本机存储记录里有）+ 项目（从列表选）；
    - **Gitea**：服务器 + 邮箱 + 密码（或 token）+ `owner/name` 仓库（测试通过才可保存）；
    - **ntfy**：服务器 + topic + 认证方式（公开 `pub_` 选 none；私有 topic 选账号 + 密码）。
@@ -144,7 +144,7 @@ git push origin main
 | 401 / Authentication failed（仓库私有化后） | 配置 git 凭据或在 Gitea 给目标设备发 token。 |
 | `pnpm was not found` | 安装 pnpm 或使用带 pnpm 的 DSH 便携包。 |
 | DSH 报版本不兼容 | 升级 DSH，或按提示执行 `dsh plugin --profile web allow-version ... --accept-risk`（有风险）。 |
-| 面板没有「超级智能体」 | 确认安装进了正在使用的 profile、已重启；检查 `dsh.profile.bundles` 是否含 `dsh-superagent`。 |
+| 面板没有「自主进化」 | 确认安装进了正在使用的 profile、已重启；检查 `dsh.profile.bundles` 是否含 `dsh-superagent`。 |
 | 卸载 | `dsh plugin --profile web remove dsh-superagent`，并从 `cordis.patch.yml` 删除对应 `stateDir` 行。 |
 
 ---

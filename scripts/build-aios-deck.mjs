@@ -8,11 +8,11 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const shell = readFileSync('SOP.html', 'utf8')
 const startMarker = '<div class="viewport"><div class="stage" id="stage">'
 const prefixEnd = shell.indexOf(startMarker) + startMarker.length
-const prefix = shell.slice(0, prefixEnd).replace('<title>超级智能体 SOP · PM 岗位与岗位的入门指南</title>', '<title>AIOS · AI⁺ 自进化组织的组织操作系统</title>')
+const prefix = shell.slice(0, prefixEnd).replace('<title>自主进化 SOP · PM 岗位与岗位的入门指南</title>', '<title>AIOS · AI⁺ 自进化组织的组织操作系统</title>')
 const lastSection = shell.lastIndexOf('</section>')
 const suffix = shell.slice(lastSection + '</section>'.length)
   .replace("b.textContent = 'SuperAgent · SOP'", "b.textContent = 'SuperAgent · AIOS'")
-  .replace('<title>超级智能体 SOP · PM 岗位与岗位的入门指南</title>', '<title>AIOS · AI⁺ 自进化组织的组织操作系统</title>')
+  .replace('<title>自主进化 SOP · PM 岗位与岗位的入门指南</title>', '<title>AIOS · AI⁺ 自进化组织的组织操作系统</title>')
 
 const slides = []
 const slide = (kind, body) => slides.push(`\n  <!-- ${slides.length + 1} ${kind} -->\n  <section class="slide${body.sectionClass ? ` ${body.sectionClass}` : ''}">\n${body.html}\n  </section>`)

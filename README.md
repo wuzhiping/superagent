@@ -4,7 +4,7 @@
 >
 > We have adapted it for publication, so it is not identical to our internal version or the implementation described in *Exploring Super-agent Design: Towards a More Autonomous Agent System*. Some designs discussed in the article are directions for future development and are not implemented in this prototype.
 
-dsh-superagent（超级智能体）是一个主动式 DSH bundle：从 **Kanban 看板**、**Gitea 仓库**与 **ntfy 主题**读取请求，按 Policy 判定授权，把明确授权的请求变成工单，在独立 Session 中执行，并把结果写回原对话。Web 面板展示哪些工作正在等人处理。
+dsh-superagent（自主进化）是一个主动式 DSH bundle：从 **Kanban 看板**、**Gitea 仓库**与 **ntfy 主题**读取请求，按 Policy 判定授权，把明确授权的请求变成工单，在独立 Session 中执行，并把结果写回原对话。Web 面板展示哪些工作正在等人处理。
 
 ## Install from Gitea（其他设备）
 

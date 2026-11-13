@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const shell = readFileSync('SOP.html', 'utf8')
 const startMarker = '<div class="viewport"><div class="stage" id="stage">'
 const prefixEnd = shell.indexOf(startMarker) + startMarker.length
-const prefix = shell.slice(0, prefixEnd).replace('<title>超级智能体 SOP · PM 岗位与岗位的入门指南</title>',
+const prefix = shell.slice(0, prefixEnd).replace('<title>自主进化 SOP · PM 岗位与岗位的入门指南</title>',
   '<title>ABC · 快速把运行环境准备好</title>')
 const lastSection = shell.lastIndexOf('</section>')
 const suffix = shell.slice(lastSection + '</section>'.length)
@@ -67,7 +67,7 @@ slide('map', '', `
       </div>
       <div class="grid g2">
         <div class="card"><span class="bar"></span><h3>保持默认的 tab</h3><p><b>提示词</b>、<b>部署</b>：第一次配置不用动，只在自检里确认能打开。</p></div>
-        <div class="card"><span class="bar"></span><h3>入口</h3><p>DSH → 左侧 <b>超级智能体</b> → <b>Team 视角</b> → <b>设置</b>。按钮文字随界面语言（简/繁）变化，按同名找。</p></div>
+        <div class="card"><span class="bar"></span><h3>入口</h3><p>DSH → 左侧 <b>自主进化</b> → <b>Team 视角</b> → <b>设置</b>。按钮文字随界面语言（简/繁）变化，按同名找。</p></div>
       </div>
       <p class="small">九个动作：来源 ×4、项目+岗位 ×1、宪章 ×1、职责说明 ×1、评估 ×1、执行 ×1。</p>
     </div>`)

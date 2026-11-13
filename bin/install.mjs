@@ -173,7 +173,7 @@ function main() {
   if (!options.dryRun) {
     console.log('\n完成。下一步：')
     console.log('1. 重启正在运行的 dsh web（或刷新已打开的 GUI）以加载 dsh-superagent；')
-    console.log('2. 打开「超级智能体」面板 → 设置 → 来源，配置 Kaneo / Gitea / ntfy 并点「测试连接」；')
+    console.log('2. 打开「自主进化」面板 → 设置 → 来源，配置 Kaneo / Gitea / ntfy 并点「测试连接」；')
     console.log('3. 若 profile 当前是 web，重启后原有的 DSH 会话不受影响。')
   }
   return 0

@@ -40,7 +40,7 @@ const expect = (ok, label) => { if (!ok) { console.error(`MISS ${label}`); proce
     '',
     '- `--profile web` 换成目标 profile 名；要固定版本就写 `#<tag 或 commit>`。',
     '- **更新**已有的安装：先 `... plugin --profile web remove dsh-superagent`，再执行上面的 add。',
-    '- 装完重启 / 刷新 `dsh web` → 面板出现「超级智能体」→ **设置 → 来源**，三个来源 `ready` 即成功。',
+    '- 装完重启 / 刷新 `dsh web` → 面板出现「自主进化」→ **设置 → 来源**，三个来源 `ready` 即成功。',
     '- 仓库里已提交 `lib/`（构建产物），目标机器**不需要**编译；装完重启才生效。',
   ].join('\n')
   expect(text.includes(from), 'SOP.md install block')
@@ -55,7 +55,7 @@ const expect = (ok, label) => { if (!ok) { console.error(`MISS ${label}`); proce
   text = text.replace(
     '<p><b>npx @deepseek-ai/dsh-superagent@latest install</b></p>\n          <p>然后 <b>dsh-superagent status</b>，三个来源都要 ready。</p>',
     '<p><code>npx.cmd @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/superagent"</code></p>\n'
-    + '          <p>Windows 用 <b>npx.cmd</b>（PowerShell 会拦 .ps1）；macOS / Linux 用 <b>npx</b>。装完重启 / 刷新，面板出现「超级智能体」，三个来源 ready。</p>')
+    + '          <p>Windows 用 <b>npx.cmd</b>（PowerShell 会拦 .ps1）；macOS / Linux 用 <b>npx</b>。装完重启 / 刷新，面板出现「自主进化」，三个来源 ready。</p>')
   text = text.replace(
     '<p>Kanban：地址 + API key + 项目 id + 监听列（slug）。</p>',
     '<p>Kanban：地址 + API key（可留空）+ 项目（从列表选）+ 监听列（slug）。</p>')

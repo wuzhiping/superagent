@@ -26,7 +26,7 @@
 
 > 本轮新增的调研（Gitea / ntfy）只做了**只读探测**，没有发布消息、没有改任何配置。
 
-**最终状态（2026-11-03，按「完成改造和测试、完成部署」）**：Gitea / ntfy 已从只读骨架升级为**完整 Source**（Trigger、Channel 回复、Thread 上下文、策略、环境变量、部署账号校验），与 Kanban 一起以 bundle 形式**安装并运行在 dsh web profile**；三个来源 health 均 `ready`。**端到端实测通过**：Kanban 任务→工单→worker→评论回写（completed）；ntfy 消息→工单→worker→主题回复（已校验）。Gitea 的匿名/公开仓库只读轮询与读取已实测，写回/通知模式需 agent 账号 token（当前未提供，相关路径由单测覆盖）。中文界面产品名统一为「超级智能体」（技术标识 `dsh-superagent` 不变）。单测 34 项、typecheck、build 通过。详见 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
+**最终状态（2026-11-03，按「完成改造和测试、完成部署」）**：Gitea / ntfy 已从只读骨架升级为**完整 Source**（Trigger、Channel 回复、Thread 上下文、策略、环境变量、部署账号校验），与 Kanban 一起以 bundle 形式**安装并运行在 dsh web profile**；三个来源 health 均 `ready`。**端到端实测通过**：Kanban 任务→工单→worker→评论回写（completed）；ntfy 消息→工单→worker→主题回复（已校验）。Gitea 的匿名/公开仓库只读轮询与读取已实测，写回/通知模式需 agent 账号 token（当前未提供，相关路径由单测覆盖）。中文界面产品名统一为「自主进化」（技术标识 `dsh-superagent` 不变）。单测 34 项、typecheck、build 通过。详见 [`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
 
 ---
 

@@ -1,4 +1,4 @@
-# SOP · 超级智能体使用入门指南（PM 岗位 / 岗位）
+# SOP · 自主进化使用入门指南（PM 岗位 / 岗位）
 
 > 面向两类使用者：**PM 岗位**（管项目流程的 SuperAgent 实例）与**岗位**（干活的 SuperAgent 实例）。
 > 叙事背景见 [RD.md](RD.md)，用户故事见 [STORY.md](STORY.md)，实测基线见 [TDD/008-real-data-validation.md](TDD/008-real-data-validation.md)。
@@ -54,7 +54,7 @@ npx @deepseek-ai/dsh plugin --profile web add "git+https://git.feg.cn/shawoo/sup
 
 - `--profile web` 换成目标 profile 名；要固定版本就写 `#<tag 或 commit>`。
 - **更新**已有的安装：先 `... plugin --profile web remove dsh-superagent`，再执行上面的 add。
-- 装完重启 / 刷新 `dsh web` → 面板出现「超级智能体」→ **设置 → 来源**，三个来源 `ready` 即成功。
+- 装完重启 / 刷新 `dsh web` → 面板出现「自主进化」→ **设置 → 来源**，三个来源 `ready` 即成功。
 - 仓库里已提交 `lib/`（构建产物），目标机器**不需要**编译；装完重启才生效。
 
 ### 2.2 来源的账号（都在面板「设置 → 来源」里填，密码留空即不修改已保存的密钥）

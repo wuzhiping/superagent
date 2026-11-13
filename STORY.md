@@ -1,6 +1,6 @@
-# STORY — 超级智能体（SuperAgent）的一天：从三条消息流到一次交付
+# STORY — 自主进化（SuperAgent）的一天：从三条消息流到一次交付
 
-> 这是一篇**用户故事**：用一个人物、一天的工作，讲清超级智能体（SuperAgent，DSH bundle `dsh-superagent`）的使用场景与全生命周期。技术细节与配置见 [`REPORT.md`](REPORT.md)、[`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
+> 这是一篇**用户故事**：用一个人物、一天的工作，讲清自主进化（SuperAgent，DSH bundle `dsh-superagent`）的使用场景与全生命周期。技术细节与配置见 [`REPORT.md`](REPORT.md)、[`TDD/007-p2-readonly-skeleton.md`](TDD/007-p2-readonly-skeleton.md)。
 
 ---
 
@@ -10,10 +10,10 @@
   - **Kanban**（`https://pl.feg.cn`）的 **FDEP 看板** 管任务（列：待開工/to-do、ready、進行中/in-progress、審查/review…）；
   - **Gitea**（`https://git.feg.cn`）管代码、Issue 与 Pull Request；
   - **ntfy**（`https://msn.feg.cn`）的主题（topic）做即时消息与提醒。
-- **超级智能体**：一个"虚拟同事"。它没有自己的账号密码库，而是**借用**团队给的机器人身份（Kanban API key、Gitea 邮箱+密码、ntfy 主题）在三个来源上"听"和"说"。
+- **自主进化**：一个"虚拟同事"。它没有自己的账号密码库，而是**借用**团队给的机器人身份（Kanban API key、Gitea 邮箱+密码、ntfy 主题）在三个来源上"听"和"说"。
 - 小吴的诉求：**把"人把任务推进到 ready"变成"智能体自动接单、执行、回写结果"**，同时任何写入都必须有明确的授权边界。
 
-超级智能体不是聊天窗口，而是一条流水线：
+自主进化不是聊天窗口，而是一条流水线：
 
 ```
 来源(Source) → 触发(Trigger) → 线程(Thread) → 评估(Eval: Gate + 研判)
@@ -33,7 +33,7 @@
 > 描述：`/login` 在窄屏出现横向滚动条。请只改样式，不改逻辑。完成后在评论里贴一句结果。
 > 状态：to-do
 
-他把卡片拖到 **ready** 列。对他来说这只是拖了一下；对超级智能体来说，这是流水线的起点。
+他把卡片拖到 **ready** 列。对他来说这只是拖了一下；对自主进化来说，这是流水线的起点。
 
 ### 1.1 Source → Trigger
 
@@ -99,7 +99,7 @@
 > `[登录页] 窄屏下按钮换行错位`
 > 描述：`@shawoo 麻烦看一下，和 #12 可能同因。`
 
-超级智能体（Gitea Source，`repo` 模式）轮询到仓库增量：
+自主进化（Gitea Source，`repo` 模式）轮询到仓库增量：
 
 1. **Source**：`GET /repos/shawoo/PDP/issues?since=<cursor>` 与 `/issues/comments?since=<cursor>`；Cursor 只前移，不重复消费。
 2. **Trigger**：正文/评论里出现 `@<agent 登录名>` → `addressed: mention`，操作者 = Issue 作者；文本 = Issue/评论内容；Channel = 该 Issue。
@@ -125,7 +125,7 @@ ntfy Source 每 30 秒读一次主题历史：
 
 1. **Source**：`GET /<topic>/json?poll=1&since=<cursor>`；首次读取只记 baseline（或按 `bootstrap=history` 把保留期内历史当请求）。
 2. **Trigger**：`title` 的 `#name` 约定给出**发送者身份**；消息里出现 `@<agent>` → `addressed: mention`。
-3. **Gate（这个例子里是低信任边界，因为用的是公开 topic）**：`pub_` 主题**没有认证，任何人都能发**，所以 title 里的身份**可被冒用**。超级智能体不会因为"消息说自己是小吴"就当成授权：
+3. **Gate（这个例子里是低信任边界，因为用的是公开 topic）**：`pub_` 主题**没有认证，任何人都能发**，所以 title 里的身份**可被冒用**。自主进化不会因为"消息说自己是小吴"就当成授权：
    - 只有 policy `sources.ntfy.allowed` 里的发送者 + @ 了智能体 → **explicit**；
    - 否则 → inferred 或 ignore；
    - **ntfy 支持账号+密码保护**：把 topic 改为私有并配置用户/权限后，Source 填 `authMode=basic` + 账号密码（或 `bearer` token），只有持凭据者能订阅/发布。生产环境优先用这种方式，而不是公开 `pub_` topic；即便有账号密码，同一凭据持有者之间仍可能冒用 title 身份，所以还需要 allowed 名单 / HMAC。
@@ -135,7 +135,7 @@ ntfy Source 每 30 秒读一次主题历史：
 
 ## 4. 场景四：人类始终握着方向盘
 
-超级智能体的全生命周期里，人不是旁观者，而是**授权者和刹车**：
+自主进化的全生命周期里，人不是旁观者，而是**授权者和刹车**：
 
 | 人的动作 | 系统反应 |
 | --- | --- |
@@ -198,7 +198,7 @@ Kanban/Gitea/ntfy 事件
 
 ---
 
-## 6. 超级智能体"能做 / 不做"的边界（同一故事里的约束）
+## 6. 自主进化"能做 / 不做"的边界（同一故事里的约束）
 
 - **能做**：监听三类来源的增量；按策略把"明确授权"变成工单；在隔离 Session 里执行；把结果写回来源；对变更保持幂等与可审计。
 - **不做**：
