@@ -46,7 +46,6 @@ function context(cfg: GiteaConfig, options: { kaneo?: typeof kaneoAccount | unde
     deployment: { kaneo: options.kaneo } as unknown as Deployment, commands: {} as Commands, ready: Promise.resolve(), configured: () => true,
     config: <C extends Record<string, unknown>>(id: string) => (id === SOURCE ? cfg as unknown as C : id === 'kaneo' ? kaneoConfig as unknown as C : undefined),
     receive: async trigger => { triggers.push(trigger); return 'stored' as const },
-    cancel: () => {},
     atomic: work => work(),
     state: {
       get: <V,>(name: Key<V>) => state.get(name) as V | undefined,

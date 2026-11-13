@@ -1817,16 +1817,3 @@ it('keeps the Policy the main Session judges by in its prompt, after admission a
   expect(policy()).toContain('The accept mode and the rules decide proactive candidates only')
 })
 
-it('resumes a blocked ticket in its own Session when the board removes the hold label', async () => {
-  const { ticket } = await acceptedTicket()
-  const origin = runtime.store.triggers.get(ticket.origin.triggerId)!
-  await runTool(`worker-${ticket.id}`, 'orchestrator_report', { state: 'blocked', summary: 'need a decision', human_action: 'Continue?' })
-  expect(waitsForPerson(runtime.store.tickets.get(ticket.id)!)).toBe(true)
-  const lifted: Trigger = { ...origin, id: key('test', 'hold-lifted'), at: new Date().toISOString(), human: true,
-    addressed: 'direct', text: '看板已解除 blocked 标记，工单可以继续。', meta: { ...origin.meta, holdLifted: true } }
-  await receive(lifted)
-  const after = runtime.store.tickets.get(ticket.id)!
-  expect(after.id).toBe(ticket.id)
-  expect(after.assignments.map(item => item.state)).toEqual(['ended', 'running'])
-  expect(waitsForPerson(after)).toBe(false)
-})

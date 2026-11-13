@@ -4,7 +4,7 @@
 > **接单后怎么执行与回写**（工单 → 派工 → worker → 报告 → 回复）。
 > 阅读版：[FLOW.html](FLOW.html) · [FLOW.pdf](FLOW.pdf)（AIOS 同款深色主题，图已预渲染）。
 > 配套阅读：[docs/005-panel.md](docs/005-panel.md)（来源配置）、[docs/007-architecture.md](docs/007-architecture.md)（模块职责）、
-> [BLK.md](BLK.md)（阻塞/裁决/取消）、[docs/003-execution.md](docs/003-execution.md)（工单阶段表）。
+> [docs/003-execution.md](docs/003-execution.md)（工单阶段表）。
 
 ---
 
@@ -90,13 +90,13 @@ flowchart TD
   E -- 否 --> G["kaneoTrigger(task)<br/>actor=负责人/创建者<br/>threads=[kaneo:taskId]<br/>channel=卡片评论"]
   G --> H["ctx.receive(trigger) → Intake"]
   H --> I["记录 seen(task) 与线程描述"]
-  I --> J["同一轮还做：观察卡更新 / hold 标签 / 取消同步"]
+  I --> J["同一轮还做：观察卡更新"]
 ```
 
 - **`bootstrap=skip`**：第一次看到的历史卡只登记、不接单；`bootstrap=trigger` 则把已有卡也当请求。
 - **`KV.kaneo.seen`**：同一任务只产生一次 Trigger，之后靠“卡更新观察”产生增量 Input。
 - **看板观察**（`observeUpdates`）：运行中工单的卡出现**评论/标题/描述/列**变化 → 生成更新 Trigger（`human=true`，`meta.update=true`）→ 作为 Input 送给同一工单的 Session，**不新开工单**。
-- **hold 标签 / 取消列**：卡上 `holdLabel`（默认 `blocked`）存在时暂停投递、保留基线；移除标签 → `holdLifted` Trigger → 同一工单/同一 Session 恢复。卡进入 `cancelColumns` 或被删除（404）→ `ctx.cancel` → 工单 `stopped`。详见 [BLK.md](BLK.md)。
+- **看板不裁决、不取消**：卡上的状态只作为更新来源；工单要停只能由人在面板点「停止」，卡上的标签/列变化不会停工单（此前的「hold 标签恢复 / 取消列停止」设计已取消）。
 
 ### 2.2 其他来源
 
@@ -275,9 +275,9 @@ stateDiagram-v2
   Working --> PersonBlocked: report blocked
   Working --> PersonFailed: report failed
   Working --> PersonReview: report ready（follows 未全部关闭）
-  PersonBlocked --> Idle: 看板移除 hold（resume）/ 面板重试
+  PersonBlocked --> Idle: 面板重试
   PersonFailed --> Idle: 同上
-  PersonBlocked --> Stopped: 人停止 / 看板取消
+  PersonBlocked --> Stopped: 人停止
   PersonReview --> [*]: followsDone → completed / merged / closed
   Working --> [*]: ready 且无 follows → completed
   Working --> [*]: dropped
@@ -320,11 +320,7 @@ sequenceDiagram
   else blocked / 需要人
     TK->>TK: attention / stage=person
     MS->>OB: attention 消息（可选）
-    Note over KB,WK: 人写裁决并移除 blocked 标签 → holdLifted → 同一 Session 恢复
-  end
-  alt 卡被取消/删除
-    KS->>EN: syncCancellations → ctx.cancel
-    EN->>TK: stopTicket（outcome=stopped）
+    Note over KB,WK: 人在面板重试（演进到 person 的 stop）或写消息到线程；看板标签不改变工单状态
   end
 ```
 
@@ -373,7 +369,6 @@ flowchart TD
 flowchart TD
   Start["执行中 / 已排队"] --> R{"发生了什么"}
   R -- "report blocked/failed" --> P["stage=person<br/>attention 记录问题"]
-  P --> P1["看板写裁决 + 移除 hold 标签<br/>holdLifted → resume 同一 Session"]
   P --> P2["面板重试（canRetry 时）<br/>结束停滞 Assignment，开新 Assignment"]
   P --> P3["人发消息到线程<br/>清 waitsForPerson（需后续恢复入口）"]
   R -- "Input 投递失败" --> D["ticket.delivery 记录错误<br/>stage=person:delivery"]
@@ -384,11 +379,10 @@ flowchart TD
   H --> H2["已报过 waiting/ready/blocked/failed → 保留 Session<br/>只补投未送达 Input"]
   R -- "Policy 变化" --> PC["policyChanged<br/>只通知受影响的工单；inferred 可能失效"]
   R -- "处理暂停（paused）" --> PA["不启动 launch/delivery<br/>Eval 不过期；恢复后 deadline 顺延"]
-  R -- "看板取消 / 删卡" --> CN["ctx.cancel → stopTicket<br/>outcome=stopped, reason=card_canceled|card_deleted"]
 ```
 
 > **注意**：blocked/failed 工单收到人的消息后，`waitsForPerson` 变 false，但当前实现**不会**因此自动起新 Assignment；
-> 受支持的恢复入口是**看板移除 hold 标签**（`holdLifted` → `Tickets.resume`）或**面板重试**。这条边界值得后续改造成“人类消息即恢复”。
+> 受支持的恢复入口是**面板重试**。这条边界值得后续改造成“人类消息即恢复”。
 
 ### 9.1 模型服务故障：主 Session 停摆与恢复（看门狗）
 
@@ -554,7 +548,7 @@ classDiagram
 | 5 | `off/observe/auto` 只约束 **inferred**；**explicit 在任何模式都接单** | `policy.ts:55`、`app/prompts.ts:45` |
 | 6 | `ready` 结束工单的前提是它跟随的 Thread 都已关闭；否则进入 `person:review` | `core/assignments.ts`、`core/tickets.ts` `followsDone` |
 | 7 | 只有人写的消息能复活已结束工单；`cancel`/`stop` 不复活 | `core/tickets.ts` `wake` |
-| 8 | 看板观察的更新走 Input，不新开工单；hold 标签是“暂停投递 + 释放后同 Session 恢复”的开关 | `sources/kaneo.ts`、`core/tickets.ts` `addInput` |
+| 8 | 看板观察的更新走 Input，不新开工单；看板的标签与列变化只作为更新来源，不改变工单状态 | `sources/kaneo.ts`、`core/tickets.ts` `addInput` |
 | 9 | 所有对外回复走 Outbox（幂等 id + 退避重试），失败会显示在面板 | `core/replies.ts`、`app/outbox.ts` |
 | 10 | 面板的“仅观察”不是“全局暂停”；要全局停做用暂停/关来源/清监听列 | `policy.ts`、`docs/005-panel.md` |
 
@@ -574,7 +568,7 @@ classDiagram
 | 执行 | `src/executor/dsh.ts` `start` / `deliver` / `launchQueued` / `prepare` |
 | 报告与阶段 | `src/core/assignments.ts` `report`、`src/core/stage.ts` `ticketStage` |
 | 回复与回写 | `src/core/replies.ts`、`src/app/outbox.ts`、`src/sources/kaneo-channel.ts` |
-| 观察/阻塞/取消 | `src/sources/kaneo.ts` `observeCards` / `syncHoldLabels` / `syncCancellations`；[BLK.md](BLK.md) |
+| 观察/阻塞/取消 | `src/sources/kaneo.ts` `observeCards` |
 
 ---
 
@@ -679,9 +673,7 @@ flowchart LR
 | 监听列 `watchColumns` | `to-do` | `watchColumnsOf` → `pollRound` | **决定哪些卡会变成 Trigger** |
 | 必需标签 `requiredLabels` | 空 | `requiredLabelsOf` | 只接带这些标签的卡 |
 | 首次轮询 `bootstrap` | `skip` | `KV.kaneo.bootstrap` | 首次只记基线不接历史卡 |
-| 认领 / 交付 / 待裁决列 | `in-progress` / `done` / 空 | `claimColumnOf`、`doneColumnOf`、`syncBlockedColumns` | 工单开始时/交付后/等裁决时移列 |
-| 等待标签 `holdLabel` | `blocked` | `syncHoldLabels`、`observeCards`、`Tickets.addInput` | blocked 时打标；**移除标签 = 恢复同一 Session** |
-| 取消列 `cancelColumns` | `canceled,cancelled` | `syncCancellations` | 卡进入即 `ctx.cancel` → 工单 stopped |
+| 认领 / 交付列 | `in-progress` / `done` | `claimColumnOf`、`doneColumnOf` | 工单开始时/交付后移列 |
 | 观察更新 `observeUpdates` | `true` | `observeCards` | 运行中改评论/描述/列 → 作为 Input |
 | 其它来源先入库 `ingestEvents` | `true` | `kaneo-inbox.ts ingestEvents` | ntfy/Gitea 事件先建卡，而不是直接触发 |
 | 轮询间隔 / 失败阈值 / 每列上限 | `65s` / `3` / `50` | `pollRound`、watch loop | 轮询节奏、健康报错、单次读取量 |
@@ -768,7 +760,6 @@ flowchart LR
     RULES["policy.rules"]
     ALLOW["policy.sources[id].allowed"]
     WATCH["kaneo.watchColumns / requiredLabels"]
-    HOLD["kaneo.holdLabel / cancelColumns"]
     MW["executor.maxWorkers"]
     MODEL["executor.model / eval.model"]
     ENV["executor.directory / prepare / blockedCommands"]
@@ -779,7 +770,6 @@ flowchart LR
     GATE["gate：explicit / inferred / filtered"]
     OUT["assessmentOutcome：accept / would_accept"]
     TRIG["触发产生：哪些卡成为 Trigger"]
-    LIFECYCLE["hold / 恢复 / 取消"]
     SLOT["WorkerSlots 并发"]
     SESSION["Session 角色模型"]
     WORK["worker 目录 / prepare / shim"]
@@ -790,7 +780,6 @@ flowchart LR
   RULES --> OUT
   ALLOW --> GATE
   WATCH --> TRIG
-  HOLD --> LIFECYCLE
   MW --> SLOT
   MODEL --> SESSION
   ENV --> WORK
@@ -798,7 +787,6 @@ flowchart LR
   PROMPT --> SYS
   GATE --> OUT
   TRIG --> GATE
-  OUT --> LIFECYCLE
 ```
 
 ### 13.10 “UI 有，但不按你想的那样生效”清单

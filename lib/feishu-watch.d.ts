@@ -1,5 +1,5 @@
-import { I as Thread, W as Trigger } from "./intake-CMGpbNbA.js";
-import { _ as Tally, g as SourceRegistry, n as SourceKind, r as SourceContext } from "./kind-DEcPS-0m.js";
+import { I as Thread, W as Trigger } from "./intake-ilgXfm6V.js";
+import { _ as Tally, g as SourceRegistry, n as SourceKind, r as SourceContext } from "./kind-B876vTuF.js";
 import { Context } from "@deepseek-ai/cordis";
 import { z } from "zod";
 //#region src/sources/feishu-read.d.ts
@@ -110,8 +110,8 @@ declare const FeishuConfigSchema: z.ZodObject<{
   }, z.core.$strict>>>;
   directMessages: z.ZodDefault<z.ZodBoolean>;
   otherChats: z.ZodDefault<z.ZodEnum<{
-    mentions: "mentions";
     none: "none";
+    mentions: "mentions";
   }>>;
 }, z.core.$strict>;
 type FeishuConfig = z.infer<typeof FeishuConfigSchema>;

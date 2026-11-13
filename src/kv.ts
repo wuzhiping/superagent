@@ -62,8 +62,6 @@ export const KV = {
    */
   kaneo: { seen: family<{ status: string; at: string }, [task: string]>('kaneo-seen:'), bootstrap: record<boolean>('kaneo-bootstrap'),
     observe: family<string, [task: string]>('kaneo-observe:'),
-    holdSeen: family<string, [task: string]>('kaneo-hold-seen:'),
-    holdLabel: family<string, [workspace: string]>('kaneo-hold-label:'),
     cursor: family<string, [column: string]>('kaneo-cursor:') },
   /** Gitea Source: read cursors for notifications, repository-wide streams and each followed thread. */
   gitea: { notifications: record<string>('gitea-notifications-since'), repo: record<string>('gitea-repo-since'),

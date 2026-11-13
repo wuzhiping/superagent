@@ -51,12 +51,9 @@ The Sources page holds four cards, each with one job (2026-11-06):
 - **Gitea (continued)** —  and comments are the task source, and the **charter repository** (`charterRepository`) whose `README.md` (path editable as `charterPath`) is the charter's entry point and body. Publishing the charter commits to the charter file; a refused write (no push right) or an empty charter repository falls back to the Kanban project description as the mirror.
 - **Kanban** — the task source: the board's columns and cards are the requests the posts work. While a task's ticket is
   running, its card is observed (`observeUpdates`, on by default): a new comment, title, description or column change is
-  delivered as an input to that running Session instead of opening a second ticket. When a ticket waits for a person
-  (`blocked`/`failed`), its card is marked with the **hold label** (`holdLabel`, default `blocked`); the person writes the
-  decision as a comment and removes the label, and that removal resumes the **same** worker Session under the same ticket —
-  the decision is made on the board, not in the panel. A card that lands in a cancel column (`cancelColumns`, default
-  `canceled,cancelled`) or is deleted stops its ticket (`stopped`, reason `card_canceled`/`card_deleted`), so the board and
-  the SuperAgent agree on cancellation.
+  delivered as an input to that running Session instead of opening a second ticket. The board decides nothing about a
+  ticket's state: its labels and columns are only sources of updates. A ticket is stopped, retried or handed back from the
+  panel, never by a card move or a card label.
 - **ntfy** — the realtime message channel. Only messages carrying one of the **ingest tags** (`ingestTags`) become cards or requests; an empty filter takes every message. The host's own replies carry `dsh-superagent`, so a filter set to `dsh` never files them back.
 - **MinIO / S3** — the supplemental carrier for a project's data assets (documents, plans, reports, exports). It produces no tasks: it is configured and reports whether its bucket is readable.
 

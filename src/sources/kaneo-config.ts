@@ -34,9 +34,6 @@ export const KaneoConfigSchema = z.object({
   ingestEvents: z.boolean().default(true).describe('Other Sources file their events as cards in this project instead of producing requests'),
   claimColumn: z.string().trim().default(DEFAULT_CLAIM_COLUMN).describe('Column a task moves to when the post starts working on it; empty to never move'),
   doneColumn: z.string().trim().default('').describe('Column a task moves to when the post delivers its result; empty to never move'),
-  blockedColumn: z.string().trim().default('').describe('Column a task moves to while its ticket waits for a person (blocked/failed); empty to never move'),
-  holdLabel: z.string().trim().default('blocked').describe('Label a card carries while its ticket waits for a person; removing it on the board resumes the ticket'),
-  cancelColumns: z.string().trim().default('canceled,cancelled').describe('Column slugs that mean the request was canceled; a ticket whose card lands there is stopped'),
   observeUpdates: z.boolean().default(true).describe('Watch the card of a live ticket for comment, title, description or column changes and deliver them as inputs'),
   bootstrap: z.enum(['skip', 'trigger']).default('skip').describe('First poll: record tasks already in the watched columns, or treat them as requests'),
   requiredLabels: z.string().trim().default('').describe('Only tasks with one of these labels (comma separated); empty accepts every task'),
@@ -47,13 +44,27 @@ export const KaneoConfigSchema = z.object({
 }).strict()
 export type KaneoConfig = z.infer<typeof KaneoConfigSchema>
 
+/** The config fields of the removed board-hold design; a config saved before that removal still carries them. */
+const REMOVED_BOARD_FIELDS = ['holdLabel', 'blockedColumn', 'cancelColumns'] as const
+/**
+ * A stored config without the fields the removed board-hold design used. A Source whose config this version refuses is
+ * not run at all, so a config saved before the removal must still parse; only those three names are dropped, and any
+ * other unknown field is still refused.
+ */
+export function withoutRemovedBoardFields (value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const record = { ...(value as Record<string, unknown>) }
+  for (const name of REMOVED_BOARD_FIELDS) delete record[name]
+  return record
+}
+/** The stored config schema: {@link KaneoConfigSchema} after dropping the removed board-hold fields. */
+export const KaneoStoredConfigSchema = z.preprocess(withoutRemovedBoardFields, KaneoConfigSchema)
+
 const split = (value: string): string[] => value.split(',').map(item => item.trim()).filter(Boolean)
 /** Watched column slugs from the comma-separated config field. */
 export const watchColumnsOf = (config: Pick<KaneoConfig, 'watchColumns'>): string[] => split(config.watchColumns)
 /** Required task labels from the comma-separated config field. */
 export const requiredLabelsOf = (config: Pick<KaneoConfig, 'requiredLabels'>): string[] => split(config.requiredLabels)
-/** Column slugs that mean "canceled on the board" from the comma-separated config field. */
-export const cancelColumnsOf = (config: Pick<KaneoConfig, 'cancelColumns'>): string[] => split(config.cancelColumns)
 /** The claim column a task moves to when the post starts working on it; empty means the task never moves. */
 export const claimColumnOf = (config: Pick<KaneoConfig, 'claimColumn'> | undefined): string => config?.claimColumn.trim() ?? ''
 /** The column a task moves to when the post delivers its result; empty means the task never moves. */

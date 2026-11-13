@@ -6,8 +6,8 @@ import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
-import { kaneoKind, observeCards, pollRound, refreshKaneoMembers, SOURCE, syncBlockedColumns, syncCancellations, syncHoldLabels } from '../src/sources/kaneo.ts'
-import { DEFAULT_PROJECT, KaneoConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
+import { kaneoKind, observeCards, pollRound, refreshKaneoMembers, SOURCE } from '../src/sources/kaneo.ts'
+import { DEFAULT_PROJECT, KaneoConfigSchema, KaneoStoredConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
 import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
 import { kaneoThreadContext } from '../src/sources/kaneo-read.ts'
@@ -23,12 +23,11 @@ const stubFetch = (handler: (url: string, init?: RequestInit) => Response | Prom
 const task = (id: string, overrides: Record<string, unknown> = {}): Record<string, unknown> => ({ id, title: `Task ${id}`, number: Number(id.replace(/\D/g, '')) || 1,
   description: 'Do the work', status: 'ready', assigneeId: 'user-1', updatedAt: '2026-11-03T00:00:00.000Z', labels: [], ...overrides })
 
-interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[]
-  cancels: { ticketId: string; reason?: string }[] }
+interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[] }
 /** A SourceContext whose Store lives in a Map and whose only observations are recorded. */
 function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[]; deployment?: Deployment } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
   const state = new Map<string, unknown>()
-  const recorded: Recorded = { triggers: [], described: new Map(), reports: [], cancels: [] }
+  const recorded: Recorded = { triggers: [], described: new Map(), reports: [] }
   const ctx: SourceContext = {
     deployment: options.deployment ?? {} as Deployment,
     commands: {} as Commands,
@@ -36,7 +35,6 @@ function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Tri
     configured: () => true,
     config: <C extends Record<string, unknown>>(id: string) => (id === SOURCE ? cfg as unknown as C : undefined),
     receive: async trigger => { recorded.triggers.push(trigger); return 'stored' as const },
-    cancel: (ticketId, reason) => { recorded.cancels.push({ ticketId, ...reason ? { reason } : {} }) },
     atomic: work => work(),
     state: {
       get: <V,>(name: Key<V>) => state.get(name) as V | undefined,
@@ -65,6 +63,20 @@ describe('kaneo kind', () => {
     expect(kaneoKind.channel).toBeDefined()
     expect(kaneoKind.threadContext).toBeDefined()
     expect(kaneoKind.policy?.fields[0]?.key).toBe('allowed')
+  })
+
+  it('still reads a config saved before the board-hold design was removed, dropping only its fields', () => {
+    // A config saved while hold labels and cancel columns existed carries them; a Source whose config this version
+    // refuses is not run, so they are dropped instead of refused.
+    const stored = { apiKey: 'k', projectId: 'project-1', watchColumns: 'to-do', claimColumn: 'in-progress', doneColumn: 'done',
+      holdLabel: 'blocked', blockedColumn: 'blocked-column', cancelColumns: 'canceled,cancelled' }
+    const parsed = KaneoStoredConfigSchema.parse(stored)
+    expect(parsed).toMatchObject({ projectId: 'project-1', watchColumns: 'to-do', claimColumn: 'in-progress', doneColumn: 'done' })
+    expect(parsed).not.toHaveProperty('holdLabel')
+    expect(parsed).not.toHaveProperty('blockedColumn')
+    expect(parsed).not.toHaveProperty('cancelColumns')
+    // Any other unknown field is still refused, so a typo does not pass silently.
+    expect(KaneoStoredConfigSchema.safeParse({ apiKey: 'k', holdLable: 'blocked' }).success).toBe(false)
   })
 })
 
@@ -356,7 +368,7 @@ describe('kaneo card observation', () => {
   })
 })
 
-describe('kaneo blocked columns', () => {
+describe('kaneo card column changes', () => {
   const waitTrigger = (cfg: KaneoConfig): Trigger => kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
   const waitingTicket = (cfg: KaneoConfig): Ticket => {
     const origin = waitTrigger(cfg)
@@ -379,102 +391,6 @@ describe('kaneo blocked columns', () => {
     expect(recorded.triggers[0]!.text).toContain('卡片列更新：blocked → in-progress')
   })
 
-  it('moves a waiting card to the blocked column and a running one back to the claim column', async () => {
-    const cfg = config({ blockedColumn: 'blocked', claimColumn: 'in-progress' })
-    const waiting = waitingTicket(cfg)
-    const origin = waitTrigger(cfg)
-    const moves: { status?: string }[] = []
-    const client = (status: string) => new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async (_url, init) => {
-      if ((init?.method ?? 'GET') === 'PUT') { moves.push({ status: JSON.parse(String(init?.body)).status }); return response({}) }
-      return response(task('t1', { status }))
-    }))
-    const blocked = context(cfg, { tickets: [waiting], triggers: [origin] })
-    await syncBlockedColumns(blocked.ctx, cfg, client('in-progress'))
-    expect(moves.at(-1)?.status).toBe('blocked')
-    const running = { ...waiting, attention: undefined, assignments: [{ id: 'a-2', state: 'running' }] } as unknown as Ticket
-    const resumed = context(cfg, { tickets: [running], triggers: [origin] })
-    await syncBlockedColumns(resumed.ctx, cfg, client('blocked'))
-    expect(moves.at(-1)?.status).toBe('in-progress')
-  })
-})
-
-describe('kaneo hold label', () => {
-  const cfg = config()
-  const origin = (): Trigger => kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
-  const waiting = (): Ticket => ({ id: 'ticket-1', origin: { triggerId: origin().id, triggerIds: [origin().id] },
-    attention: { id: 'a1', question: 'Continue?' },
-    assignments: [{ id: 'a-1', state: 'ended', report: { state: 'blocked', summary: 'needs a decision', at: '2026-11-03T00:02:00.000Z' } }] } as unknown as Ticket)
-  const base = JSON.stringify({ title: 'Task t1', description: 'Do the work', status: 'blocked', labels: [], comments: [] })
-  it('holds the card until the label goes away, then delivers the decision as one lifting trigger', async () => {
-    const { ctx, recorded, state } = context(cfg, { tickets: [waiting()], triggers: [origin()] })
-    state.set(KV.kaneo.observe('t1'), base)
-    // Holding: a comment written while blocked stays on the card and the baseline is not advanced.
-    const held = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {
-      if (url.endsWith('/task/t1')) return response(task('t1', { labels: [{ name: 'blocked' }] }))
-      if (url.endsWith('/comment/t1')) return response([{ id: 'c1', userId: 'user-2', user: { name: 'PM' }, content: 'Approved: continue with option B' }])
-      if (url.endsWith('/user/me')) return response({ id: 'host-1' })
-      return response({})
-    }))
-    expect(await observeCards(ctx, cfg, held)).toBe(0)
-    expect(recorded.triggers).toHaveLength(0)
-    // Released: the label is gone, so the decision and the lift arrive together.
-    const released = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => {
-      if (url.endsWith('/task/t1')) return response(task('t1'))
-      if (url.endsWith('/comment/t1')) return response([{ id: 'c1', userId: 'user-2', user: { name: 'PM' }, content: 'Approved: continue with option B' }])
-      if (url.endsWith('/user/me')) return response({ id: 'host-1' })
-      return response({})
-    }))
-    expect(await observeCards(ctx, cfg, released)).toBe(1)
-    expect(recorded.triggers[0]!.meta).toMatchObject({ holdLifted: true })
-    expect(recorded.triggers[0]!.text).toContain('Approved: continue with option B')
-    expect(recorded.triggers[0]!.text).toContain('解除「blocked」标记')
-  })
-
-  it('attaches the hold label to a waiting card once and reuses the label id', async () => {
-    const calls: string[] = []
-    let labels: unknown[] = []
-    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async (url, init) => {
-      calls.push(stringOf(url))
-      if (url.endsWith('/label') && init?.method === 'POST') return response({ id: 'label-1', name: 'blocked' })
-      if (url.endsWith('/label/label-1/task')) { labels = [{ name: 'blocked' }]; return response({}) }
-      if (url.endsWith('/task/t1')) return response(task('t1', { workspaceId: 'ws-1', labels }))
-      return response({})
-    }))
-    const { ctx, state } = context(cfg, { tickets: [waiting()], triggers: [origin()] })
-    await syncHoldLabels(ctx, cfg, client)
-    expect(calls.some(call => call.includes('/label/label-1/task'))).toBe(true)
-    expect(state.get(KV.kaneo.holdLabel('ws-1'))).toBe('label-1')
-    calls.length = 0
-    await syncHoldLabels(ctx, cfg, client)
-    expect(calls.some(call => call.includes('/label'))).toBe(false)
-  })
-})
-function stringOf (value: string | URL): string { return String(value) }
-
-describe('kaneo cancellation', () => {
-  const cfg = config()
-  const origin = (): Trigger => kaneoTrigger(KaneoTaskSchema.parse(task('t1')), cfg, '2026-11-03T00:00:00.000Z')
-  const ticket = (): Ticket => ({ id: 'ticket-1', origin: { triggerId: origin().id, triggerIds: [origin().id] },
-    assignments: [{ id: 'a-1', state: 'running' }] } as unknown as Ticket)
-  it('stops the ticket when the card lands in a cancel column, and when the card is deleted', async () => {
-    const { ctx, recorded } = context(cfg, { tickets: [ticket()], triggers: [origin()] })
-    const canceled = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => url.endsWith('/task/t1')
-      ? response(task('t1', { status: 'canceled' }))
-      : response({})))
-    await syncCancellations(ctx, cfg, canceled)
-    expect(recorded.cancels).toEqual([{ ticketId: 'ticket-1', reason: 'card_canceled' }])
-    const deleted = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async () => response({ error: 'not found' }, 404)))
-    await syncCancellations(ctx, cfg, deleted)
-    expect(recorded.cancels.at(-1)).toEqual({ ticketId: 'ticket-1', reason: 'card_deleted' })
-  })
-  it('leaves a card in another column alone', async () => {
-    const { ctx, recorded } = context(cfg, { tickets: [ticket()], triggers: [origin()] })
-    const running = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, stubFetch(async url => url.endsWith('/task/t1')
-      ? response(task('t1', { status: 'in-progress' }))
-      : response({})))
-    await syncCancellations(ctx, cfg, running)
-    expect(recorded.cancels).toEqual([])
-  })
 })
 
 describe('kaneo policy roster', () => {
