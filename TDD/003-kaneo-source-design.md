@@ -152,7 +152,7 @@ KaneoConfigSchema = z.object({
 1. **`watchColumns` 是逗号分隔字符串**（面板 `text` 字段），不是数组；`watchColumnsOf()` 拆分。`requiredLabels` 同样。
 2. **去重语义是「一个任务一生一次」**：`KV.kaneo.seen:<taskId>` 永久标记；`updatedAt` 变化不会重复触发。首次轮询 `bootstrap=skip` 标记监听列已有任务（FDEP 首次 28 张全部标为已见，实测 `kaneo=ready "0 new tasks from ready"`）。
 3. **claim 时机**：Trigger `receive` 返回非 `filtered` 后立即 `PUT /task/status/{id}` 到 `claimColumn`；实测任务在 Eval 之前就进了 `in-progress`。
-4. **URL 未验证**：`kaneoTaskUrl` 产出 `…/dashboard/<workspace>/project/<projectId>?task=<taskId>`；未在 Kanban SPA 中实测该路径。`ThreadDescription.url` 与 Ticket channels 都用它，如不对只需改一个函数 + 单测。
+4. **URL（2026-11-13 已确认）**：`kaneoTaskUrl` 产出 `…/dashboard/workspace/<workspaceId>/project/<projectId>/board?taskId=<taskId>`，与 Kanban 应用自身的卡片链接一致，打开即定位到该卡。`ThreadDescription.url`、Ticket channels、`DSH_SUPERAGENT_KANEO_URL` 与环境变量都用它；单测覆盖了带/不带 workspace 两种形态。
 5. **REST 列表形状**：`GET /task/tasks/{projectId}?status=<slug>&limit=N` 返回 `{data:{columns:[…]}}`（不是任务数组），`columnTasks()` 负责摊平；不传 `status` 时列内任务为空，因此验证账号用 `board()`（不带 status，只校验 200）。
 6. **setup 账号校验走 REST**：`GET /task/tasks/{projectId}?limit=1`；401/403→`kaneoKeyRefused`，404→`kaneoProjectUnreadable`，其余→`kaneoUnreachable`。实测保存后 `restarting:true` 且重启成功。
 7. **评论身份**：Kanban 评论作者 = API key 所属用户（实测显示「吴志平」）；没有 bot 身份概念。Markers `<!-- dsh-superagent:<messageId> -->` 保证 Outbox 重试不重复评论。

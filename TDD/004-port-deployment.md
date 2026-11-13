@@ -178,6 +178,6 @@ state   → setup.problem=null, runtime=ready, kaneo=ready
 | 认领 | `claimColumn: in-progress` | Trigger 入库后立即把任务移到该列；置空可关闭。若 Eval 后来忽略，任务仍停在认领列，需人工移回。 |
 | 评论身份 | API key 的所属用户（吴志平） | 没有独立 bot 身份；如需区分，请为 agent 建专用 Kanban 账号并签发独立 API key。 |
 | 完成后的列推进 | 未实现 | 目前只做「认领」，不自动进 qa/done；可作为二期（在 poll 中观察 ticket ended 后移动）。 |
-| 任务链接 | 未验证 | 当前用 `…/dashboard/<workspace>/project/<projectId>?task=<taskId>`；Kanban SPA 路由未实测，必要时修正 `kaneoTaskUrl`。 |
+| 任务链接 | 已确认（2026-11-13） | `…/dashboard/workspace/<workspaceId>/project/<projectId>/board?taskId=<taskId>`，与 Kanban 应用自身的卡片链接一致，打开即定位到该卡。 |
 | 限流 | 60s/列 | API key 每分钟 100 次；当前 1 列 = 每轮 1 次读 + 认领写。 |
 | 日志 | 进程控制台 | DSH web 未写文件日志；排障可通过管理 API 的 `health` 与临时诊断代码定位。本次定位到的重启失败是 `tools.restrict() names unknown global tool "bash"`（Windows），已修。 |

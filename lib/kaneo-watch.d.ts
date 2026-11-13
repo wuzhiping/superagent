@@ -27,10 +27,16 @@ declare function observeCards(ctx: SourceContext, config: KaneoConfig, client: K
  * it to the claim column. The first round under `bootstrap: 'skip'` only records what is already there. A failed column is
  * reported but does not stop the others; once every column has been tried, a failure makes the round fail so health sees it.
  */
+/**
+ * Points every stored Kanban card page at the board route that opens the card, repairing the addresses of Threads
+ * described before that route was known. Idempotent and offline: it rewrites only addresses that differ, so the first
+ * round after a change repairs them and later rounds write nothing.
+ */
+declare function refreshThreadPages(ctx: SourceContext, config: KaneoConfig): void;
 declare function pollRound(ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<number>;
 declare const name = "dsh-superagent-kaneo";
 declare const inject: string[];
 /** Registers the kind and starts the polling loop; both effects unwind on unload. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, policyWorkspace, pollRound, refreshKaneoMembers };
+export { DEFAULT_BASE_URL, DEFAULT_CLAIM_COLUMN, DEFAULT_PROJECT, SOURCE, apply, inject, kaneoKind, name, observeCards, policyWorkspace, pollRound, refreshKaneoMembers, refreshThreadPages };

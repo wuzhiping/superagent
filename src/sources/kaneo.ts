@@ -263,6 +263,9 @@ export async function observeCards (ctx: SourceContext, config: KaneoConfig, cli
       if (parsed.success) task = parsed.data
     } catch { task = undefined }
     if (!task) continue
+    // Keep the stored card page current: a Thread described before the board route was known still points at the plain
+    // board, and the panel's "open original" link reads it. `describe` writes only when the address changes.
+    ctx.threads.describe(kaneoThreadKey(taskId), { url: kaneoTaskUrl(config, task) })
     // A failed comment read means the card is not fully observed this round: skip it instead of treating old comments as new.
     const comments = await taskComments(client, taskId, signal).catch(() => undefined)
     if (!comments) continue
@@ -285,6 +288,19 @@ export async function observeCards (ctx: SourceContext, config: KaneoConfig, cli
  * it to the claim column. The first round under `bootstrap: 'skip'` only records what is already there. A failed column is
  * reported but does not stop the others; once every column has been tried, a failure makes the round fail so health sees it.
  */
+/**
+ * Points every stored Kanban card page at the board route that opens the card, repairing the addresses of Threads
+ * described before that route was known. Idempotent and offline: it rewrites only addresses that differ, so the first
+ * round after a change repairs them and later rounds write nothing.
+ */
+export function refreshThreadPages (ctx: SourceContext, config: KaneoConfig): void {
+  for (const thread of ctx.threads.subscribed(SOURCE)) {
+    const url = kaneoTaskUrl(config, { id: thread.ref.id })
+    if ((thread.meta as { url?: string }).url === url) continue
+    ctx.threads.describe(thread.key, { url })
+  }
+}
+
 export async function pollRound(ctx: SourceContext, config: KaneoConfig, client: KaneoClient, signal?: AbortSignal): Promise<number> {
   const watched = watchColumnsOf(config)
   const labels = requiredLabelsOf(config)
@@ -293,6 +309,7 @@ export async function pollRound(ctx: SourceContext, config: KaneoConfig, client:
   const failures: string[] = []
   let received = 0
   let observed = 0
+  refreshThreadPages(ctx, config)
   if (config.observeUpdates) {
     try { observed = await observeCards(ctx, config, client, signal) }
     catch (error) { if (!signal?.aborted) failures.push(`observe: ${String(error)}`) }

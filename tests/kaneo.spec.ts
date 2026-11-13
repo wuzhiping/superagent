@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { key, type Ticket, type Trigger } from '../src/core/index.ts'
+import { key, type Thread, type Ticket, type Trigger } from '../src/core/index.ts'
 import { KV, type Family, type Key } from '../src/kv.ts'
 import type { Commands } from '../src/infra/commands.ts'
 import type { Deployment } from '../src/deployment.ts'
 import type { SourceContext } from '../src/sources/host.ts'
 import { KaneoClient, KaneoError, type KaneoFetch } from '../src/sources/kaneo-api.ts'
-import { kaneoKind, observeCards, pollRound, refreshKaneoMembers, SOURCE } from '../src/sources/kaneo.ts'
-import { DEFAULT_PROJECT, KaneoConfigSchema, KaneoStoredConfigSchema, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
+import { kaneoKind, observeCards, pollRound, refreshKaneoMembers, refreshThreadPages, SOURCE } from '../src/sources/kaneo.ts'
+import { DEFAULT_PROJECT, KaneoConfigSchema, KaneoStoredConfigSchema, kaneoTaskUrl, watchColumnsOf, type KaneoConfig } from '../src/sources/kaneo-config.ts'
 import { kaneoThreadKey, kaneoTrigger, kaneoTriggerId, KaneoTaskSchema } from '../src/sources/kaneo-trigger.ts'
 import { sendKaneo } from '../src/sources/kaneo-channel.ts'
 import { kaneoThreadContext } from '../src/sources/kaneo-read.ts'
@@ -25,7 +25,7 @@ const task = (id: string, overrides: Record<string, unknown> = {}): Record<strin
 
 interface Recorded { triggers: Trigger[]; described: Map<string, unknown>; reports: { entry: string; health: unknown }[] }
 /** A SourceContext whose Store lives in a Map and whose only observations are recorded. */
-function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[]; deployment?: Deployment } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
+function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Trigger[]; threads?: Thread[]; deployment?: Deployment } = {}): { ctx: SourceContext; recorded: Recorded; state: Map<string, unknown> } {
   const state = new Map<string, unknown>()
   const recorded: Recorded = { triggers: [], described: new Map(), reports: [] }
   const ctx: SourceContext = {
@@ -41,7 +41,7 @@ function context(cfg: KaneoConfig, options: { tickets?: Ticket[]; triggers?: Tri
       set: <V,>(name: Key<V>, value: V | undefined) => { if (value === undefined) state.delete(name); else state.set(name, value) },
       keys: <V,>(family: Family<V, never>) => [...state.keys()].filter(name => name.startsWith(family.prefix)) as Key<V>[],
     },
-    threads: { get: () => undefined, subscribed: () => [], describe: (name, description) => { recorded.described.set(name, description) }, patch: () => {} },
+    threads: { get: key => options.threads?.find(thread => thread.key === key), subscribed: () => options.threads ?? [], describe: (name, description) => { recorded.described.set(name, description) }, patch: () => {} },
     tickets: { get: () => undefined, open: () => options.tickets ?? [], bindThread: () => {}, threadClosed: () => {} },
     triggers: { get: id => options.triggers?.find(trigger => trigger.id === id), latest: () => undefined },
     notify: () => {},
@@ -77,6 +77,13 @@ describe('kaneo kind', () => {
     expect(parsed).not.toHaveProperty('cancelColumns')
     // Any other unknown field is still refused, so a typo does not pass silently.
     expect(KaneoStoredConfigSchema.safeParse({ apiKey: 'k', holdLable: 'blocked' }).success).toBe(false)
+  })
+
+  it('links a task to the board opened on its card, the way the app itself links to it', () => {
+    const url = kaneoTaskUrl({ baseUrl: 'https://pl.feg.cn', projectId: 'project-1', workspaceId: 'ws-1' }, { id: 'task-1' })
+    expect(url).toBe('https://pl.feg.cn/dashboard/workspace/ws-1/project/project-1/board?taskId=task-1')
+    // Without a workspace the project path stands alone, a trailing slash on the base does not double, and the ids are escaped.
+    expect(kaneoTaskUrl({ baseUrl: 'https://pl.feg.cn/', projectId: 'p', workspaceId: '' }, { id: 'a b' })).toBe(`https://pl.feg.cn/dashboard/project/p/board?taskId=${encodeURIComponent('a b')}`)
   })
 })
 
@@ -345,6 +352,19 @@ describe('kaneo card observation', () => {
     expect(await observeCards(ctx, cfg, client)).toBe(0)
   })
 
+  it('keeps the card page on the board route that opens it', async () => {
+    // A Thread described before the board route was known still pointed at the plain board; observation keeps it current
+    // so the panel's "open original" lands on the card.
+    const cfg = config({ workspaceId: 'ws-1' })
+    const { ticket, trigger } = running(cfg)
+    const { ctx, recorded } = context(cfg, { tickets: [ticket], triggers: [trigger] })
+    const client = new KaneoClient({ baseUrl: 'https://pl.feg.cn', apiKey: 'k' }, fetchFor([]))
+    await observeCards(ctx, cfg, client)
+    expect(recorded.described.get(kaneoThreadKey('t1'))).toMatchObject({
+      url: 'https://pl.feg.cn/dashboard/workspace/ws-1/project/project-1/board?taskId=t1',
+    })
+  })
+
   it('ignores comments the Host itself wrote and a title or description change still gets through', async () => {
     const cfg = config()
     const { ticket, trigger } = running(cfg)
@@ -391,6 +411,21 @@ describe('kaneo card column changes', () => {
     expect(recorded.triggers[0]!.text).toContain('卡片列更新：blocked → in-progress')
   })
 
+})
+
+describe('kaneo card pages', () => {
+  const thread = (url: string): Thread => ({ key: 'kaneo:t1', ref: { source: 'kaneo', id: 't1' }, createdAt: '2026-11-03T00:00:00.000Z',
+    subscriptions: ['ticket-1'], correlated: [], pending: [], meta: { url } }) as unknown as Thread
+  it('repairs card pages stored before the board route was known, and writes nothing once they match', () => {
+    const cfg = config({ workspaceId: 'ws-1' })
+    const { ctx, recorded } = context(cfg, { threads: [thread('https://pl.feg.cn/dashboard/workspace/ws-1/project/project-1?task=t1')] })
+    refreshThreadPages(ctx, cfg)
+    expect(recorded.described.get('kaneo:t1')).toMatchObject({ url: 'https://pl.feg.cn/dashboard/workspace/ws-1/project/project-1/board?taskId=t1' })
+    // One that already points at the card is left alone, so the repair writes nothing on later rounds.
+    const current = context(cfg, { threads: [thread('https://pl.feg.cn/dashboard/workspace/ws-1/project/project-1/board?taskId=t1')] })
+    refreshThreadPages(current.ctx, cfg)
+    expect(current.recorded.described.size).toBe(0)
+  })
 })
 
 describe('kaneo policy roster', () => {

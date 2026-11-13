@@ -65,7 +65,7 @@ Test Files  1 passed (1)
 ## 5. 未覆盖 / 二期建议
 
 1. **任务完成后列推进**：未实现（可观测 ticket `ended` 后把任务移到 `qa`）。
-2. **任务链接**：`kaneoTaskUrl` 的 SPA 路由未验证（候选 `?task=`）；若不对，改为 Kanban 实际路由并补单测。
+2. **任务链接**（2026-11-13 已解决）：改为 Kanban 实际路由 `…/project/<projectId>/board?taskId=<taskId>`，并补单测；原先「未验证的 `?task=`」候选已废弃。
 3. **评论作者身份**：当前是 API key 所属用户；建议专用 agent 账号 + 专用 key。
 4. **多项目/多列**：schema 已支持 `watchColumns` 多列与 `projectId` 配置，但未做多实例联调。
 5. **Kanban webhook**：当前为轮询；Kanban 若有变更 webhook，可替代轮询降低延迟/请求数。

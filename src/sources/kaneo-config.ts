@@ -84,9 +84,12 @@ export const apiBase = (baseUrl: string): string => {
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
 }
 
-/** The web page of a Kanban task; the Site is a single-page app, so the board page is the stable fallback until a task route is confirmed. */
+/**
+ * The web page of a Kanban task: the project board opened on that card. The board route takes the task as `taskId`,
+ * which is what the app itself links to, so opening it shows the card rather than the plain board.
+ */
 export const kaneoTaskUrl = (config: Pick<KaneoConfig, 'baseUrl' | 'projectId' | 'workspaceId'>, task: { id: string; number?: number | undefined }): string => {
   const base = config.baseUrl.replace(/\/+$/, '')
   const workspace = config.workspaceId ? `workspace/${encodeURIComponent(config.workspaceId)}/` : ''
-  return `${base}/dashboard/${workspace}project/${encodeURIComponent(config.projectId)}?task=${encodeURIComponent(task.id)}`
+  return `${base}/dashboard/${workspace}project/${encodeURIComponent(config.projectId)}/board?taskId=${encodeURIComponent(task.id)}`
 }
