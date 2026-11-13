@@ -13,11 +13,19 @@ interface Jobs {
   kill(id: string, caller: string, reason?: string): unknown
   readonly events: { subscribe(filter: { owner: string }, listener: (event: { type: string }) => void): () => void }
 }
-/** What the Executor uses of DSH's subagents: joining a worker's subagents that work, its subagents, and releasing them. */
+/**
+ * What the Executor uses of DSH's subagents: joining a worker's subagents that work, its subagents, and releasing them.
+ * DSH renamed these calls: `waitForChildren` became `waitForTreeWork`, and `listChildren` and `drainChildren` became
+ * `listDescendants` and `drainDescendants`. The bundle runs against more than one DSH version, so each call is used only
+ * when the host carries it; the older names keep the older release, which leaves the worker's Session admitting subagents.
+ */
 interface Subagents {
-  waitForChildren(parent: Agent): Promise<boolean>
-  listChildren(parentSessionId: string): Promise<readonly { id: string }[]>
-  drainChildren(parent: Agent, childIds: readonly string[]): Promise<void>
+  waitForTreeWork?(root: Agent): Promise<boolean>
+  waitForChildren?(parent: Agent): Promise<boolean>
+  listDescendants?(rootSessionId: string): Promise<readonly { id: string; kind: string }[]>
+  listChildren?(parentSessionId: string): Promise<readonly { id: string }[]>
+  drainDescendants?(parents: readonly Agent[]): Promise<void>
+  drainChildren?(parent: Agent, childIds: readonly string[]): Promise<void>
 }
 /** How long a stop waits for a killed job to end, collecting its end so the worker is not woken to hear of it. */
 const KILL_WAIT_MS = 10_000
@@ -49,10 +57,14 @@ const joins = new WeakMap<Agent, Promise<boolean>>()
 function childrenEnd(subagents: Subagents, agent: Agent): Promise<boolean> {
   let join = joins.get(agent)
   if (!join) {
-    join = subagents.waitForChildren(agent).finally(() => { joins.delete(agent) })
+    join = joinTree(subagents, agent).finally(() => { joins.delete(agent) })
     joins.set(agent, join)
   }
   return join
+}
+/** Joins the worker's subagents that work, with the call the host's DSH carries. */
+function joinTree(subagents: Subagents, agent: Agent): Promise<boolean> {
+  return subagents.waitForTreeWork ? subagents.waitForTreeWork(agent) : subagents.waitForChildren!(agent)
 }
 
 /** A job by its id and the first line of its label. */
@@ -136,20 +148,42 @@ export async function collectJob(ctx: Context, sessionId: string, job: { id: str
 /**
  * Release the worker's live subagents, for a bounded time. DSH delivers each one's end to the worker before the release
  * returns, which wakes it, so the worker's turn is cancelled after, keeping its inbox when `keepInbox`, and the stop ends
- * with that turn. Its Session still admits subagents.
+ * with that turn. On a DSH that carries the newer release, the worker's whole tree goes with it and its Session admits no
+ * new subagents until it is unloaded; the older release takes the live children alone and leaves the Session admitting.
  */
 export async function stopSubagents(ctx: Context, agent: Agent, keepInbox = false): Promise<void> {
   const subagents = subagentsOf(ctx)
   if (!subagents) return
   // The catalog lists every subagent the Session had; one that ended has no agent.
-  const live = (await subagents.listChildren(agent.id)).map(child => child.id).filter(id => ctx.agents.get(id as SessionId))
+  const live = await liveChildren(subagents, ctx, agent)
   if (!live.length) return
-  try { await until(subagents.drainChildren(agent, live), undefined, DRAIN_LIMIT_MS) }
+  try { await until(releaseTree(subagents, agent, live), undefined, DRAIN_LIMIT_MS) }
   finally {
     if (agent.status !== 'idle') cancelled.add(agent)
     agent.cancel({ kind: 'user' }, { keepInbox })
     await until(agent.whenIdle(), undefined, DRAIN_LIMIT_MS)
   }
+}
+/** The worker's subagents that still have an agent, with the listing the host's DSH carries. */
+async function liveChildren(subagents: Subagents, ctx: Context, agent: Agent): Promise<readonly string[]> {
+  const rows = subagents.listDescendants
+    ? await subagents.listDescendants(agent.id)
+    : (await subagents.listChildren!(agent.id)).map(child => ({ id: child.id, kind: 'child' }))
+  return rows.filter(row => row.kind === 'child' && ctx.agents.get(row.id as SessionId)).map(row => row.id)
+}
+/** Releases the worker's subagents, with the release the host's DSH carries. */
+function releaseTree(subagents: Subagents, agent: Agent, live: readonly string[]): Promise<void> {
+  return subagents.drainDescendants ? subagents.drainDescendants([agent]) : subagents.drainChildren!(agent, live)
+}
+
+/**
+ * What a failure says about itself, naming what an aggregate carries. `String(error)` reports only that the stop failed
+ * and the inner failure — the actual defect — is lost, which is what made one incident of 2026-11-13 read
+ * "Stopping the background work of worker-… failed" with no cause in it.
+ */
+export function failureText(error: unknown): string {
+  if (!(error instanceof AggregateError) || !error.errors.length) return String(error)
+  return `${error.message}: ${error.errors.map(inner => (inner instanceof Error ? inner.message : String(inner))).join('; ')}`
 }
 
 /**

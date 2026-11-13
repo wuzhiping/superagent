@@ -2,11 +2,22 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { expect, it, vi } from 'vitest'
-import { stopSubagents, untilQuiet } from '../src/executor/background.ts'
+import { failureText, stopSubagents, untilQuiet } from '../src/executor/background.ts'
 import { jobRegistry } from './fixtures/host.ts'
 
 /** A context with DSH's job registry and subagents, and an idle worker agent with one live subagent, `child-1`. */
-function setup(waitForChildren: (agent: Agent) => Promise<boolean>, drainChildren: () => Promise<void> = async () => {}) {
+function setup(waitForTreeWork: (agent: Agent) => Promise<boolean>, drainDescendants: () => Promise<void> = async () => {}) {
+  const jobs = jobRegistry()
+  const agent = { id: 'worker-t1', status: 'idle', whenIdle: async () => {}, inbox: { nextTurn: [], nextStep: [] }, cancel: vi.fn() } as unknown as
+    Agent & { status: string; cancel: ReturnType<typeof vi.fn> }
+  const subagents = { waitForTreeWork: vi.fn(waitForTreeWork), listDescendants: async () => [{ id: 'child-1', kind: 'child' }], drainDescendants: vi.fn(drainDescendants) }
+  const services: Record<string, unknown> = { jobs: jobs.service, subagents }
+  const ctx = { get: (name: string) => services[name], agents: { get: () => agent } } as unknown as Context
+  return { ctx, agent, jobs, subagents }
+}
+
+/** A context whose subagents carry only the older DSH calls, which named the same work differently. */
+function legacySetup(waitForChildren: (agent: Agent) => Promise<boolean>, drainChildren: () => Promise<void> = async () => {}) {
   const jobs = jobRegistry()
   const agent = { id: 'worker-t1', status: 'idle', whenIdle: async () => {}, inbox: { nextTurn: [], nextStep: [] }, cancel: vi.fn() } as unknown as
     Agent & { status: string; cancel: ReturnType<typeof vi.fn> }
@@ -59,7 +70,14 @@ it('joins a worker\'s subagents once for the looks that wait on them, as DSH can
     stop.abort()
     expect(await quiet).toBe(false)
   }
-  expect(subagents.waitForChildren).toHaveBeenCalledTimes(1)
+  expect(subagents.waitForTreeWork).toHaveBeenCalledTimes(1)
+})
+
+it('joins and releases a worker\'s subagents with the calls the older DSH carries', async () => {
+  const { ctx, agent, subagents } = legacySetup(() => new Promise(() => {}))
+  await stopSubagents(ctx, agent)
+  expect(subagents.waitForChildren).not.toHaveBeenCalled()
+  expect(subagents.drainChildren).toHaveBeenCalledWith(agent, ['child-1'])
 })
 
 it('gives up a release of subagents that does not end within 10 seconds, and cancels the turn their ends woke', async () => {
@@ -74,4 +92,15 @@ it('gives up a release of subagents that does not end within 10 seconds, and can
     await stopping
   } finally { vi.useRealTimers() }
   expect(agent.cancel).toHaveBeenCalledWith({ kind: 'user' }, { keepInbox: false })
+})
+
+it('names the failures an aggregate carries, so a health entry does not only say that the stop failed', () => {
+  // A stop collects one failure per step and throws them together; `String(error)` would report only the sentence, and the
+  // defect underneath — here the TypeError of a service call that no longer exists — would be lost from the panel.
+  const inner = [new TypeError('subagents.waitForChildren is not a function'), new Error('Killing the shell jobs of worker-t1 failed')]
+  expect(failureText(new AggregateError(inner, 'Stopping the background work of worker-t1 failed')))
+    .toBe('Stopping the background work of worker-t1 failed: subagents.waitForChildren is not a function; Killing the shell jobs of worker-t1 failed')
+  // A plain failure, and an aggregate with nothing in it, read as they are.
+  expect(failureText(new Error('boom'))).toBe('Error: boom')
+  expect(failureText(new AggregateError([], 'nothing failed'))).toBe('AggregateError: nothing failed')
 })

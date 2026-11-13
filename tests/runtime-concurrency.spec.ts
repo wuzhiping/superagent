@@ -295,14 +295,14 @@ describe('a worker whose work runs in the background', () => {
     const job = h.jobs.run(one.sessionId), child = h.subagents.spawn(one.sessionId)
     h.runtime.engine.stopTicket(one.ticket.id)
     await vi.waitFor(() => expect(h.jobs.service.kill).toHaveBeenCalledWith(job, one.sessionId, expect.any(String)))
-    await vi.waitFor(() => expect(h.subagents.service.drainChildren).toHaveBeenCalledWith(agent, [child]))
+    await vi.waitFor(() => expect(h.subagents.service.drainDescendants).toHaveBeenCalledWith([agent]))
     // The kill's end released the stop's own wait, which is how DSH tells the worker's job tools it was collected; the
     // released subagent's end, which DSH delivers before the release returns, is dropped with the turn it woke.
     expect(h.jobs.released).toBe(1)
-    await vi.waitFor(() => expect(agent.cancel.mock.invocationCallOrder.at(-1)).toBeGreaterThan(h.subagents.service.drainChildren.mock.invocationCallOrder[0]!))
+    await vi.waitFor(() => expect(agent.cancel.mock.invocationCallOrder.at(-1)).toBeGreaterThan(h.subagents.service.drainDescendants.mock.invocationCallOrder[0]!))
     expect(agent.cancel).toHaveBeenLastCalledWith({ kind: 'user' }, { keepInbox: false })
-    // Its Session still admits subagents, as when the ticket resumes.
-    expect(() => h.subagents.spawn(one.sessionId)).not.toThrow()
+    // The release drained the worker's tree, so it admits no new subagents until its Session is unloaded.
+    expect(() => h.subagents.spawn(one.sessionId)).toThrow()
   })
   it('reports waiting for the Assignment that replaced one whose idle still waited for its subagents', async () => {
     const one = await h.acceptedTicket(feishu('1', '@bot 修一'))
@@ -509,14 +509,14 @@ describe('a worker whose work runs in the background', () => {
     h.subagents.spawn(one.sessionId)
     await h.runTool(one.sessionId, 'orchestrator_report', { state: 'ready', summary: 'PR ready' }); await h.runtime.idle()
     // A person's message is on its way into the worker's Session, held there, as the worker hands off; the release is slow.
-    const session = deferred(), drain = deferred(), release = h.subagents.service.drainChildren.getMockImplementation()!
-    h.subagents.service.drainChildren.mockImplementationOnce(async (parent, ids) => { await drain.promise; await release(parent, ids) })
+    const session = deferred(), drain = deferred(), release = h.subagents.service.drainDescendants.getMockImplementation()!
+    h.subagents.service.drainDescendants.mockImplementationOnce(async (parents) => { await drain.promise; await release(parents) })
     await new Promise(resolve => setTimeout(resolve, 5))
     const held = holdSession(one.sessionId, session.promise)
     h.runtime.receive(feishu('2', '按钮再大一点', { mentions: [], root_id: 'om_1' }))
     await vi.waitFor(() => expect(held()).toBe(true))
     idle(one.sessionId)
-    await vi.waitFor(() => expect(h.subagents.service.drainChildren).toHaveBeenCalled())
+    await vi.waitFor(() => expect(h.subagents.service.drainDescendants).toHaveBeenCalled())
     session.resolve()
     await new Promise(resolve => setTimeout(resolve, 20))
     drain.resolve()
@@ -533,8 +533,8 @@ describe('a worker whose work runs in the background', () => {
     await vi.waitFor(() => expect(latestAssignment(ticket())?.report?.state).toBe('waiting'))
     // A subagent still runs, whose release is slow; one Input waits in the Session's inbox, another in the ticket.
     h.subagents.spawn(one.sessionId)
-    const gate = deferred(), drain = h.subagents.service.drainChildren.getMockImplementation()!
-    h.subagents.service.drainChildren.mockImplementationOnce(async (parent, ids) => { await gate.promise; await drain(parent, ids) })
+    const gate = deferred(), drain = h.subagents.service.drainDescendants.getMockImplementation()!
+    h.subagents.service.drainDescendants.mockImplementationOnce(async (parents) => { await gate.promise; await drain(parents) })
     agent.inbox.nextStep.push({ id: 'taken-later', role: 'user', content: [{ type: 'text', text: 'Handed over' }], source: { kind: 'user' } } as never)
     const stored = ticket()
     stored.inputs.push({ id: 'input-late', kind: 'text', text: 'One more thing', at: new Date().toISOString() })
@@ -589,10 +589,10 @@ describe('a worker whose work runs in the background', () => {
     const two = await h.acceptedTicket(feishu('5', '@bot 修二'))
     const other = h.agents.get(two.sessionId)!
     const child = h.subagents.spawn(two.sessionId)
-    h.subagents.service.drainChildren.mockImplementationOnce(async () => { h.subagents.settle(child); throw new Error('ACTIVATION_TEARDOWN_FAILED') })
+    h.subagents.service.drainDescendants.mockImplementationOnce(async () => { h.subagents.settle(child); throw new Error('ACTIVATION_TEARDOWN_FAILED') })
     h.runtime.engine.stopTicket(two.ticket.id)
-    await vi.waitFor(() => expect(h.subagents.service.drainChildren).toHaveBeenCalled())
-    await vi.waitFor(() => expect(other.cancel.mock.invocationCallOrder.at(-1)).toBeGreaterThan(h.subagents.service.drainChildren.mock.invocationCallOrder.at(-1)!))
+    await vi.waitFor(() => expect(h.subagents.service.drainDescendants).toHaveBeenCalled())
+    await vi.waitFor(() => expect(other.cancel.mock.invocationCallOrder.at(-1)).toBeGreaterThan(h.subagents.service.drainDescendants.mock.invocationCallOrder.at(-1)!))
   })
   it('stops the jobs and the turn of a worker a restart in this process left running, before its Assignment starts again', async () => {
     const one = await h.acceptedTicket(feishu('1', '@bot 修一'))
@@ -609,8 +609,8 @@ describe('a worker whose work runs in the background', () => {
     const queued = await h.acceptedTicket(feishu('5', '@bot 修二'))
     expect(h.agents.has(queued.sessionId)).toBe(false)
     // DSH cannot list the children of a Session that does not exist.
-    const list = h.subagents.service.listChildren.getMockImplementation()!
-    h.subagents.service.listChildren.mockImplementation(async (id: string) => {
+    const list = h.subagents.service.listDescendants.getMockImplementation()!
+    h.subagents.service.listDescendants.mockImplementation(async (id: string) => {
       if (id === queued.sessionId) throw new Error('SESSION_QUERY_SESSION_NOT_FOUND')
       return list(id)
     })
